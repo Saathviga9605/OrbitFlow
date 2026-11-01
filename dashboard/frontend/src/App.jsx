@@ -376,36 +376,68 @@ function Lab({ d }) {
   );
 }
 
+function Quote({ c }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div className="quote">“{c.quote}”</div>
+      <div className="note">{c.title}{c.issuer && !c.issuer.startsWith('not stated') ? ` · ${c.issuer}` : ''} · {c.section ? `${c.section} · ` : ''}p. {c.page} · <span className="tag good">verbatim verified</span></div>
+    </div>
+  );
+}
+
 function Knowledge({ d }) {
-  const k = d.kb_report; const g = d.gaps;
+  const k = d.kb_report; const g = d.gaps; const t = k.totals;
   const [q, setQ] = useState(0);
-  const s = k.sample_queries[q];
+  const [fac, setFac] = useState(3);
+  const [show, setShow] = useState(false);
+  const s = k.questions[q]; const m = k.readiness_mapping[fac];
+  const ev = k.retrieval_eval.methods;
   return (
     <section className="ch" id="knowledge"><div className="wrap">
       <p className="kicker">Chapter 7 · Knowledge and gaps</p>
-      <h2>The system can say “I found nothing”, and it does.</h2>
-      <p className="lede">The retrieval engine is real: section-aware chunks, BM25 and TF-IDF fused by rank, and citations checked verbatim. The corpus is not yet. It holds {k.ingested.length} simulated or internal documents, and {k.skipped.length} real standards and laws wait for a person to supply and verify them.</p>
+      <h2>Real documents, exact quotes, and an honest “not in this corpus”.</h2>
+      <p className="lede">The knowledge base is the ITU AI Readiness training repository at a pinned commit: {t.ingested} of {t.files} files, {t.pages.toLocaleString()} pages, {t.chunks.toLocaleString()} chunks. It covers AI policy, not spectrum law, so it can support how OrbitFlow is structured, but not the value of a power cap.</p>
+      <div className="stats" style={{ marginTop: 24 }}>
+        <div className="stat"><b>{t.evidence_eligible}</b><span>documents that can count as evidence; summaries and sample files cannot</span></div>
+        <div className="stat"><b>{t.failed}</b><span>PDFs failed both parsers, and are reported rather than replaced</span></div>
+        <div className="stat"><b>{k.citation_verification.checked - k.citation_verification.failed}/{k.citation_verification.checked}</b><span>citations found verbatim in their source chunk</span></div>
+        <div className="stat"><b>{pct(ev.bm25.section_recall_at_5, 0)}</b><span>section recall@5 with BM25 on {ev.bm25.n} developer-written queries</span></div>
+      </div>
       <div className="grid g2">
-        <div className="panel"><h4>Retrieval, recorded from the engine</h4>
-          <div className="chips" style={{ margin: '8px 0 12px' }}>{k.sample_queries.map((x, i) => <button key={x.query} className={`chip ${q === i ? 'on' : ''}`} onClick={() => setQ(i)}>{x.query}</button>)}</div>
-          {s.results.map((p) => <div key={p.quote} style={{ marginBottom: 10 }}><div className="quote">“{p.quote}”</div><div className="note">{p.doc_id}, {p.section} · cosine <span className="mono">{p.cosine}</span> · RRF <span className="mono">{p.score}</span></div></div>)}
-          {!s.results.length && <p>No passage retrieved.</p>}
-          <p className="note">Retrieved is not the same as evidence: a rule also needs a minimum similarity, and the exemption rule requires an explicit exemption term.</p>
+        <div className="panel"><h4>Ask the corpus</h4><p className="sub">Recorded answers. These are extractive: quotations only, with no generated text.</p>
+          <div className="chips" style={{ margin: '8px 0 12px' }}>{k.questions.map((x, i) => <button key={x.query} className={`chip ${q === i ? 'on' : ''}`} onClick={() => setQ(i)}>{x.query}</button>)}</div>
+          {s.supported ? s.quotes.map((c) => <Quote key={c.chunk_id} c={c} />) : <p className="insight" style={{ borderColor: 'var(--warning)', fontSize: 18 }}>{s.statement}</p>}
         </div>
-        <div className="panel"><h4>Rule evidence</h4>
-          <div className="scroll"><table><thead><tr><th>Rule</th><th>Evidence</th><th>Number comes from</th></tr></thead><tbody>
-            {k.rules.map((r) => <tr key={r.rule_id}><td>{r.title}</td><td><span className={`tag ${r.evidence_status === 'FOUND' ? 'good' : 'warning'}`}>{r.evidence_status === 'FOUND' ? 'found' : 'none found'}</span></td><td className="note">{r.parameter_source.replace('_', ' ')}</td></tr>)}
-          </tbody></table></div>
-          <h4 style={{ marginTop: 18 }}>Gap candidate · {g.candidates[0].id} <span className="tag warning" style={{ marginLeft: 4 }}>not human-verified</span></h4>
-          <p style={{ margin: '6px 0', fontSize: 15 }}>{g.candidates[0].statement}</p>
-          <p className="note">{g.candidates[0].limitation}</p>
+        <div className="panel"><h4>ITU AI Readiness factors</h4><p className="sub">The factor names and first quote are the framework’s. Interpretation and contribution are ours. This does not show that OrbitFlow establishes readiness or compliance.</p>
+          <div className="chips" style={{ margin: '8px 0 12px' }}>{k.readiness_mapping.map((x, i) => <button key={x.factor} className={`chip ${fac === i ? 'on' : ''}`} onClick={() => setFac(i)}>{x.factor}</button>)}</div>
+          <p className="note" style={{ margin: 0 }}>Stated in the source</p><Quote c={m.stated_in_framework} /><Quote c={m.supporting_evidence} />
+          <p style={{ fontSize: 14, margin: '6px 0' }}><b>Our interpretation:</b> {m.interpretation}</p>
+          <p style={{ fontSize: 14, margin: '6px 0' }}><b>OrbitFlow’s contribution:</b> {m.orbitflow_contribution}</p>
+          <span className="tag">mapping confidence: {m.confidence}</span>
         </div>
       </div>
-      <div className="panel" style={{ marginTop: 12 }}><h4>Corpus inventory</h4>
-        <div className="scroll"><table><thead><tr><th>Document</th><th>Status</th><th className="n">Chunks</th></tr></thead><tbody>
-          {k.ingested.map((x) => <tr key={x.doc_id}><td>{x.title}</td><td><span className="tag">{x.status}</span></td><td className="n">{x.chunks}</td></tr>)}
-          {k.skipped.map((x) => <tr key={x.doc_id} style={{ color: 'var(--ink-3)' }}><td>{x.title}</td><td><span className="tag warning">not supplied</span></td><td className="n">0</td></tr>)}
+      <div className="grid g2" style={{ marginTop: 12 }}>
+        <div className="panel"><h4>Rule evidence</h4><p className="sub">Rules stay enforced as operating constraints when the corpus is silent.</p>
+          <div className="scroll"><table><thead><tr><th>Rule</th><th>Evidence</th></tr></thead><tbody>
+            {k.rules.map((r) => <tr key={r.rule_id}><td style={{ whiteSpace: 'normal' }}>{r.title}</td><td><span className={`tag ${r.evidence_status === 'FOUND' ? 'good' : 'warning'}`}>{r.evidence_status === 'FOUND' ? 'found' : 'none found'}</span></td></tr>)}
+          </tbody></table></div>
+        </div>
+        <div className="panel"><h4>Gap candidates <span className="tag warning" style={{ marginLeft: 4 }}>not human-verified</span></h4><p className="sub">{g.header}</p>
+          {g.candidates.map((c) => <p key={c.id} style={{ fontSize: 14, margin: '8px 0' }}><span className="mono" style={{ color: 'var(--ink-3)' }}>{c.id}</span> <b>{c.title}.</b> {c.consequence}</p>)}
+        </div>
+      </div>
+      <div className="panel" style={{ marginTop: 12 }}>
+        <h4>Retrieval methods compared</h4><p className="sub">{k.retrieval_eval.note}</p>
+        <div className="scroll"><table><thead><tr><th>Method</th><th className="n">Section recall@5</th><th className="n">Doc recall@5</th><th className="n">Precision@5</th><th className="n">MRR</th></tr></thead><tbody>
+          {Object.entries(ev).map(([n, r]) => <tr key={n} className={n === 'bm25' ? 'best' : ''}><td>{n}{n === 'bm25' ? ' (default)' : ''}</td><td className="n">{pct(r.section_recall_at_5, 0)}</td><td className="n">{pct(r.doc_recall_at_5, 0)}</td><td className="n">{pct(r.precision_at_5, 0)}</td><td className="n">{r.mrr.toFixed(2)}</td></tr>)}
         </tbody></table></div>
+      </div>
+      <div className="panel" style={{ marginTop: 12 }}>
+        <button className="chip" onClick={() => setShow(!show)}>{show ? 'Hide' : 'Show'} all {t.files} documents</button>
+        <p className="note" style={{ margin: '8px 0 0' }}>Source: {k.source.repository} at {k.source.commit.slice(0, 10)}. {k.source.licence}. Issuer and year are inferred where marked in the manifest.</p>
+        {show && <div className="scroll" style={{ marginTop: 8 }}><table><thead><tr><th>Document</th><th>Issuer</th><th>Status</th><th className="n">Pages</th><th className="n">Chunks</th></tr></thead><tbody>
+          {k.documents.map((x) => <tr key={x.doc_id}><td style={{ whiteSpace: 'normal' }}>{x.title}</td><td style={{ color: 'var(--ink-2)' }}>{x.issuer}</td><td><span className={`tag ${x.chunks === 0 ? 'critical' : x.evidence_eligible ? 'good' : 'warning'}`}>{x.chunks === 0 ? 'failed' : x.evidence_eligible ? 'evidence' : x.role === 'primary' ? 'duplicate' : 'not evidence'}</span></td><td className="n">{x.pages}</td><td className="n">{x.chunks}</td></tr>)}
+        </tbody></table></div>}
       </div>
     </div></section>
   );

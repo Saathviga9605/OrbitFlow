@@ -342,3 +342,8 @@ secrets/
 !dashboard/frontend/public
 !dashboard/frontend/public/**
 !package-lock.json
+
+# Source PDFs are fetched by scripts/fetch_kb.py, not redistributed
+rag/knowledge_base/_source/
+rag/index/dense_bge.npy
+results/_*.log

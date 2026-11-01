@@ -1,9 +1,14 @@
 numpy>=1.26
 pandas>=2.1
 pyyaml>=6.0
+scipy>=1.11
 scikit-learn>=1.4
 torch>=2.2
 fastapi>=0.110.0
 uvicorn>=0.27.0
+httpx>=0.27
 pytest>=8.0
-pypdf>=4.0  # only used once real PDFs are added to the knowledge base
+pypdfium2>=4.30  # knowledge-base ingestion
+pypdf>=4.0
+python-docx>=1.1
+sentence-transformers>=3.0  # optional: only for the dense retrieval comparison

@@ -19,15 +19,15 @@ import torch
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from agents.supervisor import PolicyAgent, Supervisor  # noqa: E402
+from agents.supervisor import Supervisor  # noqa: E402
 from audit.logger import AuditLogger, _clean  # noqa: E402
 from bridge.baselines import LoggedPolicy, ReactiveGreedy, StaticRoundRobin  # noqa: E402
 from bridge.evaluate import run_episode  # noqa: E402
 from bridge.policy import BridgePolicy, HeuristicPredictive  # noqa: E402
-from rag.retriever import KnowledgeBase, best_quote  # noqa: E402
+from rag.retriever import KnowledgeBase  # noqa: E402
 from scenarios.flood_relief import build  # noqa: E402
 from traffic.dataset import load_trace  # noqa: E402
-from traffic.forecaster import Forecaster  # noqa: E402
+from traffic.forecaster import Forecaster, prepare_forecast  # noqa: E402
 from traffic.generator import make_trace  # noqa: E402
 from traffic.splits import create_splits  # noqa: E402
 from utils.config import REAL_TRACE, load_config  # noqa: E402
@@ -102,7 +102,7 @@ def kpi_table(cfg, fc, base, fast):
 
 def flood_run(cfg, fc, base, kb, make_policy, agents_on, seed=42, overrides=None):
     trace, feed = build(base, overrides, seed)
-    trace.forecast = fc.predict_trace(trace, 1)
+    trace.forecast = prepare_forecast(fc, trace, cfg)
     return trace, feed, Supervisor(cfg, make_policy(), feed, kb, agents_on=agents_on).run(trace)
 
 
@@ -203,7 +203,7 @@ def main(fast=False):
     for cap in caps[:2] if fast else caps:
         for fade in fades[:2] if fast else fades:
             ov = {"border_cap_w": cap, "fade_db": fade}
-            row = {"cap": cap, "fade": fade}
+            row = {"cap": cap, "fade": fade, "experiment_id": f"grid:cap{cap:g}:fade{fade:g}:seed42", "config": {"border_cap_w": cap, "fade_db": fade, "seed": 42, "scenario": "flood_relief"}}
             for n, (mk, on) in (("OrbitFlow", (bridge, True)), ("BRIDGE alone", (bridge, False))):
                 tr, _, r = flood_run(cfg, fc, base, kb, mk, on, overrides=ov)
                 H = r["history"]
@@ -213,33 +213,12 @@ def main(fast=False):
             cells.append(row)
     json.dump({"caps": caps, "fades": fades, "cells": cells}, open(os.path.join(RESULTS, "whatif_grid.json"), "w"), separators=(",", ":"))
 
-    # Knowledge base report and gap candidates; coverage is only asserted from retrieved evidence
-    pa = PolicyAgent(feed, kb)
-    verdicts = []
-    for rid, rule in pa.rules.items():
-        st, pas = pa.evidence(rid)
-        verdicts.append({"rule_id": rid, "title": rule["title"], "evidence_status": st, "passages": pas,
-                         "parameter_source": rule["parameter_source"], "queries": rule["queries"]})
-    sample = []
-    for q in ["emergency traffic priority during a disaster", "cross-border beam power limit", "who reviews automated decisions?", "does an emergency waive the power cap?"]:
-        sample.append({"query": q, "results": [{"doc_id": p.doc_id, "section": p.section, "score": round(p.score, 4), "cosine": round(p.cosine, 3), "quote": best_quote(p, q)} for p in kb.retrieve(q, 3)]})
-    kb_report = {"ingested": kb.ingested, "skipped": kb.skipped, "chunks": len(kb.passages), "rules": verdicts, "sample_queries": sample}
-    json.dump(kb_report, open(os.path.join(RESULTS, "kb_report.json"), "w"), indent=1)
-    real_docs = [d for d in kb.ingested if d["status"] == "source"]
-    gaps = {"human_verified": False, "real_sources_indexed": len(real_docs),
-            "header": "Machine-generated candidates. Verify each against a source document.",
-            "candidates": [{"id": "GAP-01", "title": "No retrievable emergency exemption from a cross-border power cap",
-                            "domain": "NTN radio resource management", "trigger": "Slot 50 conflict: law and emergency service disagree",
-                            "statement": "The indexed corpus has no passage allowing emergency traffic to exceed a cross-border beam power cap, so the controller keeps the cap and escalates.",
-                            "absence_evidence": {"queries": pa.rules["R5_emergency_exemption"]["queries"], "must_contain": pa.rules["R5_emergency_exemption"]["must_contain"]},
-                            "limitation": f"{len(real_docs)} real legal or standards documents are indexed, so this shows a gap in the corpus, not yet in the law.",
-                            "human_verified": False}]}
-    json.dump(gaps, open(os.path.join(RESULTS, "gaps.json"), "w"), indent=1)
-
     web = os.path.join(ROOT, "dashboard", "frontend", "public", "data")
     os.makedirs(web, exist_ok=True)
-    for f in ["kpi_table", "flood_mc", "whatif_grid", "flood_replay", "kb_report", "gaps", "predictor_metrics", "bridge_training", "bridge_training_noforecast"]:
+    for f in ["kpi_table", "flood_mc", "whatif_grid", "flood_replay", "kb_report", "gaps", "predictor_metrics", "multirun", "ppo_summary", "retrieval_eval"]:
         shutil.copy(os.path.join(RESULTS, f + ".json"), web)
+    for f in os.listdir(os.path.join(RESULTS, "studies")):
+        shutil.copy(os.path.join(RESULTS, "studies", f), os.path.join(web, "study_" + f))
     print("done", flush=True)
 
 
