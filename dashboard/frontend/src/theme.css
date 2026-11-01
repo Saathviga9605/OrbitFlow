@@ -193,3 +193,46 @@ svg polygon { transition: fill .25s linear; }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .reveal:not(.in) path.draw { stroke-dashoffset: 0; } *, *::before, *::after { animation: none !important; } }
 
 .stat b span, .waffle-num b span { font: inherit; color: inherit; display: inline; margin: 0; max-width: none; }
+
+/* ---------- satellite animations ---------- */
+.scrollbar i { position: absolute; right: -6px; top: -2px; width: 12px; height: 6px; background: var(--ink); border-radius: 2px; box-shadow: -8px 0 0 -1px var(--bridge), 8px 0 0 -1px var(--bridge); }
+.cone { fill: rgba(95,227,192,.09); animation: conein .3s both; }
+@keyframes conein { from { opacity: 0; } to { opacity: 1; } }
+.packets { stroke: var(--beam); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 3 7; animation: packets .5s linear infinite; }
+@keyframes packets { to { stroke-dashoffset: -10; } }
+.minisat { animation: bob 3.5s ease-in-out infinite; transform-box: fill-box; }
+@keyframes bob { 50% { translate: 0 -2.5px; } }
+.ripple { fill: none; stroke: var(--critical); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: ripple 1.5s ease-out infinite; pointer-events: none; }
+@keyframes ripple { from { transform: scale(.5); opacity: .9; } to { transform: scale(2.4); opacity: 0; } }
+.rain { stroke: #9cc7e8; stroke-width: 1.4; stroke-linecap: round; animation: rain .5s linear infinite; pointer-events: none; }
+@keyframes rain { from { translate: 2px -10px; opacity: 0; } 30% { opacity: .85; } to { translate: -3px 16px; opacity: 0; } }
+.game { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 28px; align-items: center; }
+.gamebar { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; font-size: 13px; }
+.gamebar > div { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.gamebar i { display: block; height: 100%; background: var(--beam); transition: width .2s linear; }
+.gamestart { display: flex; flex-direction: column; gap: 18px; align-items: flex-start; margin-top: 22px; }
+.gamestart .cue, .result .cue { border: 0; animation: glow 2.6s ease-in-out infinite; }
+.vs { display: grid; grid-template-columns: 1fr 90px 90px; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.vs b { text-align: right; font-weight: 500; }
+.result { margin-top: 16px; animation: rise .5s both; }
+.flowline { position: relative; height: 12px; margin-top: 8px; }
+.flowtrack { position: absolute; left: 0; right: 0; top: 5px; height: 2px; background: var(--line-strong); }
+.flowfill { position: absolute; left: 0; top: 5px; height: 2px; background: var(--beam); transition: width .6s ease; }
+.flowline i { position: absolute; top: 1px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--beam); box-shadow: 0 0 12px var(--beam); transition: left .6s ease; }
+.labscene { width: 100%; display: block; background: linear-gradient(#0b0e11, #10161b); border-radius: 3px; }
+.livehead { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+.livehead h4 { margin: 0; }
+.pulse { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: var(--good); animation: pulse 1.6s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(95,208,138,.7); } 100% { box-shadow: 0 0 0 9px rgba(95,208,138,0); } }
+.seed, .askform input { background: var(--bg); border: 1px solid var(--line-strong); border-radius: 3px; padding: 8px 10px; }
+.seed { width: 86px; margin-left: 6px; }
+.askform { display: flex; gap: 8px; }
+.askform input { flex: 1; min-width: 0; font-size: 15px; }
+button.cue:disabled { opacity: .45; cursor: not-allowed; animation: none; }
+button.cue { border: 0; cursor: pointer; }
+.scanbar { height: 3px; margin-top: 10px; overflow: hidden; background: var(--line); }
+.scanbar i { display: block; width: 30%; height: 100%; background: var(--beam); animation: scan 1s ease-in-out infinite alternate; }
+@keyframes scan { to { translate: 240% 0; } }
+.docs i.dim { opacity: .18; }
+.docs i.hit { opacity: 1; box-shadow: 0 0 14px var(--beam); transform: scale(1.25); }
+@media (max-width: 860px) { .game { grid-template-columns: minmax(0, 1fr); } }

@@ -204,3 +204,44 @@ def validate_citations(kb: KnowledgeBase, citations: list[dict]) -> list[dict]:
         if text is None or not verify_quote(c.get("quote", ""), text):
             bad.append(c)
     return bad
+
+
+STOP = set("a an and any are as at be best can could did do does for from give good has have how i if in into is it its me my of on or our please should tell that the their them there these this to us was we what when where which who why will with would you your".split())
+
+
+def _stem(w: str) -> str:
+    for suf in ("ies", "es", "s", "ing", "ed"):
+        if w.endswith(suf) and len(w) - len(suf) >= 4:
+            return w[: -len(suf)]
+    return w
+
+
+def _terms(text: str) -> set:
+    return {_stem(w) for w in TOKEN.findall(text.lower()) if w not in STOP and len(w) > 1}
+
+
+def ask(kb: KnowledgeBase, query: str, k: int = 3, min_passage: float = 0.67, min_sentence: float = 0.67) -> GroundedAnswer:
+    """Free-text question. A quote must share most of the question's content words, or the answer is 'not supported'."""
+    want = _terms(query)
+    if not want:
+        return GroundedAnswer(query, False, "The knowledge base does not support this claim: the question has no searchable terms.")
+    scored = []
+    for p in kb.retrieve(query, 150, eligible_only=True):
+        if len(want & _terms(p.text)) / len(want) < min_passage:
+            continue
+        for s in re.split(r"(?<=[.!?;])\s+", p.text):
+            cover = len(want & _terms(s)) / len(want)
+            if cover >= min_sentence and 6 <= len(s.split()) <= 40:
+                scored.append((cover, p.score, p, s))
+    scored.sort(key=lambda x: (-x[0], -x[1]))
+    quotes, seen = [], set()
+    for _, _, p, s in scored:
+        q = " ".join(s.split())
+        if q not in seen and verify_quote(q, p.text):
+            seen.add(q)
+            quotes.append(cite(p, q))
+        if len(quotes) == k:
+            break
+    if not quotes:
+        return GroundedAnswer(query, False, "The knowledge base does not support an answer to this: no passage in the documents addresses the question closely enough.")
+    return GroundedAnswer(query, True, f"{len(quotes)} verified quotation(s) follow.", quotes)

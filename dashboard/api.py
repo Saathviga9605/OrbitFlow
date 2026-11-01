@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from agents.supervisor import Supervisor
 from bridge.policy import BridgePolicy
-from rag.retriever import KnowledgeBase, answer
+from rag.retriever import KnowledgeBase, ask as ask_kb
 from scenarios.flood_relief import build
 from traffic.dataset import load_trace
 from traffic.forecaster import Forecaster, prepare_forecast
@@ -75,7 +75,7 @@ def ask(q: str):
     """Extractive, source-grounded answer from the real corpus. Quotations only; says so when unsupported."""
     if not q.strip() or len(q) > 500:
         raise HTTPException(422, "q must be 1 to 500 characters")
-    a = answer(_load()["kb"], q)
+    a = ask_kb(_load()["kb"], q)
     return {"query": a.query, "supported": a.supported, "statement": a.statement, "quotes": a.quotes}
 
 

@@ -21,7 +21,7 @@ export function ScrollBar() {
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);
-  return <div className="scrollbar" ref={ref} />;
+  return <div className="scrollbar" ref={ref}><i /></div>;
 }
 
 /** Counts up to `to` the first time it becomes visible. */
@@ -123,7 +123,7 @@ export function Dial({ value, max, label, display, color = 'var(--beam)' }) {
 }
 
 /** One dot per document, grouped by category. */
-export function DocMap({ docs }) {
+export function DocMap({ docs, active = [] }) {
   const [h, setH] = useState(null);
   const groups = [...new Set(docs.map((d) => d.category))];
   const NAME = { AI_Strategies: 'AI strategies and policy', AI_Use_Cases: 'Standards and use cases', Regulatory_Supplement: 'Satellite regulation' };
@@ -131,10 +131,47 @@ export function DocMap({ docs }) {
     <div className="docmap">
       {groups.map((g) => (
         <div key={g}><h5>{NAME[g] || g}</h5><div className="docs">
-          {docs.filter((d) => d.category === g).map((d, i) => { const s = 8 + Math.sqrt(d.pages) * 1.5; return <i key={d.doc_id} style={{ width: s, height: s, animationDelay: `${i * 18}ms` }} onPointerEnter={() => setH(d)} onPointerLeave={() => setH(null)} />; })}
+          {docs.filter((d) => d.category === g).map((d, i) => { const s = 8 + Math.sqrt(d.pages) * 1.5; return <i key={d.doc_id} className={active.length ? (active.includes(d.doc_id) ? 'hit' : 'dim') : ''} style={{ width: s, height: s, animationDelay: `${i * 18}ms` }} onPointerEnter={() => setH(d)} onPointerLeave={() => setH(null)} />; })}
         </div></div>
       ))}
       <p className="note" style={{ minHeight: 22, margin: '10px 0 0' }}>{h ? `${h.title} · ${h.pages} pages` : 'Hover a dot. Bigger means more pages.'}</p>
     </div>
   );
+}
+
+
+/** Physical picture of the lab sliders: beam width follows the limit, rain follows the fade. */
+export function LabScene({ cap, fade, served }) {
+  const open = cap >= 100 ? 1 : Math.min(1, Math.max(0.18, cap / 40));
+  const drops = Math.round(fade * 4);
+  return (
+    <svg className="labscene" viewBox="0 0 480 170" role="img" aria-label={`Beam at ${cap >= 100 ? 'no' : cap + ' watt'} limit in ${fade} dB of rain fade`}>
+      <defs><linearGradient id="bm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5fe3c0" stopOpacity={0.15 + 0.6 * open} /><stop offset="1" stopColor="#5fe3c0" stopOpacity={0.02 + (0.4 * open) / (1 + fade / 6)} /></linearGradient></defs>
+      <path d="M0 158 Q240 140 480 158 L480 170 L0 170 Z" fill="#1a222a" />
+      <polygon points="240,28 150,150 330,150" fill="url(#bm)" style={{ transition: 'all .3s' }} />
+      <line className="packets" x1="240" y1="28" x2="240" y2="150" pathLength="100" style={{ opacity: Math.max(0.25, open) }} />
+      <g className="minisat"><rect x="205" y="20" width="24" height="9" fill="#3c9bdc" /><rect x="251" y="20" width="24" height="9" fill="#3c9bdc" /><rect x="232" y="15" width="16" height="18" rx="2" fill="#ece7dc" /></g>
+      {Array.from({ length: drops }, (_, i) => { const x = 30 + ((i * 97) % 420); const y = 40 + ((i * 53) % 90); return <line key={i} className="rain" x1={x} x2={x - 3} y1={y} y2={y + 12} style={{ animationDelay: `${(i * 113) % 500}ms` }} />; })}
+      {[0, 1, 2].map((i) => <rect key={i} x={205 + i * 28} y={146} width="14" height="8" rx="1" fill="#868e94" />)}
+      <text x="12" y="20" fill="var(--ink-2)" fontSize="11" fontFamily="var(--mono)">{cap >= 100 ? 'no limit' : `${cap} W limit`} · {fade} dB rain</text>
+      <text x="468" y="20" textAnchor="end" fill="var(--beam)" fontSize="13" fontFamily="var(--mono)">{served} served</text>
+    </svg>
+  );
+}
+
+/** A pulse travelling along the decision chain. */
+export function FlowLine({ i, n }) {
+  return (
+    <div className="flowline" aria-hidden="true"><div className="flowtrack" /><div className="flowfill" style={{ width: `${((i + 0.5) / n) * 100}%` }} /><i style={{ left: `${((i + 0.5) / n) * 100}%` }} /></div>
+  );
+}
+
+export function useApi() {
+  const [up, setUp] = useState(null);
+  useEffect(() => {
+    let stop = false;
+    fetch('/api/health').then((r) => r.json()).then((j) => { if (!stop) setUp(j.status === 'ok'); }).catch(() => { if (!stop) setUp(false); });
+    return () => { stop = true; };
+  }, []);
+  return up;
 }

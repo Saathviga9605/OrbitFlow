@@ -108,3 +108,13 @@ def test_a_clause_broken_across_lines_is_not_split_by_a_false_heading():
     pages = [(1, "1.5 in the bands 17.7 to 19.7 GHz and other shared frequency ranges, in any\n1 MHz band:\n-115 dB(W/m2) for low angles of arrival at the surface")]
     c = chunk_pages(pages)
     assert len(c) == 1 and "in any 1 MHz band: -115" in c[0]["text"]
+
+
+def test_free_questions_refuse_off_topic_and_answer_on_topic():
+    from rag.retriever import ask
+    for off in ("What is the best pizza topping in Naples?", "Who won the 2018 football world cup?", "How do I bake sourdough bread?", "capital of France"):
+        assert not ask(KB, off).supported, off
+    for on, doc in (("What is an ML sandbox?", "t_rec_y_3172_201906_i_pdf_e"), ("what power flux-density limit applies at the surface of the Earth from satellites?", "r_rec_sf_358_5_199510_w_pdf_e")):
+        a = ask(KB, on)
+        assert a.supported and doc in {q["doc_id"] for q in a.quotes} and all(q["verified_verbatim"] for q in a.quotes), on
+    assert ask(KB, "What should an AI audit trail capture?").supported

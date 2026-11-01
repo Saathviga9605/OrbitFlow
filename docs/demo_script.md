@@ -32,3 +32,9 @@ Open the UI full screen. Chapter numbers are on the left rail.
 - **Does forecasting matter?** It cuts delay in some traffic, but not clearly because of ramps: the gain on gradual surges is negligible. We report that as unresolved.
 - **Did PPO add anything?** Yes: delay falls from about 32 to 16 ms against the clone on the recorded pass. PPO from scratch also works, so cloning is optional.
 - **Is the knowledge evidence solid?** Quotes are verified verbatim, but nothing has had human or legal review. It has no Radio Regulations text, 3GPP or O-RAN documents.
+
+## Live features
+
+Start the server first: `python -m uvicorn dashboard.api:app --port 8000`, then open http://localhost:8000 (or keep the preview on 4173, which forwards to it). Without the server, the game and recorded content still work; the "Ask anything" box and "Run it live" button stay disabled.
+
+**Game (Your turn):** hand a judge the mouse. Scores use the same equations as the Python twin. Note that the player sees exact backlogs and skips the signalling duty, so a win is possible and is not a claim about real operation.

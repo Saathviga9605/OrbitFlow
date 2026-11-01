@@ -119,6 +119,17 @@ def series(trace, r):
             "rt_violation": np.round([h["rt_violation"] for h in H], 3).tolist()}
 
 
+def game_physics(trace, cfg):
+    """Everything the browser game needs to run the twin's equations on this exact scenario."""
+    from digital_twin.channel import LinkModel
+    link, q = LinkModel(cfg), cfg["queues"]
+    return {"rate": np.round(trace.rate, 3).tolist(), "gain_db": np.round(10 * np.log10(trace.gain), 3).tolist(), "los": trace.los.astype(int).tolist(),
+            "ssb": trace.ssb.tolist(), "sib": trace.sib.tolist(), "slot_ms": trace.slot_ms, "gain_lin": link.gain_lin, "noise_w": link.noise_w, "eps": link.eps,
+            "sinr_min": link.sinr_min, "ssb_overhead": link.ssb_oh, "sib_overhead": link.sib_oh, "bw_hz": link.bw_hz, "rt_share": q["rt_share"], "buffer_rt": q["buffer_rt_kb"],
+            "buffer_nrt": q["buffer_nrt_kb"], "rt_budget": q["rt_delay_budget_ms"], "init_backlog_ms": q["init_backlog_ms"], "k": cfg["scenario"]["k_beams"], "pmax": cfg["scenario"]["p_max_w"],
+            "border_cells": trace.meta["border_cells"], "cap_w": trace.meta["border_cap_w"], "cap_slot": 50, "emergency_cells": trace.meta["emergency_cells"], "emergency_from": 28, "emergency_to": 61}
+
+
 def cell_coords():
     import pandas as pd
     df = pd.read_csv(os.path.join(ROOT, "data", "raw", "sionna_physics_output.csv"))
@@ -171,6 +182,7 @@ def main(fast=False):
         "meta": {**trace.meta, "source": trace.source, "T": trace.T, "N": trace.N, "slot_ms": trace.slot_ms,
                  "k": cfg["scenario"]["k_beams"], "pmax": cfg["scenario"]["p_max_w"]},
         "cells": cell_coords(),
+        "phys": game_physics(trace, cfg),
         "demand": np.round(trace.rate, 1).tolist(),
         "forecast_h2": np.round(trace.forecast[:, :, 2], 1).tolist(),
         "elev": np.round(trace.elev[50], 1).tolist(),

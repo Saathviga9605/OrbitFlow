@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Globe from './Globe.jsx';
 import { COLORS, DotCI, HexMap, LineChart, reducedMotion } from './viz.jsx';
-import { Count, DemandStrip, Dial, DocMap, Dumbbell, ScrollBar, useReveal, Waffle } from './fx.jsx';
+import { Count, DemandStrip, Dial, DocMap, Dumbbell, FlowLine, LabScene, ScrollBar, useApi, useReveal, Waffle } from './fx.jsx';
+import Game from './Game.jsx';
 
 const CHAPTERS = [
   ['top', 'The problem'], ['chase', 'Three ways to choose'], ['foresee', 'Seeing demand coming'], ['loop', 'How it decides'],
-  ['mission', 'A flood, second by second'], ['evidence', 'Does it work?'], ['lab', 'Try it yourself'], ['knowledge', 'The rulebook'], ['ledger', 'How we know'],
+  ['mission', 'A flood, second by second'], ['game', 'Your turn: beat the AI'], ['evidence', 'Does it work?'], ['lab', 'Try it yourself'], ['knowledge', 'The rulebook'], ['ledger', 'How we know'],
 ];
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -91,7 +92,7 @@ function Chase({ d }) {
         <div className="grid g3" style={{ marginTop: 16 }}>
           {names.map((n) => (
             <div key={n}>
-              <HexMap compact cells={r.cells} title={SHOW[n]} lit={r.runs[n].series.lit[t]} power={r.runs[n].series.power[t]} load={qt(n)} loadMax={900} />
+              <HexMap compact cells={r.cells} title={SHOW[n]} beams lit={r.runs[n].series.lit[t]} power={r.runs[n].series.power[t]} load={qt(n)} loadMax={900} />
               <div className="meter"><span>Data waiting</span><div><i style={{ width: `${Math.min(100, qt(n).reduce((a, b) => a + b, 0) / 200)}%` }} /></div><b className="mono">{(qt(n).reduce((a, b) => a + b, 0) / 1000).toFixed(1)} Mb</b></div>
               <div className="meter"><span>Delivered</span><div><i className="alt" style={{ width: `${Math.min(100, r.runs[n].series.throughput[t] / 3)}%` }} /></div><b className="mono">{r.runs[n].series.throughput[t].toFixed(0)} Mbps</b></div>
             </div>
@@ -109,6 +110,7 @@ function Foresee({ d }) {
   const dem = r.demand.slice(lo, hi).map((x) => x[ec]);
   const fc = r.forecast_h2.slice(lo, hi).map((x) => x[ec]);
   const sc = d.predictor_metrics.scenarios;
+  const sweep = useClock(hi - lo, { speed: 170, auto: true });
   const order = [['event_surge', 'Surge with a ramp'], ['mixed', 'Surge plus steady hotspot'], ['bursty', 'Random bursts'], ['block', 'Abrupt block switches'], ['real_trace', 'Real pass (abrupt)']];
   return (
     <section className="ch" id="foresee"><div className="wrap">
@@ -118,7 +120,7 @@ function Foresee({ d }) {
       <div className="grid g2">
         <div className="panel">
           <h4>The flood ramp, cell {ec}</h4><p className="sub">The forecast shown at each slot is its estimate for two slots later, made from lagged telemetry.</p>
-          <LineChart height={280} x0={lo} xLabel="slot" yLabel="Mbps" series={[{ name: 'Actual demand', color: 'var(--ink)', values: dem }, { name: 'Forecast', color: 'var(--beam)', values: fc, dash: '5 3' }]} marks={[{ x: 28, label: 'emergency declared', color: 'var(--critical)' }]} />
+          <LineChart height={280} x0={lo} cursor={lo + sweep.t} xLabel="slot" yLabel="Mbps" series={[{ name: 'Actual demand', color: 'var(--ink)', values: dem }, { name: 'Forecast', color: 'var(--beam)', values: fc, dash: '5 3' }]} marks={[{ x: 28, label: 'emergency declared', color: 'var(--critical)' }]} />
         </div>
         <div className="panel">
           <h4>Error reduction at demand jumps, against repeat-last</h4><p className="sub">Held-out test episodes, MAE on targets more than 5 Mbps from the last observation.</p>
@@ -158,6 +160,7 @@ function Loop({ d }) {
       <div className="pipe" style={{ marginTop: 28 }} role="tablist">
         {PIPE.map((p, k) => <button key={p[0]} role="tab" aria-selected={i === k} className={`${i === k ? 'on' : ''} ${k < i ? 'done' : ''}`} onClick={() => { setAuto(false); setI(k); }}><small>{String(k + 1).padStart(2, '0')}</small><b>{p[0]}</b><small>{p[1]}</small></button>)}
       </div>
+      <FlowLine i={i} n={PIPE.length} />
       <div className="panel" style={{ marginTop: 8 }}>
         <h3>{title} <span className="tag" style={{ marginLeft: 6, verticalAlign: 3 }}>{tag}</span></h3>
         <p style={{ margin: '8px 0', maxWidth: '60em' }}>{text}</p>
@@ -244,7 +247,7 @@ function Mission({ d }) {
           <div className="chips" style={{ marginBottom: 10 }}>
             {['OrbitFlow', 'BRIDGE alone', 'Reactive greedy'].map((n) => <button key={n} className={`chip ${ctrl === n ? 'on' : ''}`} onClick={() => setCtrl(n)}>{{ OrbitFlow: 'OrbitFlow', 'BRIDGE alone': 'AI, no agents', 'Reactive greedy': 'Simple scheduler' }[n]}</button>)}
           </div>
-          <HexMap cells={r.cells} lit={run.lit[t]} power={run.power[t]} load={load} loadMax={900} emergency={emergency} border={r.meta.border_cells} capActive={capActive} selected={cell} onSelect={setCell} />
+          <HexMap cells={r.cells} lit={run.lit[t]} power={run.power[t]} load={load} loadMax={900} emergency={emergency} border={r.meta.border_cells} capActive={capActive} selected={cell} onSelect={setCell} beams rainCells={t >= 45 && t < 61 ? r.meta.emergency_cells : []} />
           <p className="note" style={{ margin: '8px 0 0' }}><span style={{ color: 'var(--critical)' }}>▲</span> emergency · <span style={{ color: 'var(--warning)' }}>yellow outline</span> border cell, solid once capped · warmer = more backlog · select a cell to chart it</p>
         </div>
         <div>
@@ -362,6 +365,42 @@ function Evidence({ d }) {
   );
 }
 
+function LiveRun({ cap, fade }) {
+  const up = useApi();
+  const [seed, setSeed] = useState(7);
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState(null);
+  const [err, setErr] = useState(null);
+  const run = async () => {
+    setBusy(true); setErr(null);
+    const t0 = performance.now();
+    try {
+      const r = await fetch(`/api/simulate?cap_w=${cap}&fade_db=${fade}&seed=${seed}`, { method: 'POST' });
+      if (!r.ok) throw new Error(`server returned ${r.status}`);
+      const j = await r.json();
+      setRes({ ...j, ms: performance.now() - t0 });
+    } catch (e) { setErr(String(e.message)); }
+    setBusy(false);
+  };
+  return (
+    <div className="panel live" style={{ marginTop: 12 }}>
+      <div className="livehead"><h4>Run it live {up && <span className="pulse" />}</h4>
+        <label style={{ fontSize: 13 }}>Traffic seed <input className="seed" type="number" min="0" max="100000" value={seed} onChange={(e) => setSeed(Math.max(0, +e.target.value || 0))} /></label>
+        <button className="cue" style={{ margin: 0 }} disabled={!up || busy} onClick={run}>{busy ? 'Simulating…' : `Simulate ${cap === 100 ? 'no limit' : `${cap} W`}, ${fade} dB`}</button>
+      </div>
+      {up === false && <p className="note" style={{ margin: '8px 0 0' }}>Start the server to run new simulations: <code>python -m uvicorn dashboard.api:app --port 8000</code></p>}
+      {err && <p className="note" style={{ color: 'var(--critical)' }}>Could not run: {err}</p>}
+      {res && <div className="stats" key={res.ms} style={{ marginTop: 12 }}>
+        <div className="stat"><b>{(res.kpis.emergency_served_ratio * 100).toFixed(1)}%</b><span>emergency data served</span></div>
+        <div className="stat"><b>{res.kpis.mean_delay_ms.toFixed(1)} ms</b><span>average wait</span></div>
+        <div className="stat"><b>{res.kpis.cap_violation_slots}</b><span>limit breaches</span></div>
+        <div className="stat"><b>{res.kpis.human_reviews}</b><span>sent to a human</span></div>
+      </div>}
+      {res && <p className="note" style={{ margin: '8px 0 0' }}>Newly executed in {(res.ms / 1000).toFixed(1)} s · run <code>{res.experiment_id}</code></p>}
+    </div>
+  );
+}
+
 function Lab({ d }) {
   const g = d.whatif_grid;
   const [cap, setCap] = useState(22); const [fade, setFade] = useState(6);
@@ -405,7 +444,8 @@ function Lab({ d }) {
           <p className="note" style={{ margin: '8px 0 0' }}>Brighter is better. ⚑ marks a run with a human-review referral.</p>
         </div>
         <div className="panel">
-          <h4>This run</h4>
+          <LabScene cap={cap} fade={fade} served={pct(o.emergency_served_ratio, 0)} />
+          <h4 style={{ marginTop: 10 }}>This run</h4>
           <p style={{ font: '400 20px/1.35 var(--serif)', margin: '6px 0 14px', minHeight: 82 }}>{sentence()}</p>
           <LineChart height={210} xLabel="slot" yLabel="kb" format={(v) => v.toFixed(0)} marks={[{ x: 45, to: 61, label: 'fade', color: 'var(--critical)' }]} series={[{ name: 'OrbitFlow', color: COLORS.OrbitFlow, values: o.q_event }, { name: 'BRIDGE alone', color: COLORS['BRIDGE alone'], values: b.q_event }]} />
           <p className="note" style={{ margin: '6px 0 0' }}>Data waiting in the surge area, cell {d.flood_replay.meta.event_cell}. Precomputed run <code>{cur.experiment_id}</code></p>
@@ -415,6 +455,7 @@ function Lab({ d }) {
           </tbody></table></div>
         </div>
       </div>
+      <LiveRun cap={cap} fade={fade} />
       <div className="panel" style={{ marginTop: 12 }}>
         <h4>Using the ITU-R SF.358-5 limit as a guide</h4>
         <p className="sub">Regulators limit power reaching the ground, not watts per beam. This turns that limit into a cap for each area and moment, across a range of antenna gains. {d.study_pfd_mask.n_per_setting} runs each.</p>
@@ -422,7 +463,7 @@ function Lab({ d }) {
         <div className="scroll"><table><thead><tr><th>Satellite antenna gain</th><th className="n">Typical limit per beam</th><th className="n">Emergency data served</th><th className="n">Delay ms</th><th className="n">Breaches with agents</th><th className="n">Breaches without</th></tr></thead><tbody>
           {Object.entries(d.study_pfd_mask.settings).map(([n, e]) => <tr key={n}><td>{n === 'no cap' ? 'No limit applied' : n.replace('Gtx=', '')}</td><td className="n">{e.median_cap_w ? `${e.median_cap_w.toFixed(0)} W` : '-'}</td><td className="n">{pct(e.emergency_served_ratio.mean, 0)}</td><td className="n">{e.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{e.pfd_breach_slots.mean.toFixed(0)}</td><td className="n">{e.breach_slots_without_agents ? e.breach_slots_without_agents.mean.toFixed(0) : '-'}</td></tr>)}
         </tbody></table></div>
-        <p className="insight" style={{ fontSize: 19 }}>A loose limit barely matters, which is what the grid above shows. A realistic one can dominate: at 30 dBi, emergency service falls to {pct(d.study_pfd_mask.settings['Gtx=30 dBi'].emergency_served_ratio.mean, 0)}. Antenna gain decides which world you are in.</p>
+        <p className="insight" style={{ fontSize: 19 }}>A loose limit barely matters, which is what the grid above shows. A tight one can dominate: at 30 dBi, emergency service falls to {pct(d.study_pfd_mask.settings['Gtx=30 dBi'].emergency_served_ratio.mean, 0)}. Antenna gain decides which world you are in.</p>
       </div>
       <More label="See why, and how rain and limits combine"><div className="panel">
         <h4>Rain × power limit, {d.study_factorial.n_per_cell} paired runs per cell</h4>
@@ -444,8 +485,41 @@ function Quote({ c }) {
   );
 }
 
+function AskLive({ onCited }) {
+  const up = useApi();
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState(null);
+  const [err, setErr] = useState(null);
+  const ask = async (e) => {
+    e.preventDefault();
+    if (!q.trim()) return;
+    setBusy(true); setErr(null); setRes(null);
+    try {
+      const r = await fetch(`/api/ask?q=${encodeURIComponent(q)}`, { method: 'POST' });
+      if (!r.ok) throw new Error(`server returned ${r.status}`);
+      const j = await r.json();
+      setRes(j); onCited(j.quotes.map((c) => c.doc_id));
+    } catch (x) { setErr(String(x.message)); }
+    setBusy(false);
+  };
+  return (
+    <div className="panel" style={{ marginTop: 12 }}><h4>Ask anything {up && <span className="pulse" />}</h4><p className="sub">Type your own question. The answer is searched live and returned as exact quotations, or it says the documents don’t support it.</p>
+      <form className="askform" onSubmit={ask}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} disabled={!up} placeholder={up === false ? 'Start the server to ask live questions' : 'Try: what should an AI audit trail capture?'} aria-label="Your question" />
+        <button className="cue" style={{ margin: 0 }} disabled={!up || busy}>{busy ? 'Searching…' : 'Ask'}</button>
+      </form>
+      {busy && <div className="scanbar"><i /></div>}
+      {up === false && <p className="note" style={{ margin: '8px 0 0' }}><code>python -m uvicorn dashboard.api:app --port 8000</code></p>}
+      {err && <p className="note" style={{ color: 'var(--critical)' }}>Could not search: {err}</p>}
+      {res && <div style={{ marginTop: 12 }}>{res.supported ? res.quotes.map((c) => <Quote key={c.chunk_id} c={c} />) : <p className="insight" style={{ borderColor: 'var(--warning)', fontSize: 18 }}>{res.statement}</p>}</div>}
+    </div>
+  );
+}
+
 function Knowledge({ d }) {
   const k = d.kb_report; const g = d.gaps; const t = k.totals;
+  const [cited, setCited] = useState(null);
   const [q, setQ] = useState(0);
   const [fac, setFac] = useState(3);
   const [show, setShow] = useState(false);
@@ -462,10 +536,11 @@ function Knowledge({ d }) {
         <div className="stat"><b>{k.citation_verification.checked - k.citation_verification.failed}/{k.citation_verification.checked}</b><span>citations found verbatim in their source chunk</span></div>
         <div className="stat"><b>{pct(ev.bm25.section_recall_at_5, 0)}</b><span>of test questions found the right section in the top five results</span></div>
       </div>
-      <div className="panel" style={{ marginTop: 16 }}><h4>The library</h4><DocMap docs={k.documents.filter((x) => x.chunks > 0)} /></div>
+      <div className="panel" style={{ marginTop: 16 }}><h4>The library</h4><DocMap docs={k.documents.filter((x) => x.chunks > 0)} active={cited ?? s.quotes.map((c) => c.doc_id)} /></div>
+      <AskLive onCited={setCited} />
       <div className="grid g2" style={{ marginTop: 12 }}>
         <div className="panel"><h4>Ask the corpus</h4><p className="sub">Answers are exact quotations, never generated text.</p>
-          <div className="chips" style={{ margin: '8px 0 12px' }}>{k.questions.map((x, i) => <button key={x.query} className={`chip ${q === i ? 'on' : ''}`} onClick={() => setQ(i)}>{x.query}</button>)}</div>
+          <div className="chips" style={{ margin: '8px 0 12px' }}>{k.questions.map((x, i) => <button key={x.query} className={`chip ${q === i ? 'on' : ''}`} onClick={() => { setQ(i); setCited(null); }}>{x.query}</button>)}</div>
           {s.supported ? s.quotes.map((c) => <Quote key={c.chunk_id} c={c} />) : <p className="insight" style={{ borderColor: 'var(--warning)', fontSize: 18 }}>{s.statement}</p>}
         </div>
         <div className="panel"><h4>ITU AI Readiness factors</h4><p className="sub">The factor names and first quote are the framework’s. Interpretation and contribution are ours.</p>
@@ -534,7 +609,7 @@ export default function App({ d }) {
       <ScrollBar />
       <Rail />
       <main>
-        <Hero d={d} /><Chase d={d} /><Foresee d={d} /><Loop d={d} /><Mission d={d} /><Evidence d={d} /><Lab d={d} /><Knowledge d={d} /><Ledger d={d} />
+        <Hero d={d} /><Chase d={d} /><Foresee d={d} /><Loop d={d} /><Mission d={d} /><Game d={d} /><Evidence d={d} /><Lab d={d} /><Knowledge d={d} /><Ledger d={d} />
         <footer>OrbitFlow · simulation study</footer>
       </main>
     </>

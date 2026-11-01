@@ -112,7 +112,7 @@ const hexPath = (cx, cy, r) => Array.from({ length: 6 }, (_, i) => {
 }).join(' ');
 
 /** The 19-cell footprint, at real cell coordinates. Fill = backlog; ring + label = lit beam and watts. */
-export function HexMap({ cells, lit, power, load, loadMax, emergency = [], border = [], capActive, selected, onSelect, title, compact }) {
+export function HexMap({ cells, lit, power, load, loadMax, emergency = [], border = [], capActive, selected, onSelect, title, compact, beams, rainCells = [] }) {
   const geo = useMemo(() => {
     const xs = cells.map((c) => c.x); const ys = cells.map((c) => c.y);
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2; const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
@@ -127,9 +127,10 @@ export function HexMap({ cells, lit, power, load, loadMax, emergency = [], borde
   const vb = useMemo(() => {
     const pad = r * 1.25;
     const x0 = Math.min(...geo.map((c) => c.x)) - pad; const x1 = Math.max(...geo.map((c) => c.x)) + pad;
-    const y0 = Math.min(...geo.map((c) => c.y)) - pad; const y1 = Math.max(...geo.map((c) => c.y)) + pad;
+    const y0 = Math.min(...geo.map((c) => c.y)) - pad - (beams ? r * 2.1 : 0); const y1 = Math.max(...geo.map((c) => c.y)) + pad;
     return `${x0} ${y0} ${x1 - x0} ${y1 - y0}`;
-  }, [geo, r]);
+  }, [geo, r, beams]);
+  const sat = { x: (Math.min(...geo.map((c) => c.x)) + Math.max(...geo.map((c) => c.x))) / 2, y: Math.min(...geo.map((c) => c.y)) - r * 2.5 };
   const litSet = new Set(lit);
   return (
     <div>
@@ -153,6 +154,19 @@ export function HexMap({ cells, lit, power, load, loadMax, emergency = [], borde
             </g>
           );
         })}
+        {emergency.map((c) => <circle key={`rip${c}`} className="ripple" cx={geo[c].x} cy={geo[c].y} r={r * 0.5} />)}
+        {rainCells.flatMap((c) => Array.from({ length: 9 }, (_, i) => <line key={`rain${c}-${i}`} className="rain" x1={geo[c].x - r + (i * r) / 4.2} x2={geo[c].x - r + (i * r) / 4.2 - r * 0.1} y1={geo[c].y - r * 1.1} y2={geo[c].y - r * 0.8} style={{ animationDelay: `${(i * 137) % 500}ms` }} />))}
+        {beams && <g style={{ pointerEvents: 'none' }}>
+          {lit.map((c) => <g key={`b${c}`}>
+            <polygon className="cone" points={`${sat.x},${sat.y} ${geo[c].x - r * 0.45},${geo[c].y} ${geo[c].x + r * 0.45},${geo[c].y}`} />
+            <line className="packets" x1={sat.x} y1={sat.y} x2={geo[c].x} y2={geo[c].y} pathLength="100" />
+          </g>)}
+          <g transform={`translate(${sat.x} ${sat.y})`} className="minisat">
+            <rect x={-r * 0.62} y={-r * 0.08} width={r * 0.42} height={r * 0.16} fill="var(--bridge)" />
+            <rect x={r * 0.2} y={-r * 0.08} width={r * 0.42} height={r * 0.16} fill="var(--bridge)" />
+            <rect x={-r * 0.18} y={-r * 0.18} width={r * 0.36} height={r * 0.36} rx={r * 0.05} fill="var(--ink)" />
+          </g>
+        </g>}
       </svg>
     </div>
   );
