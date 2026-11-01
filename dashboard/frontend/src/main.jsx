@@ -10,7 +10,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import './theme.css';
 import App from './App.jsx';
 
-const FILES = ['kpi_table', 'flood_mc', 'whatif_grid', 'flood_replay', 'kb_report', 'gaps', 'predictor_metrics', 'bridge_training', 'bridge_training_noforecast'];
+const FILES = ['flood_mc', 'whatif_grid', 'flood_replay', 'kb_report', 'gaps', 'predictor_metrics', 'multirun', 'ppo_summary', 'study_emergency', 'study_factorial', 'study_latency', 'study_link_sensitivity', 'study_pfd_mask', 'study_stress_test', 'study_bc_diagnostics'];
 
 function Root() {
   const [data, setData] = useState(null);

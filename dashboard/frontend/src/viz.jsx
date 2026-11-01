@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 export const COLORS = {
   OrbitFlow: 'var(--orbit)', 'BRIDGE alone': 'var(--bridge)', BRIDGE: 'var(--bridge)', 'BRIDGE no-forecast': 'var(--static)',
-  'Reactive greedy': 'var(--reactive)', 'Static round-robin': '#7d8791', 'Heuristic-predictive': '#c9c4b8',
+  'Reactive greedy': 'var(--reactive)', 'Static round-robin': '#7d8791', 'Heuristic-predictive': '#c9c4b8', BC: '#a8a39a',
 };
 export const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 

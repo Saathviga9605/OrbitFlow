@@ -273,7 +273,7 @@ def stress():
            "run_summary": {"cap_violation_slots": r["kpis"]["cap_violation_slots"], "human_reviews": r["kpis"]["human_reviews"], "first_review": r["human_review"][0] if r["human_review"] else None},
            "guard_cases": cases,
            "natural_bridge_power": {"episodes": len(_G["ckpts"]) * 40, "decisions": len(shares), "max_w": float(shares.max()), "p99_w": float(np.percentile(shares, 99)), "median_max_beam_w": float(np.median(shares)), "share_over_50w": float((shares >= 50).mean()), "share_over_22w": float((shares > 22).mean()),
-                                    "explanation": "Dirichlet concentrations are at least 1 and, under the shared log-capacity reward, an extra watt on one beam gains little capacity and costs other beams. See docs/REPORT.md."}}
+                                    "explanation": "Capacity grows with the log of SINR and interference sets a ceiling, so concentrating power gains little and costs other beams. Large shares are rare but do occur."}}
     json.dump(out, open(os.path.join(OUT, "stress_test.json"), "w"), indent=1)
     print(out["natural_bridge_power"], cases[0], out["run_summary"], flush=True)
 

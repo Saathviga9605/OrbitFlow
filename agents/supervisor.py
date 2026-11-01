@@ -202,8 +202,12 @@ class Supervisor:
             deliberate = self.agents_on and bool(new_events or alert or policy_fail or safety_warn or guard_fail)
 
             constraints = Constraints(power_cap=cap_arr, forced_lit=forced) if self.agents_on else None
+            prio = act.priority
+            if self.agents_on and self.safety.emergency_cells(t):      # if a beam must go, it is never an emergency cell's
+                prio = np.array(act.priority, dtype=float).copy()
+                prio[self.safety.emergency_cells(t)] += 1e6
             t0 = clock()
-            res = self.guard.repair(act.lit, act.power, obs["guard"], obs["ssb"], obs["sib"], priority=act.priority, constraints=constraints)
+            res = self.guard.repair(act.lit, act.power, obs["guard"], obs["ssb"], obs["sib"], priority=prio, constraints=constraints)
             lat["guard"].append(clock() - t0)
 
             cap_now = self._true_cap(t)
@@ -298,18 +302,19 @@ class Supervisor:
         uncapped = link.capacity_mbps(link.sinr(act.power, trace.gain[t], act.lit), trace.los[t], trace.ssb[t], trace.sib[t])
         want = float(np.sum(rec["arrived_kb"][capped]) / trace.slot_ms)
         got = float(np.sum(rec["cap_mbps"][capped]))
-        return {"kind": "cap_conflict", "slot": t, "cells": capped, "demand_mbps": round(want, 1), "capacity_mbps": round(got, 1),
+        return {"kind": "cap_conflict", "slot": t, "cells": capped, "dark_after_repair": [c for c in capped if not res.lit[c]], "demand_mbps": round(want, 1), "capacity_mbps": round(got, 1),
                 "capacity_lost_mbps": round(float(np.sum(uncapped[capped])) - got, 1),
                 "shortfall_mbps": round(max(want - got, 0.0), 1), "proposed_w": {c: round(float(act.power[c]), 1) for c in capped},
                 "final_w": {c: round(float(res.power[c]), 1) for c in capped},
-                "reason": "Legal cap conflicts with emergency service and no retrievable exemption was found."}
+                "reason": "Operating constraint conflicts with emergency service and no exemption passage was found in the corpus."}
 
     @staticmethod
     def _resolve_text(policy_fail, safety_warn, guard_fail, human):
         if human and human["kind"] == "sustained_shortfall":
             return f"{human['reason']} {human['shortfall_mbps']} Mbps short; sent for human review."
         if policy_fail and human:
-            return (f"Cap holds (law outranks safety): emergency cells stay lit at the capped power. "
+            state = f"emergency cells {human['dark_after_repair']} went dark this slot" if human.get("dark_after_repair") else "emergency cells stay lit at the capped power"
+            return (f"Constraint holds (it outranks optimisation and is treated as binding): {state}. "
                     f"Cap costs {human['capacity_lost_mbps']} Mbps of capacity, {human['shortfall_mbps']} Mbps below demand; sent for human review.")
         if policy_fail:
             return "Cap applied; no emergency cell was reduced."

@@ -221,3 +221,21 @@ def test_api_ask_is_grounded(client):
     assert a["supported"] and a["quotes"][0]["verified_verbatim"]
     n = client.post("/api/ask", params={"q": "zzzqqq xylophone"}).json()
     assert not n["supported"] and "does not support" in n["statement"]
+
+
+def test_emergency_cell_is_not_dropped_when_another_is_forced_on():
+    from bridge.baselines import Action, Policy
+
+    class FourWithOneEmergency(Policy):
+        def act(self, obs):
+            lit = np.zeros(19, bool)
+            lit[[13, 2, 5, 9]] = True
+            p = np.zeros(19)
+            p[[13, 2, 5, 9]] = 25.0
+            return Action(lit, p, priority=np.where(np.arange(19) == 13, -5.0, 1.0))
+
+    t, feed = build(BASE, None, 9)
+    r = Supervisor(CFG, FourWithOneEmergency(), feed, KB).run(t)
+    # only hard signalling deadlines may take its beam
+    assert all(13 in x.final["beams"] or any("timing deadline" in n for n in x.repairs) for x in r["records"][28:61])
+    assert sum(13 in x.final["beams"] for x in r["records"][28:61]) >= 30

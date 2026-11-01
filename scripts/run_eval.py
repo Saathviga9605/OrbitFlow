@@ -64,7 +64,6 @@ def policies(cfg, N):
         "Static round-robin": lambda: StaticRoundRobin(N, K, P),
         "Reactive greedy": lambda: ReactiveGreedy(N, K, P),
         "Heuristic-predictive": lambda: HeuristicPredictive(cfg),
-        "BRIDGE no-forecast": lambda: BridgePolicy(cfg, m("bridge_ppo_noforecast.pt"), use_forecast=False),
         "BRIDGE": lambda: BridgePolicy(cfg, m("bridge_ppo.pt")),
     }
 
@@ -139,8 +138,6 @@ def main(fast=False):
     pols = policies(cfg, N)
     bridge, reactive, static = pols["BRIDGE"], pols["Reactive greedy"], pols["Static round-robin"]
 
-    table = kpi_table(cfg, fc, base, fast)
-    json.dump(table, open(os.path.join(RESULTS, "kpi_table.json"), "w"), indent=1)
 
     # Latency of the decision path, measured on this machine
     trace, feed = build(base)
@@ -215,7 +212,7 @@ def main(fast=False):
 
     web = os.path.join(ROOT, "dashboard", "frontend", "public", "data")
     os.makedirs(web, exist_ok=True)
-    for f in ["kpi_table", "flood_mc", "whatif_grid", "flood_replay", "kb_report", "gaps", "predictor_metrics", "multirun", "ppo_summary", "retrieval_eval"]:
+    for f in ["flood_mc", "whatif_grid", "flood_replay", "kb_report", "gaps", "predictor_metrics", "multirun", "ppo_summary", "retrieval_eval"]:
         shutil.copy(os.path.join(RESULTS, f + ".json"), web)
     for f in os.listdir(os.path.join(RESULTS, "studies")):
         shutil.copy(os.path.join(RESULTS, "studies", f), os.path.join(web, "study_" + f))

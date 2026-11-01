@@ -1,0 +1,196 @@
+{
+ "label": "CONTROLLED CONSTRAINT STRESS TEST. Proposals are injected by scripts/run_studies.py. Not produced by BRIDGE; not part of the flood-relief replay.",
+ "flood_injection": {
+  "slot": 52,
+  "applicable_cap_w": 22.0,
+  "cap_status": "hypothetical operating constraint",
+  "proposed": {
+   "beams": [
+    2,
+    5,
+    9,
+    13
+   ],
+   "power_w": {
+    "2": 20.0,
+    "5": 15.0,
+    "9": 15.0,
+    "13": 50.0
+   },
+   "p_total_w": 100.0
+  },
+  "constraints": {
+   "beam_count": {
+    "status": "PASS",
+    "detail": "4 lit, K=4"
+   },
+   "power_budget": {
+    "status": "PASS",
+    "detail": "sum=100.0 W, Pmax=100 W"
+   },
+   "power_floor": {
+    "status": "PASS",
+    "detail": "floor=2.0 W"
+   },
+   "timing_guard": {
+    "status": "PASS",
+    "detail": "all due cells lit"
+   }
+  },
+  "policy_findings": [
+   {
+    "rule_id": "R1_border_power_cap",
+    "status": "FAIL",
+    "evidence_status": "FOUND",
+    "detail": "cells [13] exceed 22 W"
+   }
+  ],
+  "final": {
+   "beams": [
+    2,
+    5,
+    9,
+    13
+   ],
+   "power_w": {
+    "2": 29.33,
+    "5": 24.33,
+    "9": 24.33,
+    "13": 22.0
+   },
+   "p_total_w": 100.0
+  },
+  "repairs": [
+   "capped cells [13] to per-cell limits (excess redistributed)"
+  ],
+  "decision": "REPAIRED"
+ },
+ "run_summary": {
+  "cap_violation_slots": 0,
+  "human_reviews": 11,
+  "first_review": {
+   "kind": "cap_conflict",
+   "slot": 50,
+   "cells": [
+    13
+   ],
+   "dark_after_repair": [],
+   "demand_mbps": 40.4,
+   "capacity_mbps": 53.9,
+   "capacity_lost_mbps": 22.3,
+   "shortfall_mbps": 0.0,
+   "proposed_w": {
+    "13": 50.0
+   },
+   "final_w": {
+    "13": 22.0
+   },
+   "reason": "Operating constraint conflicts with emergency service and no exemption passage was found in the corpus."
+  }
+ },
+ "guard_cases": [
+  {
+   "case": "50 W on a capped border cell",
+   "proposed": {
+    "13": 50.0,
+    "2": 20.0,
+    "5": 15.0,
+    "9": 15.0
+   },
+   "failed_checks": [],
+   "final": {
+    "2": 29.33,
+    "5": 24.33,
+    "9": 24.33,
+    "13": 22.0
+   },
+   "notes": [
+    "capped cells [13] to per-cell limits (excess redistributed)"
+   ],
+   "total_w": 100.0,
+   "final_ok": true,
+   "cap_respected": true
+  },
+  {
+   "case": "200 W total, over the 100 W budget",
+   "proposed": {
+    "1": 50.0,
+    "2": 50.0,
+    "3": 50.0,
+    "4": 50.0
+   },
+   "failed_checks": [
+    "power_budget"
+   ],
+   "final": {
+    "1": 25.0,
+    "2": 25.0,
+    "3": 25.0,
+    "4": 25.0
+   },
+   "notes": [],
+   "total_w": 100.0,
+   "final_ok": true,
+   "cap_respected": null
+  },
+  {
+   "case": "6 beams when only 4 are allowed",
+   "proposed": {
+    "1": 15.0,
+    "2": 15.0,
+    "3": 15.0,
+    "4": 15.0,
+    "5": 15.0,
+    "6": 15.0
+   },
+   "failed_checks": [
+    "beam_count"
+   ],
+   "final": {
+    "3": 15.0,
+    "4": 15.0,
+    "5": 15.0,
+    "6": 15.0
+   },
+   "notes": [
+    "dropped cell 1 (lowest priority) to respect K",
+    "dropped cell 2 (lowest priority) to respect K"
+   ],
+   "total_w": 60.0,
+   "final_ok": true,
+   "cap_respected": null
+  },
+  {
+   "case": "0.5 W beam under the 2 W floor",
+   "proposed": {
+    "1": 0.5,
+    "2": 33.0,
+    "3": 33.0,
+    "4": 33.0
+   },
+   "failed_checks": [
+    "power_floor"
+   ],
+   "final": {
+    "1": 2.0,
+    "2": 32.5,
+    "3": 32.5,
+    "4": 32.5
+   },
+   "notes": [],
+   "total_w": 99.5,
+   "final_ok": true,
+   "cap_respected": null
+  }
+ ],
+ "natural_bridge_power": {
+  "episodes": 200,
+  "decisions": 20000,
+  "max_w": 84.49569518303757,
+  "p99_w": 41.08596070183,
+  "median_max_beam_w": 27.407523937217427,
+  "share_over_50w": 0.0028,
+  "share_over_22w": 1.0,
+  "explanation": "Capacity grows with the log of SINR and interference sets a ceiling, so concentrating power gains little and costs other beams. Large shares are rare but do occur."
+ }
+}

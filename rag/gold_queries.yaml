@@ -24,7 +24,6 @@
 - {q: "Kenya pillars for AI implementation roadmap", docs: [kenya_ai_strategy_implementation_roadmap_2025_2030, kenya_ai_strategy_2025_2030], match: "(?i)pillar|roadmap"}
 - {q: "American plan removing barriers to AI innovation data centers", docs: [usa_americas_ai_action_plan_2025], match: "(?i)data center"}
 - {q: "China national plan to lead in AI by 2030", docs: [china_new_generation_ai_plan], match: "2030"}
-- {q: "China security risks classification governance measures for AI", docs: [china_ai_security_governance_framework_2025], match: "(?i)risk"}
 - {q: "Latin American ethics declaration on artificial intelligence", docs: [santiago_declaration_ethical_ai_2023, montevideo_declaration_ai_2024], match: "(?i)ethic|Latin"}
 - {q: "national AI policies for developing countries chapter on design", docs: [unctad_tir2025_ch4_national_ai_policies, technology_and_innovation_report_2025], match: "(?i)polic"}
 - {q: "use cases collected for AI for good in telecommunications", docs: [2024_waic_final_ai_for_good_use_cases_collection, innovate_for_impact_geneva_ai_for_good_2025, ksa_t_ai4g_ai4good_2024_2_pdf_e], match: "(?i)use case|AI for Good"}

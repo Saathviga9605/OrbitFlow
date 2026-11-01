@@ -36,7 +36,7 @@ function useClock(T, { speed = 110, start = 0, auto = false } = {}) {
 
 function Hero({ d }) {
   const r = d.flood_replay;
-  const real = d.kpi_table.scenarios.real_trace;
+  const real = d.multirun.conditions['pass:dynamic_ntn'].policies;
   return (
     <header className="hero" id="top">
       <Globe cells={r.cells} lit={r.runs.OrbitFlow.series.lit} />
@@ -45,8 +45,8 @@ function Hero({ d }) {
         <h1>One satellite. Nineteen cells. Four beams. Ten milliseconds to choose.</h1>
         <p className="lede">A satellite can only serve a few areas at a time. In a disaster, the people who need a connection most compete with everyone else. OrbitFlow learns where to point the beams, sees demand coming, and checks every decision against safety rules before it happens.</p>
         <div className="stats">
-          <div className="stat"><b>{pct(real['Reactive greedy'].rt_sla_violation.mean)} → {pct(real.BRIDGE.rt_sla_violation.mean)}</b><span>late deliveries of time-critical data, compared with a simple scheduler, on a recorded pass it never trained on</span></div>
-          <div className="stat"><b>{r.latency.bridge_ms.toFixed(1)} ms</b><span>to make a decision on an ordinary CPU, with {r.meta.slot_ms} ms available</span></div>
+          <div className="stat"><b>{pct(real['Reactive greedy'].rt_sla_violation.mean)} → {pct(real.BRIDGE.rt_sla_violation.mean)}</b><span>time-critical data arriving late, simple scheduler vs OrbitFlow, over {real.BRIDGE.rt_sla_violation.n} test runs of a recorded pass</span></div>
+          <div className="stat"><b>{d.study_latency.critical_path_total.mean.toFixed(1)} ms</b><span>to decide and run every safety check on one CPU core, with {r.meta.slot_ms} ms available</span></div>
           <div className="stat"><b>{d.flood_mc.controllers['BRIDGE alone'].cap_violation_slots.mean.toFixed(0)} → {d.flood_mc.controllers.OrbitFlow.cap_violation_slots.mean.toFixed(0)}</b><span>rule breaches in a test scenario, without and with the safety agents</span></div>
         </div>
         <a className="cue" href="#chase">See how it works ↓</a>
@@ -71,7 +71,7 @@ function Chase({ d }) {
   const names = ['Static round-robin', 'Reactive greedy', 'BRIDGE alone'];
   const { t } = clock;
   const qt = (n) => r.runs[n].series.q_rt[t].map((q, i) => q + r.runs[n].series.q_nrt[t][i]);
-  const real = d.kpi_table.scenarios.real_trace;
+  const real = d.multirun.conditions['pass:dynamic_ntn'].policies;
   return (
     <section className="ch" id="chase"><div className="wrap">
       <p className="kicker">Chapter 1 · Three ways to choose</p>
@@ -88,7 +88,7 @@ function Chase({ d }) {
           ))}
         </div>
       </div>
-      <p className="insight">Delay alone flatters the greedy scheduler. On the real pass it matches BRIDGE on throughput, yet {pct(real['Reactive greedy'].rt_sla_violation.mean)} of cell-slots miss the real-time budget, because cold cells wait while it chases hotspots. BRIDGE keeps that to {pct(real.BRIDGE.rt_sla_violation.mean)} by giving up beam stability: {real.BRIDGE.beam_switches_per_slot.mean.toFixed(1)} switches per slot against {real['Reactive greedy'].beam_switches_per_slot.mean.toFixed(1)}.</p>
+      <p className="insight">The simple scheduler looks fast on average, but it forgets quiet areas: {pct(real['Reactive greedy'].rt_sla_violation.mean)} of time-critical data arrives late. OrbitFlow keeps that to {pct(real.BRIDGE.rt_sla_violation.mean)} at the same throughput. The price is more beam switching: {real.BRIDGE.beam_switches_per_slot.mean.toFixed(1)} switches per slot against {real['Reactive greedy'].beam_switches_per_slot.mean.toFixed(1)}.</p>
     </div></section>
   );
 }
@@ -126,7 +126,7 @@ const PIPE = [
   ['Predict', 'GRU', '3 slots ahead', 'A residual GRU forecasts each cell’s demand. A leak test proves a forecast never changes when future demand is corrupted.', 'traffic/forecaster.py · tests/test_forecast_leak.py'],
   ['Decide', 'BRIDGE', 'PPO policy', 'The same small network scores every cell. Gumbel-Top-K samples 4 beams with an exact Plackett-Luce probability, and a Dirichlet splits the power.', 'bridge/policy.py · bridge/train_ppo.py'],
   ['Deliberate', '4 agents', 'Different knowledge', 'Network, Policy and Safety each see only their own events, and the Supervisor resolves conflicts. These agents are deterministic code, with no LLM in the loop.', 'agents/supervisor.py · scenarios/engine.py'],
-  ['Retrieve', 'Hybrid RAG', 'BM25 + TF-IDF', 'Rules look for evidence in the knowledge base with reciprocal rank fusion. A quote that is not verbatim in its source is dropped.', 'rag/retriever.py · agents/policy_rules.yaml'],
+  ['Retrieve', 'RAG', 'BM25, precomputed', 'Rules look up evidence in real documents ahead of time, so reading never slows a decision. A quote that is not verbatim in its source is dropped.', 'rag/retriever.py · agents/policy_rules.yaml'],
   ['Guard', 'BamGuard', 'Hard limits', 'Beam count, power budget, floor, signalling deadlines and caps are enforced last. Raw model output never reaches the twin.', 'bam/validator.py'],
   ['Audit', 'JSONL', 'Every slot', 'Each slot records what was proposed, what ran, the rule applied and its sources. Conflicts go to a human review queue.', 'audit/ · results/audit/demo.jsonl'],
 ];
@@ -147,16 +147,16 @@ function Loop({ d }) {
         <p style={{ margin: '8px 0', maxWidth: '60em' }}>{text}</p>
         <More label="Where this lives in the code"><code>{files}</code></More>
       </div>
-      <p className="note" style={{ marginTop: 12 }}>Measured on this CPU: forecast {d.flood_replay.latency.forecast_ms.toFixed(2)} ms per slot, BRIDGE {d.flood_replay.latency.bridge_ms.toFixed(2)} ms per decision, {d.bridge_training.n_params.toLocaleString()} parameters. Agent and guard time are not included.</p>
+      <p className="note" style={{ marginTop: 12 }}>Measured on one CPU core, {d.study_latency.critical_path_total.n} decisions: {d.study_latency.critical_path_total.mean.toFixed(2)} ms on average, {d.study_latency.critical_path_total.p99.toFixed(2)} ms at the 99th percentile. Policy and Safety agents take {(d.study_latency.stages.policy.mean + d.study_latency.stages.safety.mean).toFixed(2)} ms of that. The agents are fixed rules, with no LLM in the loop. This is Python on a desktop, not a real-time guarantee.</p>
     </div></section>
   );
 }
 
 const AGENTS = [
   ['network', 'Network', 'Telemetry, forecast. Maximises KPIs with BRIDGE.'],
-  ['policy', 'Policy', 'Notices, knowledge base. Checks legality.'],
+  ['policy', 'Policy', 'Notices, documents. Checks the rules.'],
   ['safety', 'Safety', 'Emergency declarations, KPIs. Protects priority traffic.'],
-  ['supervisor', 'Supervisor', 'Sees all. Guard > law > safety > optimisation.'],
+  ['supervisor', 'Supervisor', 'Sees all. Hard limits > constraints > safety > optimisation.'],
 ];
 const STAGES = [[0, 15, 'T0 normal'], [15, 28, 'T1 ramp'], [28, 45, 'T3 emergency', 'hotstage'], [45, 50, 'T4 fade', 'hotstage'], [50, 61, 'T5 cap', 'capstage'], [61, 77, 'T6 recovery'], [77, 100, 'T7 normal']];
 
@@ -193,7 +193,7 @@ function Mission({ d }) {
   const failCount = r.audit.filter((a) => a.policy_findings.some((f) => f.status === 'FAIL')).length;
   const proposed = rec.proposed; const final = rec.final;
   const beamRows = [...new Set([...proposed.beams, ...final.beams])];
-  const moments = [[0, 'Calm'], [firstAlert ?? 25, 'Forecast alert'], [28, 'Emergency declared'], [45, 'Rain fade'], [50, 'Cap arrives'], [61, 'Recovery ends priority'], [63, 'Backlog spike']];
+  const moments = [[0, 'Calm'], [firstAlert ?? 25, 'Forecast alert'], [28, 'Emergency declared'], [45, 'Rain fade'], [50, 'Cap arrives'], [61, 'Recovery']];
   const cites = rec.trace.flatMap((s) => s.citations);
   const q = (n, c) => r.runs[n].series.q_rt.map((row, i) => row[c] + r.runs[n].series.q_nrt[i][c]);
   return (
@@ -246,78 +246,89 @@ function Mission({ d }) {
         </div>
       </div>
       <div className="grid g2" style={{ marginTop: 12 }}>
-        <div className="panel"><h4>Backlog at cell {cell}</h4><p className="sub">Data waiting, by controller. Hover to read a slot.</p>
+        <div className="panel"><h4>Data waiting in area {cell}</h4><p className="sub">Hover to read any moment.</p>
           <LineChart height={220} xLabel="slot" yLabel="kb" cursor={t} format={(v) => v.toFixed(0)} marks={[{ x: 28, to: 61, label: 'em', color: 'var(--critical)' }]} series={['OrbitFlow', 'BRIDGE alone', 'Reactive greedy'].map((n) => ({ name: n, color: COLORS[n], values: q(n, cell) }))} /></div>
         <div className="panel"><h4>Power on cell {cell}</h4><p className="sub">Watts per slot. The dashed line is the {cap} W cap on border cells from slot 50.</p>
           <LineChart height={220} xLabel="slot" yLabel="W" cursor={t} format={(v) => v.toFixed(1)} marks={[{ x: 50, label: `${cap} W cap`, color: 'var(--warning)' }]} series={['OrbitFlow', 'BRIDGE alone'].map((n) => ({ name: n, color: COLORS[n], values: r.runs[n].series.power.map((p) => p[cell]) }))} /></div>
       </div>
-      <p className="insight">The clash we scripted was BRIDGE demanding far more than the cap. What happened was subtler. BRIDGE spreads its power, so the Policy agent repaired {failCount} slots of modest overshoot, usually not on an emergency cell, and at these settings nothing was sent for human review. The replay also exposes a flaw: priority ends at slot 61 while cell 13 is still busy, so its backlog spikes.</p>
+      <p className="insight">Across this replay the Policy agent trimmed {failCount} proposals and no limit was broken. Emergency cells are given a beam whenever their data starts to age, not in every slot, which keeps the other areas served.</p>
+      <More label="See a deliberate safety test: what happens if the AI proposes 50 W?"><div className="panel">
+        <h4><span className="tag warning">Controlled stress test</span> Injected on purpose, not part of the flood above</h4>
+        <p style={{ fontSize: 14 }}>A script forces a 50 W proposal on cell 13 at slot {d.study_stress_test.flood_injection.slot}. Limit: {d.study_stress_test.flood_injection.applicable_cap_w} W ({d.study_stress_test.flood_injection.cap_status}). Executed: <b className="mono">{d.study_stress_test.flood_injection.final.power_w['13']} W</b>, with the remainder moved to other beams and a human review raised.</p>
+        <div className="scroll"><table><thead><tr><th>Bad proposal</th><th>Caught by</th><th>Executed</th></tr></thead><tbody>
+          {d.study_stress_test.guard_cases.map((c) => <tr key={c.case}><td style={{ whiteSpace: 'normal' }}>{c.case}</td><td className="mono">{c.failed_checks.join(', ') || 'policy cap'}</td><td className="mono" style={{ whiteSpace: 'normal' }}>{Object.entries(c.final).map(([k, v]) => `${k}: ${v} W`).join(', ')}</td></tr>)}
+        </tbody></table></div>
+        <p className="note" style={{ margin: '8px 0 0' }}>Would BRIDGE do this unprompted? Across {d.study_stress_test.natural_bridge_power.decisions.toLocaleString()} decisions in all traffic types, {pct(d.study_stress_test.natural_bridge_power.share_over_50w)} proposed 50 W or more on one beam (largest {d.study_stress_test.natural_bridge_power.max_w.toFixed(0)} W). It is rare, which is why the check must stay.</p>
+      </div></More>
     </div></section>
   );
 }
 
 const KPI_OPTS = [
-  ['rt_sla_violation', 'RT deadline misses', '% of cell-slots', (v) => pct(v), true],
-  ['mean_delay_ms', 'Mean delay', 'ms', (v) => v.toFixed(1), true],
-  ['throughput_mbps', 'Throughput', 'Mbps', (v) => v.toFixed(1), false],
-  ['packet_loss', 'Packet loss', '%', (v) => pct(v), true],
-  ['guard_violation_slots', 'Proposals failing the guard', 'slots', (v) => v.toFixed(1), true],
-  ['beam_switches_per_slot', 'Beam switches', 'per slot', (v) => v.toFixed(2), true],
+  ['rt_sla_violation', 'Late time-critical data', '% of cell-slots', (v) => pct(v), true],
+  ['mean_delay_ms', 'Average delay', 'ms', (v) => v.toFixed(1), true],
+  ['throughput_mbps', 'Data delivered', 'Mbps', (v) => v.toFixed(1), false],
+  ['packet_loss', 'Data lost', '%', (v) => pct(v), true],
+  ['beam_switches_per_slot', 'Beam switching', 'per slot', (v) => v.toFixed(2), true],
 ];
-const SCEN = [['real_trace', 'Real pass'], ['block', 'Block'], ['event_surge', 'Surge'], ['mixed', 'Mixed'], ['bursty', 'Bursty'], ['normal', 'Normal']];
+const SCEN = [['pass:dynamic_ntn', 'Recorded pass'], ['pass:openntn_sionna', 'Second dataset'], ['kind:block', 'Sudden hotspots'], ['kind:event_surge', 'Gradual surge'], ['kind:bursty', 'Random bursts'], ['kind:mixed', 'Surge + steady'], ['kind:normal', 'Calm']];
+const ROBUST = [['pass:dynamic_ntn', 'Recorded pass'], ['pass:openntn_sionna', 'Second dataset'], ['intensity:0.5', 'Half the traffic'], ['intensity:1.25', '125% traffic'], ['intensity:1.5', '150% traffic'], ['channel:+3dB', 'Signal 3 dB better'], ['channel:-3dB', 'Signal 3 dB worse'], ['channel:-6dB', 'Signal 6 dB worse'], ['outage:0.25', '25% of links blocked'], ['pass_shift:20', 'Pass timing shifted'], ['init_backlog:50ms', 'Starts congested']];
+const pv = (p) => (p == null ? 'n/a' : p < 0.001 ? '<0.001' : p.toFixed(3));
 
 function Evidence({ d }) {
-  const [sc, setSc] = useState('real_trace');
+  const [sc, setSc] = useState('pass:dynamic_ntn');
   const [kpi, setKpi] = useState('rt_sla_violation');
-  const row = d.kpi_table.scenarios[sc];
+  const C = d.multirun.conditions; const cond = C[sc];
   const opt = KPI_OPTS.find((o) => o[0] === kpi);
-  const names = Object.keys(row);
-  const rows = names.map((n) => ({ name: n, color: COLORS[n] || '#7d8791', ...row[n][kpi] }));
-  const curve = d.bridge_training.ppo.filter((p) => p.val_reward != null);
-  const curve2 = d.bridge_training_noforecast.ppo.filter((p) => p.val_reward != null);
-  const mc = d.flood_mc.controllers;
-  const sig = (n, k) => row[n]?.vs_reactive?.[k];
-  const lossRows = useMemo(() => {
-    const out = [];
-    Object.entries(d.kpi_table.scenarios).forEach(([s, r]) => {
-      if (s === 'real_trace') return;
-      KPI_OPTS.slice(0, 2).forEach(([k, label]) => {
-        const v = r.BRIDGE.vs_reactive?.[k];
-        const nf = r['BRIDGE no-forecast'][k]; const b = r.BRIDGE[k];
-        if (b.mean > nf.mean * 1.02 + 1e-4) out.push(`${s}: BRIDGE has worse ${label[0].toLowerCase() === 'r' ? label : label.toLowerCase()} than its no-forecast control (${opt && k === 'mean_delay_ms' ? `${b.mean.toFixed(1)} vs ${nf.mean.toFixed(1)} ms` : `${pct(b.mean)} vs ${pct(nf.mean)}`})`);
-        if (v && v.losses > v.wins && v.p < 0.05) out.push(`${s}: BRIDGE loses to Reactive on ${label.toLowerCase()} (${v.wins} wins, ${v.losses} losses, p=${v.p.toExponential(1)})`);
-      });
-    });
-    return out;
-  }, [d, opt]);
+  const order = ['Static round-robin', 'Reactive greedy', 'Heuristic-predictive', 'BC', 'BRIDGE no-forecast', 'BRIDGE'];
+  const NAME = { 'Static round-robin': 'Fixed rotation', 'Reactive greedy': 'Simple scheduler', 'Heuristic-predictive': 'Hand-written rule', BC: 'AI copying the rule', 'BRIDGE no-forecast': 'AI without forecast', BRIDGE: 'OrbitFlow AI' };
+  const rows = order.map((n) => ({ name: NAME[n], color: COLORS[n] || '#c9c4b8', ...cond.policies[n][kpi] }));
+  const cmp = cond.vs_reactive[kpi]?.BRIDGE;
+  const mc = d.flood_mc.controllers; const ppo = d.ppo_summary;
+  const em = d.study_emergency.conditions['end=61,traffic=1.0'];
+  const lk = d.study_link_sensitivity.settings;
+  const LAB = { 'bandwidth_mhz=10': 0 };
   return (
     <section className="ch" id="evidence"><div className="wrap">
       <p className="kicker">Chapter 5 · Does it work?</p>
-      <h2>We tested it on situations it had never seen, including where it loses.</h2>
-      <p className="lede">{d.kpi_table.meta.test_episodes_per_kind} held-out episodes per synthetic scenario. Dots are means, bars are 95% bootstrap intervals. The real pass is a single episode, so it has no interval.</p>
+      <h2>Mostly yes. Here is where it wins, and where it doesn’t.</h2>
+      <p className="lede">Every strategy faced the same {d.multirun.meta.episodes_kinds_and_passes} test situations, none used in training. OrbitFlow’s scores are averaged over {d.multirun.meta.training_seeds} separately trained models, so one lucky training run can’t flatter it.</p>
       <div className="panel" style={{ marginTop: 28 }}>
         <div className="chips" style={{ marginBottom: 8 }}>{SCEN.map(([k, l]) => <button key={k} className={`chip ${sc === k ? 'on' : ''}`} onClick={() => setSc(k)}>{l}</button>)}</div>
         <div className="chips" style={{ marginBottom: 16 }}>{KPI_OPTS.map(([k, l]) => <button key={k} className={`chip ${kpi === k ? 'on' : ''}`} onClick={() => setKpi(k)}>{l}</button>)}</div>
         <h4>{opt[1]} <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>({opt[2]}, {opt[4] ? 'lower' : 'higher'} is better)</span></h4>
         <div style={{ marginTop: 10 }}><DotCI rows={rows} format={opt[3]} unit={opt[2]} /></div>
-        {sig('BRIDGE', kpi) && <p className="note" style={{ margin: '10px 0 0' }}>BRIDGE vs Reactive, paired by episode: {sig('BRIDGE', kpi).wins} wins, {sig('BRIDGE', kpi).losses} losses, {sig('BRIDGE', kpi).ties} ties, exact sign test p = {sig('BRIDGE', kpi).p < 0.001 ? sig('BRIDGE', kpi).p.toExponential(1) : sig('BRIDGE', kpi).p.toFixed(3)}.</p>}
-      </div>
-      <div className="grid g2" style={{ marginTop: 12 }}>
-        <div className="panel"><h4>Learning curve</h4><p className="sub">Deterministic validation reward per episode. Iteration 0 is the behaviour-cloned start, so PPO’s gain over the hand-written teacher is small but real.</p>
-          <LineChart height={240} x0={0} yMin={Math.floor(Math.min(...curve.map((c) => c.val_reward), ...curve2.map((c) => c.val_reward)) - 1)} xLabel="PPO iteration" yLabel="reward (axis does not start at 0)" format={(v) => v.toFixed(1)} series={[{ name: 'With forecast', color: 'var(--bridge)', x: curve.map((c) => c.iter), values: curve.map((c) => c.val_reward) }, { name: 'No forecast', color: 'var(--static)', values: curve2.map((c) => c.val_reward) }]} />
-        </div>
-        <div className="panel"><h4>What the agents cost and buy</h4><p className="sub">Flood relief over {d.flood_mc.seeds} demand-noise seeds. Fade, cap and timing are fixed.</p>
-          <div className="scroll"><table><thead><tr><th>Controller</th><th className="n">Cap breach slots</th><th className="n">Emergency served</th><th className="n">Mean delay ms</th><th className="n">RT misses</th></tr></thead><tbody>
-            {Object.entries(mc).map(([n, m]) => <tr key={n} className={n === 'OrbitFlow' ? 'best' : ''}><td>{n}</td><td className="n">{m.cap_violation_slots.mean.toFixed(1)}</td><td className="n">{pct(m.emergency_served_ratio.mean)}</td><td className="n">{m.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{pct(m.rt_sla_violation.mean)}</td></tr>)}
-          </tbody></table></div>
-          <p className="insight" style={{ fontSize: 17 }}>Compliance is not free. The agents remove every breach and protect the emergency cells, but delay rises from {mc['BRIDGE alone'].mean_delay_ms.mean.toFixed(0)} to {mc.OrbitFlow.mean_delay_ms.mean.toFixed(0)} ms and RT misses from {pct(mc['BRIDGE alone'].rt_sla_violation.mean)} to {pct(mc.OrbitFlow.rt_sla_violation.mean)} overall. The likely cause: forcing two beams onto emergency cells leaves two for the other seventeen.</p>
-          <p className="note">Served can exceed 100%: the twin starts with a backlog, which is cleared alongside new arrivals.</p>
-        </div>
+        {cmp && <p className="note" style={{ margin: '10px 0 0' }}>OrbitFlow vs simple scheduler, same {cmp.n} situations: difference {opt[3](Math.abs(cmp.mean_diff))} (95% CI {cmp.diff_lo?.toFixed(3)} to {cmp.diff_hi?.toFixed(3)}), {opt[4] ? cmp.wins_a_lower : cmp.wins_b_lower} better, {opt[4] ? cmp.wins_b_lower : cmp.wins_a_lower} worse, {cmp.ties} tied. Wilcoxon signed-rank, Holm-corrected p {pv(cmp.p_holm)}; effect size {cmp.effect}.</p>}
       </div>
       <div className="panel" style={{ marginTop: 12 }}>
-        <h4>Where BRIDGE loses</h4>
-        <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 14 }}>{lossRows.map((l) => <li key={l}>{l}</li>)}<li>On normal load every controller but the fixed rotation is effectively tied. There is nothing to optimise.</li><li>The forecast’s benefit is uneven. Its largest delay gain is on block traffic, where the forecaster itself adds almost nothing, so treat that gain as unexplained, not as proof that prediction works there.</li></ul>
+        <h4>Stress-testing the headline</h4><p className="sub">Does the win survive harder conditions? Bars would hide it, so here is the table. The real-world parameters here are provisional.</p>
+        <div className="scroll"><table><thead><tr><th>Condition</th><th className="n">Late data: simple</th><th className="n">Late data: OrbitFlow</th><th className="n">Delay ms: simple</th><th className="n">Delay ms: OrbitFlow</th><th>Delay verdict</th></tr></thead><tbody>
+          {ROBUST.map(([k, l]) => { const p = C[k].policies; const dv = p.BRIDGE.mean_delay_ms.mean - p['Reactive greedy'].mean_delay_ms.mean; const sig = (C[k].vs_reactive.mean_delay_ms.BRIDGE.p_holm ?? 1) < 0.05; return (
+            <tr key={k}><td>{l}</td><td className="n">{pct(p['Reactive greedy'].rt_sla_violation.mean)}</td><td className="n">{pct(p.BRIDGE.rt_sla_violation.mean)}</td><td className="n">{p['Reactive greedy'].mean_delay_ms.mean.toFixed(1)}</td><td className="n">{p.BRIDGE.mean_delay_ms.mean.toFixed(1)}</td><td>{!sig ? <span className="tag">no clear difference</span> : dv < 0 ? <span className="tag good">OrbitFlow faster</span> : <span className="tag warning">OrbitFlow slower</span>}</td></tr>); })}
+        </tbody></table></div>
+        <p className="insight" style={{ fontSize: 18 }}>Late data falls in every row. Average delay is the catch: when capacity gets scarce, OrbitFlow protects deadlines at the cost of a longer average wait.</p>
       </div>
+      <div className="grid g2" style={{ marginTop: 12 }}>
+        <div className="panel"><h4>What the safety agents cost</h4><p className="sub">Flood scenario, {d.flood_mc.seeds} runs. “Agents” includes the new need-based emergency service.</p>
+          <div className="scroll"><table><thead><tr><th>Strategy</th><th className="n">Limit breaches</th><th className="n">Emergency data served</th><th className="n">Delay ms</th><th className="n">Late data</th></tr></thead><tbody>
+            {Object.entries(mc).map(([n, m]) => <tr key={n} className={n === 'OrbitFlow' ? 'best' : ''}><td>{n === 'Static round-robin' ? 'Fixed rotation' : n === 'Reactive greedy' ? 'Simple scheduler' : n === 'BRIDGE alone' ? 'AI, no agents' : 'OrbitFlow, with agents'}</td><td className="n">{m.cap_violation_slots.mean.toFixed(1)}</td><td className="n">{pct(m.emergency_served_ratio.mean)}</td><td className="n">{m.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{pct(m.rt_sla_violation.mean)}</td></tr>)}
+          </tbody></table></div>
+          <p className="note" style={{ marginTop: 8 }}>The earlier 14 to 23 ms “agent overhead” was not computing time. It came from giving emergency cells a beam in every slot, which starved other areas. The trade-off: need-based service delivers less emergency data overall ({pct(em['need-based + abrupt'].emergency_served_ratio.mean, 0)} vs {pct(em['always + abrupt (previous)'].emergency_served_ratio.mean, 0)}), while emergency deadlines were still met in both. In this scenario the agents’ gain is keeping to the limit, not delivering more emergency data.</p>
+        </div>
+        <div className="panel"><h4>What each part of the AI adds</h4><p className="sub">Recorded pass, {C['pass:dynamic_ntn'].policies.BRIDGE.mean_delay_ms.n} runs.</p>
+          <div className="scroll"><table><thead><tr><th>Version</th><th className="n">Delay ms</th><th className="n">Late data</th></tr></thead><tbody>
+            {['Heuristic-predictive', 'BC', 'BRIDGE no-forecast', 'BRIDGE'].map((n) => { const p = C['pass:dynamic_ntn'].policies[n]; return <tr key={n} className={n === 'BRIDGE' ? 'best' : ''}><td>{NAME[n]}</td><td className="n">{p.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{pct(p.rt_sla_violation.mean, 2)}</td></tr>; })}
+          </tbody></table></div>
+          <p className="note" style={{ marginTop: 8 }}>Reinforcement learning halves the delay of the rule it started from. The forecast cuts delay further, with little change in late data. Training from scratch also reached low delay on validation ({ppo.scratch.delay.toFixed(1)} ms vs {ppo.rg.delay.toFixed(1)} ms), so copying the rule is a useful start but not essential.</p>
+        </div>
+      </div>
+      <More label="See the full methods and engineering sensitivity"><div className="panel">
+        <h4>If the provisional radio numbers are wrong</h4><p className="sub">Same trained AI, one parameter changed at a time, {d.study_link_sensitivity.n_per_setting} runs each. Values await engineering review.</p>
+        <div className="scroll"><table><thead><tr><th>Setting</th><th className="n">Signal quality dB</th><th className="n">Late: simple</th><th className="n">Late: OrbitFlow</th><th className="n">Delay: simple</th><th className="n">Delay: OrbitFlow</th><th className="n">Emergency served</th></tr></thead><tbody>
+          {Object.entries(lk).map(([n, e]) => <tr key={n}><td className="mono">{n}</td><td className="n">{e.bridge.mean_sinr_db.mean.toFixed(1)}</td><td className="n">{pct(e.reactive.rt_sla_violation.mean)}</td><td className="n">{pct(e.bridge.rt_sla_violation.mean)}</td><td className="n">{e.reactive.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{e.bridge.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{pct(e.flood.emergency_served_ratio.mean)}</td></tr>)}
+        </tbody></table></div>
+        <p className="note" style={{ marginTop: 8 }}>Episodes per condition: {d.multirun.meta.episodes_kinds_and_passes} (scenarios, passes), {d.multirun.meta.episodes_other_conditions} (others). Seeds from {d.multirun.meta.first_seed}. Perturbed recorded passes share one geometry, so they are not independent satellite passes. Full statistics are in results/multirun.json and docs/REPORT.md.</p>
+      </div></More>
     </div></section>
   );
 }
@@ -344,7 +355,7 @@ function Lab({ d }) {
   return (
     <section className="ch" id="lab"><div className="wrap">
       <p className="kicker">Chapter 6 · Try it yourself</p>
-      <h2>Tighten the law. Worsen the storm. See which one hurts.</h2>
+      <h2>Tighten the limit. Worsen the storm. See which one hurts.</h2>
       <p className="lede">Move the sliders. Each square is a complete simulation run, already computed, not an estimate.</p>
       <div className="grid g2">
         <div className="panel">
@@ -368,14 +379,29 @@ function Lab({ d }) {
           <h4>This run</h4>
           <p style={{ font: '400 20px/1.35 var(--serif)', margin: '6px 0 14px', minHeight: 82 }}>{sentence()}</p>
           <LineChart height={210} xLabel="slot" yLabel="kb" format={(v) => v.toFixed(0)} marks={[{ x: 45, to: 61, label: 'fade', color: 'var(--critical)' }]} series={[{ name: 'OrbitFlow', color: COLORS.OrbitFlow, values: o.q_event }, { name: 'BRIDGE alone', color: COLORS['BRIDGE alone'], values: b.q_event }]} />
-          <p className="note" style={{ margin: '6px 0 0' }}>Backlog at the surge cell, cell {d.flood_replay.meta.event_cell}.</p>
+          <p className="note" style={{ margin: '6px 0 0' }}>Data waiting in the surge area, cell {d.flood_replay.meta.event_cell}. Precomputed run <code>{cur.experiment_id}</code></p>
           <div className="scroll"><table style={{ marginTop: 8 }}><thead><tr><th /><th className="n">Cap breach slots</th><th className="n">Emergency served</th><th className="n">Human reviews</th></tr></thead><tbody>
             <tr><td>OrbitFlow</td><td className="n">{o.cap_violation_slots}</td><td className="n">{pct(o.emergency_served_ratio)}</td><td className="n">{o.human_reviews}</td></tr>
             <tr><td>BRIDGE alone</td><td className="n">{b.cap_violation_slots}</td><td className="n">{pct(b.emergency_served_ratio)}</td><td className="n">{b.human_reviews}</td></tr>
           </tbody></table></div>
         </div>
       </div>
-      <p className="insight">Read the grid by column and then by row. Emergency service falls with fade and barely moves with the cap, at least in this link budget. A flood plan should budget for rain before it argues over watts.</p>
+      <div className="panel" style={{ marginTop: 12 }}>
+        <h4>What real regulations imply <span className="tag warning" style={{ marginLeft: 4 }}>indicative</span></h4>
+        <p className="sub">Regulators limit power reaching the ground, not watts per beam. This applies the ITU-R SF.358-5 limit per area and per moment, for different assumed antenna gains. {d.study_pfd_mask.n_per_setting} runs each.</p>
+        <div className="scroll"><table><thead><tr><th>Assumed satellite antenna gain</th><th className="n">Typical limit per beam</th><th className="n">Emergency data served</th><th className="n">Delay ms</th><th className="n">Breaches with agents</th><th className="n">Breaches without</th></tr></thead><tbody>
+          {Object.entries(d.study_pfd_mask.settings).map(([n, e]) => <tr key={n}><td>{n === 'no cap' ? 'No limit applied' : n.replace('Gtx=', '')}</td><td className="n">{e.median_cap_w ? `${e.median_cap_w.toFixed(0)} W` : '-'}</td><td className="n">{pct(e.emergency_served_ratio.mean, 0)}</td><td className="n">{e.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{e.pfd_breach_slots.mean.toFixed(0)}</td><td className="n">{e.breach_slots_without_agents ? e.breach_slots_without_agents.mean.toFixed(0) : '-'}</td></tr>)}
+        </tbody></table></div>
+        <p className="insight" style={{ fontSize: 19 }}>A loose limit barely matters, which is what the grid above shows. A realistic one can dominate: at 30 dBi, emergency service falls to {pct(d.study_pfd_mask.settings['Gtx=30 dBi'].emergency_served_ratio.mean, 0)}. The satellite’s real antenna gain is the most valuable number still missing.</p>
+        <p className="note">{d.study_pfd_mask.label}</p>
+      </div>
+      <More label="See why, and how rain and limits combine"><div className="panel">
+        <h4>Rain × power limit, {d.study_factorial.n_per_cell} paired runs per cell</h4>
+        <div className="scroll"><table><thead><tr><th>Rain fade</th><th>Limit (hypothetical)</th><th className="n">Emergency served</th><th className="n">Slots where limit bites</th></tr></thead><tbody>
+          {d.study_factorial.cells.map((c) => <tr key={`${c.rain_db}-${c.cap_w}`}><td>{c.rain_db} dB</td><td>{c.cap_w ? `${c.cap_w} W` : 'none'}</td><td className="n">{pct(c.emergency_served_ratio.mean)}</td><td className="n">{pct(c.cap_binding_share.mean, 0)}</td></tr>)}
+        </tbody></table></div>
+        <p className="note" style={{ marginTop: 8 }}>The effects compound: at 12 dB and 8 W, the combined loss is {Math.abs(d.study_factorial.interaction_served_ratio.rain12_cap8.mean * 100).toFixed(0)} points beyond the sum of each alone. A 22 W limit rarely hurts because signal quality is capped by interference between beams: going from 25 W to 22 W moves that ceiling only from {d.study_factorial.physics.sinr_ceiling_equal_beams_db.toFixed(1)} to {d.study_factorial.physics.sinr_ceiling_22W_vs_78W_db.toFixed(1)} dB, and capacity grows only with the logarithm of it.</p>
+      </div></More>
     </div></section>
   );
 }
@@ -400,7 +426,7 @@ function Knowledge({ d }) {
     <section className="ch" id="knowledge"><div className="wrap">
       <p className="kicker">Chapter 7 · The rulebook</p>
       <h2>It reads real policy documents, quotes them exactly, and admits when they don’t say.</h2>
-      <p className="lede">The knowledge base is the ITU AI Readiness training repository at a pinned commit: {t.ingested} of {t.files} files, {t.pages.toLocaleString()} pages, {t.chunks.toLocaleString()} chunks. It covers AI policy, not spectrum law, so it can support how OrbitFlow is structured, but not the value of a power cap.</p>
+      <p className="lede">The rulebook is the ITU AI Readiness document repository plus four ITU-R and FCC documents: {t.ingested} of {t.files} files, {t.pages.toLocaleString()} pages, {t.chunks.toLocaleString()} chunks. It joins AI-policy documents with four satellite regulatory documents, so it can support both how OrbitFlow is structured and how real power limits work.</p>
       <div className="stats" style={{ marginTop: 24 }}>
         <div className="stat"><b>{t.evidence_eligible}</b><span>documents that can count as evidence; summaries and sample files cannot</span></div>
         <div className="stat"><b>{t.failed}</b><span>PDFs failed both parsers, and are reported rather than replaced</span></div>
@@ -451,9 +477,9 @@ function Knowledge({ d }) {
 
 function Ledger({ d }) {
   const rows = [
-    ['From real data', 'The satellite’s path, signal conditions and timing come from the supplied offline NTN datasets. The rulebook is 65 real documents from the ITU AI Readiness repository.'],
+    ['From real data', 'The satellite’s path, signal conditions and timing come from the supplied offline NTN datasets. The rulebook is real documents: the ITU AI Readiness repository plus ITU-R and FCC satellite documents.'],
     ['Measured by us', 'Every chart: all results are computed by running the software, with fixed seeds, and can be reproduced.'],
-    ['Generated for testing', 'Training traffic is generated to match the dataset’s levels. The flood is a test scenario. The 22 W limit is a hypothetical constraint, not a real law.'],
+    ['Generated for testing', 'Training traffic is generated to match the dataset’s levels. The flood is a test scenario. The 22 W limit is a hypothetical constraint; the flux-density study uses a real ITU-R limit as an indicative guide. None of this shows regulatory compliance.'],
     ['Awaiting engineering review', 'Antenna gain, bandwidth and interference values are provisional until reviewed by RF engineers.'],
     ['Not built', 'This is a simulation, not connected to a real satellite. The agents use fixed rules rather than an LLM, by design: time-critical safety decisions should be predictable.'],
   ];

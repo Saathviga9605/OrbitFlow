@@ -103,5 +103,5 @@ experiment:
 emergency:              # variants compared in scripts/run_experiments.py
   mode: need_based      # always | need_based
   age_trigger: 0.3      # force an emergency cell when its RT age exceeds this share of the budget
-  release: taper        # abrupt | taper
+  release: abrupt       # taper added no benefit over need-based service (results/studies/emergency.json)
   taper_max_slots: 30

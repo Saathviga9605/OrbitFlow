@@ -1,99 +1,87 @@
 # OrbitFlow
 
-**Predictive, policy-aware beam hopping for a LEO satellite, with every decision audited.**
+**Predictive, safety-checked beam hopping for a LEO satellite, in simulation, with every decision audited.**
 
-A satellite can light 4 of 19 cells per 10 ms slot on a 100 W budget. OrbitFlow forecasts demand, chooses beams with a learned policy, and checks each choice against law, safety and hard technical limits before it runs.
+A satellite can light 4 of 19 cells per 10 ms slot on a 100 W budget. OrbitFlow forecasts demand, chooses beams with a reinforcement-learned policy, and checks each choice against hard limits and operating constraints before it runs. It is an offline simulation.
 
 ```
-Observe → Predict (GRU) → Decide (BRIDGE, PPO) → Deliberate (4 agents + RAG) → Guard → Execute (twin) → Audit
+Observe -> Predict (GRU + gate) -> Decide (BRIDGE, PPO) -> Deliberate (4 rule-based agents + evidence) -> Guard -> Execute (twin) -> Audit
 ```
 
-## Run the demo
+## Run it
 
 ```bash
-cd dashboard/frontend && npm install && npx vite build && npx vite preview --port 4173
-# or serve UI and API together, from the repo root:
+cd dashboard/frontend && npm install && npx vite build && npx vite preview --port 4173   # http://localhost:4173
+# or UI + API (run a built UI from the repo root):
 python -m uvicorn dashboard.api:app --port 8000
+# or container:
+docker compose up --build                                                                 # http://localhost:8000
 ```
 
-The UI is static and needs no server, which makes it reliable on stage. Trained models and results are already in the repo. The presenter script is in [docs/demo_script.md](docs/demo_script.md).
+Trained models and results are included. Presenter script: [docs/demo_script.md](docs/demo_script.md). Full results, statistics and limitations: [docs/REPORT.md](docs/REPORT.md).
 
 ## Results
 
-All numbers come from `scripts/run_eval.py`. Synthetic rows use 18 held-out episodes per scenario. The real pass is one external episode, never used for training or model selection.
+100 paired test runs of a recorded pass, 5 trained models, none of this data used in training.
 
-| Real pass | Throughput (Mbps) | Mean delay (ms) | RT deadline misses | Proposals failing guard (slots) |
-|---|---:|---:|---:|---:|
-| Static round-robin | 117.5 | 97.9 | 1.9% | 0 |
-| Reactive greedy | 169.7 | 16.2 | 20.7% | 8 |
-| Heuristic-predictive | 166.0 | 30.8 | 0.8% | 0 |
-| BRIDGE no-forecast | 169.2 | 21.0 | 0.8% | 0 |
-| **BRIDGE** | **169.8** | **14.1** | **0.7%** | **0** |
-| Logged rule-based (non-causal reference) | 166.2 | 45.0 | 40.6% | 22 |
+| Strategy | Late time-critical data | Mean delay (ms) | Throughput (Mbps) |
+|---|---:|---:|---:|
+| Reactive greedy | 19.6% | 16.1 | 169.4 |
+| **BRIDGE** | **0.6%** | **15.9** | **169.6** |
 
-Flood relief, over 30 demand-noise seeds:
+- On a second dataset (OpenNTN demand, Sionna-derived channel, offline exports): 13.7% vs 2.0%.
+- Decision and safety checks: 1.4 ms mean, 2.2 ms p99, on one CPU core.
+- In a flood scenario, agents reduce breaches of a hypothetical limit from 23 slots to 0, with no emergency deadline missed.
 
-| Controller | Cap breach slots | Emergency served | Mean delay (ms) | RT misses |
-|---|---:|---:|---:|---:|
-| Reactive greedy | 21.8 | 99.3% | 15.4 | 18.3% |
-| BRIDGE alone | 22.1 | 96.3% | 14.0 | 0.1% |
-| **OrbitFlow (BRIDGE + agents)** | **0** | **101.2%** | 23.2 | 7.6% |
+**Where it loses:** under scarce capacity its average delay is worse than Reactive (36 vs 26 ms at 150% traffic). It switches beams twice as often. In the flood, agents deliver slightly less total emergency data than no agents (94% vs 96%). All runs share one pass geometry.
 
-Served can exceed 100% because the initial backlog is cleared along with new arrivals.
-
-Forecast error at demand jumps, against repeat-last: **71% lower on surges with a ramp, 2% on abrupt block switches and on the real pass.** Inference takes about 1 ms on CPU within a 10 ms slot.
-
-### Where it loses
-
-- BRIDGE has higher mean delay than Reactive on bursty traffic (0 wins, 18 losses).
-- The forecast input makes BRIDGE worse on bursty traffic. Its largest gain is on block traffic, where the forecaster adds almost nothing; that gain is unexplained.
-- Agents cost performance: delay rises from 14 to 23 ms and RT misses from 0.1% to 7.6% in flood relief.
-- Emergency priority ends abruptly at slot 61, causing a backlog spike. It should taper.
-- PPO improves only modestly on its behaviour-cloned start (validation reward 130.1 to 134.2).
-
-## What is real, and what is not
+## Status of the inputs
 
 | | |
 |---|---|
-| **Real** | Pass geometry, channel gains, SSB/SIB schedule and the test pass, from the supplied dataset |
-| **Synthetic** | Training and test demand, calibrated to the dataset's hot and cold levels |
-| **Simulated** | The flood, regulator notice, 22 W cap, border cells and operator procedures |
-| **Assumed** | Link budget (calibrated to about 11 dB mean SINR), 40/80-slot signalling limits |
-| **Not built** | LLM agents (agents are deterministic rules), neural embeddings (retrieval is BM25 + TF-IDF), a live E2/O-RAN interface, a real legal corpus |
+| **From data** | Pass geometry, channel, timing (offline datasets, see [docs/data_provenance.md](docs/data_provenance.md)); 69 real policy and regulatory documents |
+| **Generated** | Training demand; the flood scenario |
+| **Hypothetical** | The 22 W limit. A separate study applies ITU-R SF.358-5 as an indicative guide |
+| **Provisional** | Antenna gain, bandwidth, interference, noise figure ([parameter sheet](docs/link_budget_parameters.md), awaiting ECE review) |
+| **Not claimed** | Regulatory compliance, live network or Sionna integration, national AI readiness |
 
-To add real sources, put the files in `rag/knowledge_base/raw/` under the names in `rag/knowledge_base/manifest.yaml`, then rerun `scripts/run_eval.py`. Missing documents are skipped and reported, never faked.
+Agents are deterministic rules by design; there is no LLM in this system.
+
+## Reproduce
+
+```bash
+pip install -r requirements.txt
+python scripts/fetch_kb.py && python -m rag.ingest    # fetch and index the source documents
+python -m rag.eval_retrieval --build-dense && python scripts/build_kb_report.py
+python -m pytest -q tests
+python -m traffic.train_forecaster                    # about 6 min on CPU
+# BRIDGE: selected configuration is in config.yaml
+for s in 1 2 3 4 5; do python -m bridge.train_ppo --tag rg_s$s --seed $s; python -m bridge.train_ppo --tag rgnf_s$s --seed $s --no-forecast; done
+python scripts/run_experiments.py --tag rg --gate     # multi-run evaluation
+python scripts/run_studies.py --tag rg                # emergency, factorial, flux-density, latency, stress, sensitivity
+python scripts/run_eval.py                            # replay, what-if grid, copies web data
+cd dashboard/frontend && npx vite build
+```
 
 ## Layout
 
 ```
 traffic/       forecaster, synthetic demand, splits
 bridge/        BRIDGE policy, PPO + behaviour cloning, baselines
-digital_twin/  queues, SINR, KPIs
+digital_twin/  queues, SINR, KPIs, explicit link budget
 bam/           guardrail: hard limits and repair
 agents/        Network, Policy, Safety, Supervisor; policy_rules.yaml
-rag/           ingestion, hybrid retrieval, citation checks, knowledge base
-scenarios/     event engine with information asymmetry, flood relief
+rag/           ingestion, retrieval, citation checks, manifest
+scenarios/     event engine with information boundaries, flood relief
 audit/         per-slot JSONL records
-scripts/       run_eval.py: every number in the UI
-dashboard/     FastAPI server and the story UI
-```
-
-## Reproduce
-
-```bash
-pip install -r requirements.txt
-python -m pytest -q tests                 # 59 tests
-python -m traffic.train_forecaster        # about 6 min on CPU
-python -m bridge.train_ppo                # about 15 min
-python -m bridge.train_ppo --no-forecast
-python scripts/run_eval.py                # about 2 min
-cd dashboard/frontend && npx vite build
+scripts/       experiments, studies, evaluation
+dashboard/     FastAPI server and story UI
 ```
 
 ## References
 
 - Schulman et al., "Proximal Policy Optimization Algorithms", 2017.
-- Kool et al., "Stochastic Beams and Where to Find Them", ICML 2019. Gumbel-Top-K here is a sampler with an exact Plackett-Luce log-probability; learning uses policy gradients.
-- Cho et al., "Learning Phrase Representations using RNN Encoder-Decoder", 2014.
+- Kool et al., "Stochastic Beams and Where to Find Them", ICML 2019. Gumbel-Top-K is a sampler with an exact Plackett-Luce log-probability; learning uses policy gradients.
+- ITU-T Y.3172; ITU-R SF.358-5; ITU AI Ready Report 2.0. Knowledge-base sources are listed in `rag/knowledge_base/manifest.yaml`.
 
-MIT licence.
+Code: MIT licence. Knowledge-base documents keep their publishers' terms and are fetched, not redistributed.

@@ -74,6 +74,7 @@
    "cells": [
     13
    ],
+   "dark_after_repair": [],
    "demand_mbps": 40.4,
    "capacity_mbps": 53.9,
    "capacity_lost_mbps": 22.3,
@@ -84,7 +85,7 @@
    "final_w": {
     "13": 22.0
    },
-   "reason": "Legal cap conflicts with emergency service and no retrievable exemption was found."
+   "reason": "Operating constraint conflicts with emergency service and no exemption passage was found in the corpus."
   }
  },
  "guard_cases": [
@@ -190,6 +191,6 @@
   "median_max_beam_w": 27.407523937217427,
   "share_over_50w": 0.0028,
   "share_over_22w": 1.0,
-  "explanation": "Dirichlet concentrations are at least 1 and, under the shared log-capacity reward, an extra watt on one beam gains little capacity and costs other beams. See docs/REPORT.md."
+  "explanation": "Capacity grows with the log of SINR and interference sets a ceiling, so concentrating power gains little and costs other beams. Large shares are rare but do occur."
  }
 }

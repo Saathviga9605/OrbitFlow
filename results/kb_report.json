@@ -1390,81 +1390,77 @@
   "note": "Gold set written by the developer after reading the corpus; n is small, treat differences of a few queries as noise.",
   "methods": {
    "bm25": {
-    "precision_at_5": 0.5933333333333334,
-    "section_recall_at_5": 0.9333333333333333,
-    "doc_recall_at_5": 0.9666666666666667,
-    "mrr": 0.7911111111111111,
-    "latency_ms_median": 29.995550052262843,
+    "precision_at_5": 0.6484848484848484,
+    "section_recall_at_5": 0.9393939393939394,
+    "doc_recall_at_5": 0.9696969696969697,
+    "mrr": 0.8141414141414142,
+    "latency_ms_median": 26.4896999578923,
     "misses": [
-     "how open source lowers barriers to adopting AI",
-     "China security risks classification governance measures for AI"
+     "applying rules to model output before it reaches the network",
+     "limit on flux density reaching the ground from satellites sharing with radio relay"
     ],
-    "n": 30
+    "n": 33
    },
    "tfidf": {
-    "precision_at_5": 0.45333333333333337,
-    "section_recall_at_5": 0.8,
-    "doc_recall_at_5": 0.8666666666666667,
-    "mrr": 0.6316666666666666,
-    "latency_ms_median": 46.553549997042865,
+    "precision_at_5": 0.5393939393939394,
+    "section_recall_at_5": 0.8181818181818182,
+    "doc_recall_at_5": 0.8787878787878788,
+    "mrr": 0.6737373737373737,
+    "latency_ms_median": 33.64430007059127,
     "misses": [
-     "how open source lowers barriers to adopting AI",
+     "applying rules to model output before it reaches the network",
      "India responsible AI principles accountability",
      "use of AI in Indian agriculture and healthcare priority sectors",
      "environmental footprint and energy use of AI sustainable coalition",
      "China national plan to lead in AI by 2030",
-     "China security risks classification governance measures for AI"
+     "limit on flux density reaching the ground from satellites sharing with radio relay"
     ],
-    "n": 30
+    "n": 33
    },
    "hybrid": {
-    "precision_at_5": 0.5666666666666667,
-    "section_recall_at_5": 0.8333333333333334,
-    "doc_recall_at_5": 0.9,
-    "mrr": 0.7566666666666666,
-    "latency_ms_median": 55.90949993347749,
+    "precision_at_5": 0.6181818181818182,
+    "section_recall_at_5": 0.8484848484848485,
+    "doc_recall_at_5": 0.9090909090909091,
+    "mrr": 0.7585858585858585,
+    "latency_ms_median": 41.42620007041842,
     "misses": [
-     "how open source lowers barriers to adopting AI",
+     "applying rules to model output before it reaches the network",
      "India responsible AI principles accountability",
      "use of AI in Indian agriculture and healthcare priority sectors",
      "environmental footprint and energy use of AI sustainable coalition",
-     "China security risks classification governance measures for AI"
+     "limit on flux density reaching the ground from satellites sharing with radio relay"
     ],
-    "n": 30
+    "n": 33
    },
    "dense": {
-    "precision_at_5": 0.49333333333333335,
-    "section_recall_at_5": 0.7,
-    "doc_recall_at_5": 0.8666666666666667,
-    "mrr": 0.65,
-    "latency_ms_median": 75.27494995156303,
+    "precision_at_5": 0.5696969696969696,
+    "section_recall_at_5": 0.7878787878787878,
+    "doc_recall_at_5": 0.8787878787878788,
+    "mrr": 0.7121212121212122,
+    "latency_ms_median": 60.902200057171285,
     "misses": [
      "experimentation platforms for validating AI before deployment",
      "how open source lowers barriers to adopting AI",
      "testing ML models in an isolated environment before applying to the live network",
-     "keeping humans in control of AI decisions in ASEAN guidance",
+     "applying rules to model output before it reaches the network",
      "India responsible AI principles accountability",
-     "Singapore national AI compute and talent action items",
      "environmental footprint and energy use of AI sustainable coalition",
-     "China national plan to lead in AI by 2030",
-     "China security risks classification governance measures for AI"
+     "China national plan to lead in AI by 2030"
     ],
-    "n": 30
+    "n": 33
    },
    "hybrid_dense": {
-    "precision_at_5": 0.5733333333333334,
-    "section_recall_at_5": 0.8333333333333334,
-    "doc_recall_at_5": 0.8666666666666667,
-    "mrr": 0.7527777777777778,
-    "latency_ms_median": 147.66855002380908,
+    "precision_at_5": 0.6727272727272728,
+    "section_recall_at_5": 0.9090909090909091,
+    "doc_recall_at_5": 0.9393939393939394,
+    "mrr": 0.7535353535353535,
+    "latency_ms_median": 99.61760009173304,
     "misses": [
      "how open source lowers barriers to adopting AI",
-     "India responsible AI principles accountability",
      "use of AI in Indian agriculture and healthcare priority sectors",
-     "environmental footprint and energy use of AI sustainable coalition",
-     "China security risks classification governance measures for AI"
+     "environmental footprint and energy use of AI sustainable coalition"
     ],
-    "n": 30
+    "n": 33
    }
   }
  },
