@@ -27,7 +27,6 @@ OrbitFlow forecasts demand, chooses beams with a reinforcement-learned policy, a
 - [Testing](#testing)
 - [Project layout](#project-layout)
 - [Configuration](#configuration)
-- [Limitations](#limitations)
 - [Documentation](#documentation)
 - [References](#references)
 
