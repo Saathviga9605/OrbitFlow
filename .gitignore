@@ -347,3 +347,4 @@ secrets/
 rag/knowledge_base/_source/
 rag/index/dense_bge.npy
 results/_*.log
+rag/knowledge_base/_supplement/
