@@ -1,0 +1,44 @@
+# Auditable, human-editable rules. Deterministic code checks them; retrieval over the real corpus supplies evidence only.
+# `must` patterns must ALL appear in a passage for it to count. NONE_FOUND rules stay enforced as operating constraints.
+- id: R1_border_power_cap
+  title: Power limit on beams over border cells
+  query: "transmit beam power limit satellite neighbouring country cross-border interference"
+  must: ["(beam|transmit|radiated|EIRP).{0,12}power|power flux|power limit", "satellite|spectrum|cross-border|transboundary"]
+  parameter_source: hypothetical_constraint   # the number is ours; the corpus holds no such rule
+- id: R2_emergency_priority
+  title: Emergency traffic keeps service
+  query: "priority for emergency and disaster communications network connectivity"
+  must: ["emergenc|disaster", "priorit|connectivity|telecommunication"]
+  parameter_source: scenario_event
+- id: R3_human_oversight
+  title: Automated decisions stay reviewable by a human
+  query: "human oversight of automated AI decisions"
+  must: ["human oversight|human-in-the-loop|human in the loop|human control"]
+  parameter_source: none
+- id: R3b_record_keeping
+  title: Automated decisions are logged and traceable
+  query: "record keeping logging traceability of AI system decisions"
+  must: ["logging|record.?keeping|traceab"]
+  parameter_source: none
+- id: R4_signalling
+  title: Initial-access signalling (SSB/SIB) is protected
+  query: "SSB system information initial access non-terrestrial network signalling"
+  must: ["SSB|synchroni[sz]ation signal|system information block"]
+  parameter_source: config_assumption
+- id: R5_emergency_exemption
+  title: Is emergency traffic exempt from a cross-border power limit?
+  query: "emergency exemption from a cross-border power limit"
+  must: ["exempt|waive|derogat", "power limit|power cap|transmit power|beam power"]
+  parameter_source: none
+- id: R6_ml_policy_before_sink
+  title: Machine-learning output passes a policy function before it reaches the network
+  query: "ML pipeline policy applied to model output before it reaches the sink"
+  must: ["policy"]
+  doc_ids: [t_rec_y_3172_201906_i_pdf_e]
+  parameter_source: none
+- id: R7_sandbox_validation
+  title: Models are validated in a sandbox before deployment
+  query: "ML sandbox train and validate models before applying them to the network"
+  must: ["sandbox"]
+  doc_ids: [t_rec_y_3172_201906_i_pdf_e]
+  parameter_source: none

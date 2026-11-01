@@ -1,0 +1,25 @@
+--tag base_s1 --seed 1
+--tag basenf_s1 --seed 1 --no-forecast
+--tag gated_s1 --seed 1 --set predictor.gate=true
+--tag scratch_s1 --seed 1 --no-bc
+--tag rg_s1 --seed 1 --set predictor.gate=true --set reward.w_delay=2.0 --set reward.w_rt_violation=3.0 --set reward.w_fairness=0.0
+--tag base_s2 --seed 2
+--tag basenf_s2 --seed 2 --no-forecast
+--tag gated_s2 --seed 2 --set predictor.gate=true
+--tag scratch_s2 --seed 2 --no-bc
+--tag rg_s2 --seed 2 --set predictor.gate=true --set reward.w_delay=2.0 --set reward.w_rt_violation=3.0 --set reward.w_fairness=0.0
+--tag base_s3 --seed 3
+--tag basenf_s3 --seed 3 --no-forecast
+--tag gated_s3 --seed 3 --set predictor.gate=true
+--tag scratch_s3 --seed 3 --no-bc
+--tag rg_s3 --seed 3 --set predictor.gate=true --set reward.w_delay=2.0 --set reward.w_rt_violation=3.0 --set reward.w_fairness=0.0
+--tag base_s4 --seed 4
+--tag basenf_s4 --seed 4 --no-forecast
+--tag gated_s4 --seed 4 --set predictor.gate=true
+--tag scratch_s4 --seed 4 --no-bc
+--tag rg_s4 --seed 4 --set predictor.gate=true --set reward.w_delay=2.0 --set reward.w_rt_violation=3.0 --set reward.w_fairness=0.0
+--tag base_s5 --seed 5
+--tag basenf_s5 --seed 5 --no-forecast
+--tag gated_s5 --seed 5 --set predictor.gate=true
+--tag scratch_s5 --seed 5 --no-bc
+--tag rg_s5 --seed 5 --set predictor.gate=true --set reward.w_delay=2.0 --set reward.w_rt_violation=3.0 --set reward.w_fairness=0.0

@@ -1,0 +1,9 @@
+numpy>=1.26
+pandas>=2.1
+pyyaml>=6.0
+scikit-learn>=1.4
+torch>=2.2
+fastapi>=0.110.0
+uvicorn>=0.27.0
+pytest>=8.0
+pypdf>=4.0  # only used once real PDFs are added to the knowledge base

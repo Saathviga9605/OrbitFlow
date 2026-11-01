@@ -1,0 +1,82 @@
+{
+ "note": "Gold set written by the developer after reading the corpus; n is small, treat differences of a few queries as noise.",
+ "methods": {
+  "bm25": {
+   "precision_at_5": 0.5933333333333334,
+   "section_recall_at_5": 0.9333333333333333,
+   "doc_recall_at_5": 0.9666666666666667,
+   "mrr": 0.7911111111111111,
+   "latency_ms_median": 29.995550052262843,
+   "misses": [
+    "how open source lowers barriers to adopting AI",
+    "China security risks classification governance measures for AI"
+   ],
+   "n": 30
+  },
+  "tfidf": {
+   "precision_at_5": 0.45333333333333337,
+   "section_recall_at_5": 0.8,
+   "doc_recall_at_5": 0.8666666666666667,
+   "mrr": 0.6316666666666666,
+   "latency_ms_median": 46.553549997042865,
+   "misses": [
+    "how open source lowers barriers to adopting AI",
+    "India responsible AI principles accountability",
+    "use of AI in Indian agriculture and healthcare priority sectors",
+    "environmental footprint and energy use of AI sustainable coalition",
+    "China national plan to lead in AI by 2030",
+    "China security risks classification governance measures for AI"
+   ],
+   "n": 30
+  },
+  "hybrid": {
+   "precision_at_5": 0.5666666666666667,
+   "section_recall_at_5": 0.8333333333333334,
+   "doc_recall_at_5": 0.9,
+   "mrr": 0.7566666666666666,
+   "latency_ms_median": 55.90949993347749,
+   "misses": [
+    "how open source lowers barriers to adopting AI",
+    "India responsible AI principles accountability",
+    "use of AI in Indian agriculture and healthcare priority sectors",
+    "environmental footprint and energy use of AI sustainable coalition",
+    "China security risks classification governance measures for AI"
+   ],
+   "n": 30
+  },
+  "dense": {
+   "precision_at_5": 0.49333333333333335,
+   "section_recall_at_5": 0.7,
+   "doc_recall_at_5": 0.8666666666666667,
+   "mrr": 0.65,
+   "latency_ms_median": 75.27494995156303,
+   "misses": [
+    "experimentation platforms for validating AI before deployment",
+    "how open source lowers barriers to adopting AI",
+    "testing ML models in an isolated environment before applying to the live network",
+    "keeping humans in control of AI decisions in ASEAN guidance",
+    "India responsible AI principles accountability",
+    "Singapore national AI compute and talent action items",
+    "environmental footprint and energy use of AI sustainable coalition",
+    "China national plan to lead in AI by 2030",
+    "China security risks classification governance measures for AI"
+   ],
+   "n": 30
+  },
+  "hybrid_dense": {
+   "precision_at_5": 0.5733333333333334,
+   "section_recall_at_5": 0.8333333333333334,
+   "doc_recall_at_5": 0.8666666666666667,
+   "mrr": 0.7527777777777778,
+   "latency_ms_median": 147.66855002380908,
+   "misses": [
+    "how open source lowers barriers to adopting AI",
+    "India responsible AI principles accountability",
+    "use of AI in Indian agriculture and healthcare priority sectors",
+    "environmental footprint and energy use of AI sustainable coalition",
+    "China security risks classification governance measures for AI"
+   ],
+   "n": 30
+  }
+ }
+}

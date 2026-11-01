@@ -1,0 +1,23 @@
+{
+ "human_verified": false,
+ "real_sources_indexed": 0,
+ "header": "Machine-generated candidates. Verify each against a source document.",
+ "candidates": [
+  {
+   "id": "GAP-01",
+   "title": "No retrievable emergency exemption from a cross-border power cap",
+   "domain": "NTN radio resource management",
+   "trigger": "Slot 50 conflict: law and emergency service disagree",
+   "statement": "The indexed corpus has no passage allowing emergency traffic to exceed a cross-border beam power cap, so the controller keeps the cap and escalates.",
+   "absence_evidence": {
+    "queries": [
+     "emergency exemption from cross-border power limit",
+     "cap waived for safety-of-life traffic exception"
+    ],
+    "must_contain": "exempt|waive|exception|derogat"
+   },
+   "limitation": "0 real legal or standards documents are indexed, so this shows a gap in the corpus, not yet in the law.",
+   "human_verified": false
+  }
+ ]
+}

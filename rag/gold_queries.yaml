@@ -1,0 +1,32 @@
+# Retrieval evaluation set, written by the OrbitFlow developer after reading the corpus; not independent judges.
+# A chunk is relevant if it is from a listed doc and matches `match`. Queries paraphrase the source to avoid exact-phrase lookup.
+- {q: "what are the fundamental factors of AI readiness?", docs: [ai_ready_framework_2025], match: "fundamental factors|Sandbox"}
+- {q: "experimentation platforms for validating AI before deployment", docs: [ai_ready_framework_2025], match: "Sandbox"}
+- {q: "how open source lowers barriers to adopting AI", docs: [ai_ready_framework_2025], match: "[Oo]pen.source"}
+- {q: "gaps in standards identified by the readiness study", docs: [ai_ready_framework_2025], match: "[Gg]ap"}
+- {q: "machine learning pipeline nodes source collector preprocessor model policy distributor sink", docs: [t_rec_y_3172_201906_i_pdf_e], match: "(?i)collector|distributor"}
+- {q: "orchestrator that manages ML pipelines in future networks", docs: [t_rec_y_3172_201906_i_pdf_e], match: "MLFO"}
+- {q: "testing ML models in an isolated environment before applying to the live network", docs: [t_rec_y_3172_201906_i_pdf_e], match: "(?i)sandbox"}
+- {q: "applying rules to model output before it reaches the network", docs: [t_rec_y_3172_201906_i_pdf_e], match: "(?i)policy"}
+- {q: "international code of conduct for organisations building advanced AI systems", docs: [g7_hiroshima_ai_code_of_conduct, g7_hiroshima_ai_guiding_principles], match: "(?i)advanced AI"}
+- {q: "publicly reporting capabilities and limitations of advanced AI", docs: [g7_hiroshima_ai_code_of_conduct, g7_hiroshima_ai_guiding_principles], match: "(?i)transparen|report"}
+- {q: "keeping humans in control of AI decisions in ASEAN guidance", docs: [asean_ai_governance_ethics_guide_2024], match: "(?i)human"}
+- {q: "India responsible AI principles accountability", docs: [india_responsible_ai_principles_2021], match: "(?i)accountab"}
+- {q: "use of AI in Indian agriculture and healthcare priority sectors", docs: [india_national_ai_strategy_niti], match: "(?i)agricultur|healthcare"}
+- {q: "African Union continental plan for artificial intelligence", docs: [african_union_continental_ai_strategy_2024], match: "(?i)continental"}
+- {q: "generative AI governance incident reporting model framework Singapore", docs: [singapore_model_ai_governance_genai_2024], match: "(?i)incident"}
+- {q: "Singapore national AI compute and talent action items", docs: [singapore_nais_2_0], match: "(?i)compute|talent"}
+- {q: "environmental footprint and energy use of AI sustainable coalition", docs: [france_coalition_sustainable_ai_2025], match: "(?i)sustainab|energy"}
+- {q: "UK recommendations to accelerate AI compute infrastructure growth zones", docs: [uk_ai_opportunities_action_plan_2025], match: "(?i)compute|growth zone"}
+- {q: "trade policy and artificial intelligence benefits", docs: [wto_world_trade_report_2025_ai], match: "(?i)trade"}
+- {q: "UN recommendations for global governance of AI panel and standards exchange", docs: [governing_ai_for_humanity_final_report], match: "(?i)panel|standards"}
+- {q: "AI and health ethics principles guidance", docs: [who_content_9789240029200], match: "(?i)ethic"}
+- {q: "Kenya pillars for AI implementation roadmap", docs: [kenya_ai_strategy_implementation_roadmap_2025_2030, kenya_ai_strategy_2025_2030], match: "(?i)pillar|roadmap"}
+- {q: "American plan removing barriers to AI innovation data centers", docs: [usa_americas_ai_action_plan_2025], match: "(?i)data center"}
+- {q: "China national plan to lead in AI by 2030", docs: [china_new_generation_ai_plan], match: "2030"}
+- {q: "China security risks classification governance measures for AI", docs: [china_ai_security_governance_framework_2025], match: "(?i)risk"}
+- {q: "Latin American ethics declaration on artificial intelligence", docs: [santiago_declaration_ethical_ai_2023, montevideo_declaration_ai_2024], match: "(?i)ethic|Latin"}
+- {q: "national AI policies for developing countries chapter on design", docs: [unctad_tir2025_ch4_national_ai_policies, technology_and_innovation_report_2025], match: "(?i)polic"}
+- {q: "use cases collected for AI for good in telecommunications", docs: [2024_waic_final_ai_for_good_use_cases_collection, innovate_for_impact_geneva_ai_for_good_2025, ksa_t_ai4g_ai4good_2024_2_pdf_e], match: "(?i)use case|AI for Good"}
+- {q: "AI use in disaster response and early warning", docs: [any], match: "(?i)disaster|early warning"}
+- {q: "transparency of AI: policy alignment across frameworks", docs: [pai_policy_alignment_ai_transparency_2024], match: "(?i)transparen"}

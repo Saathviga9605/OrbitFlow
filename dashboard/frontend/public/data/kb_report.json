@@ -1,0 +1,354 @@
+{
+ "ingested": [
+  {
+   "doc_id": "sim_regulator_notice",
+   "title": "Simulated regulator notice on cross-border beam power",
+   "issuer": "OrbitFlow demo (simulated)",
+   "jurisdiction": "SIMULATED",
+   "doc_type": "notice",
+   "status": "simulated",
+   "file": "scenario/sim_regulator_notice.md",
+   "chunks": 4,
+   "sha256": "ab1b808b952d629c"
+  },
+  {
+   "doc_id": "sim_emergency_sop",
+   "title": "Simulated operator SOP for emergency traffic",
+   "issuer": "OrbitFlow demo (simulated)",
+   "jurisdiction": "SIMULATED",
+   "doc_type": "procedure",
+   "status": "simulated",
+   "file": "scenario/sim_emergency_sop.md",
+   "chunks": 3,
+   "sha256": "7d3bfa0384b64548"
+  },
+  {
+   "doc_id": "sim_ai_oversight",
+   "title": "Simulated operator policy on automated network decisions",
+   "issuer": "OrbitFlow demo (simulated)",
+   "jurisdiction": "SIMULATED",
+   "doc_type": "procedure",
+   "status": "simulated",
+   "file": "scenario/sim_ai_oversight.md",
+   "chunks": 3,
+   "sha256": "8a981ccf06829958"
+  }
+ ],
+ "skipped": [
+  {
+   "doc_id": "data_findings",
+   "title": "OrbitFlow dataset findings",
+   "issuer": "OrbitFlow",
+   "jurisdiction": "INTERNAL",
+   "doc_type": "record",
+   "status": "internal",
+   "file": "../../../docs/data_findings.md",
+   "reason": "file not supplied"
+  },
+  {
+   "doc_id": "itu_y3172",
+   "title": "ITU-T Y.3172",
+   "issuer": "ITU-T",
+   "jurisdiction": "GLOBAL",
+   "doc_type": "standard",
+   "status": "source",
+   "file": "raw/itu_y3172.pdf",
+   "reason": "file not supplied"
+  },
+  {
+   "doc_id": "tr_38821",
+   "title": "3GPP TR 38.821",
+   "issuer": "3GPP",
+   "jurisdiction": "GLOBAL",
+   "doc_type": "standard",
+   "status": "source",
+   "file": "raw/3gpp_tr38821.pdf",
+   "reason": "file not supplied"
+  },
+  {
+   "doc_id": "in_telecom_2023",
+   "title": "India Telecommunications Act 2023",
+   "issuer": "Government of India",
+   "jurisdiction": "IN",
+   "doc_type": "law",
+   "status": "source",
+   "file": "raw/in_telecom_act_2023.pdf",
+   "reason": "file not supplied"
+  },
+  {
+   "doc_id": "in_dpdp_2023",
+   "title": "India Digital Personal Data Protection Act 2023",
+   "issuer": "Government of India",
+   "jurisdiction": "IN",
+   "doc_type": "law",
+   "status": "source",
+   "file": "raw/in_dpdp_2023.pdf",
+   "reason": "file not supplied"
+  },
+  {
+   "doc_id": "eu_ai_act",
+   "title": "EU AI Act",
+   "issuer": "European Union",
+   "jurisdiction": "EU",
+   "doc_type": "law",
+   "status": "source",
+   "file": "raw/eu_ai_act.pdf",
+   "reason": "file not supplied"
+  }
+ ],
+ "chunks": 10,
+ "rules": [
+  {
+   "rule_id": "R1_border_power_cap",
+   "title": "Power limit on beams illuminating border cells",
+   "evidence_status": "FOUND",
+   "passages": [
+    {
+     "chunk_id": "sim_regulator_notice#1",
+     "doc_id": "sim_regulator_notice",
+     "title": "Simulated regulator notice on cross-border beam power",
+     "section": "2 Border cell power cap",
+     "page": 1,
+     "quote": "Beams illuminating listed border cells must not exceed the transmit power cap stated in the notice.",
+     "score": 0.0328,
+     "cosine": 0.391,
+     "status": "simulated"
+    },
+    {
+     "chunk_id": "sim_regulator_notice#0",
+     "doc_id": "sim_regulator_notice",
+     "title": "Simulated regulator notice on cross-border beam power",
+     "section": "1 Purpose",
+     "page": 1,
+     "quote": "This notice sets a temporary limit on satellite beam power over cells whose footprint spills into a neighbouring jurisdiction, to limit transboundary interference.",
+     "score": 0.0323,
+     "cosine": 0.277,
+     "status": "simulated"
+    },
+    {
+     "chunk_id": "sim_regulator_notice#2",
+     "doc_id": "sim_regulator_notice",
+     "title": "Simulated regulator notice on cross-border beam power",
+     "section": "3 Coordination with the neighbouring administration",
+     "page": 1,
+     "quote": "The operator must coordinate any change in border beam power with the neighbouring administration.",
+     "score": 0.0317,
+     "cosine": 0.219,
+     "status": "simulated"
+    }
+   ],
+   "parameter_source": "scenario_notice",
+   "queries": [
+    "border cell beam power cap neighbouring jurisdiction",
+    "transboundary interference coordination neighbouring administration"
+   ]
+  },
+  {
+   "rule_id": "R2_emergency_priority",
+   "title": "Emergency traffic must keep service",
+   "evidence_status": "FOUND",
+   "passages": [
+    {
+     "chunk_id": "sim_emergency_sop#0",
+     "doc_id": "sim_emergency_sop",
+     "title": "Simulated operator SOP for emergency traffic",
+     "section": "1 Emergency priority",
+     "page": 1,
+     "quote": "Cells carrying declared emergency or safety-of-life traffic must keep service.",
+     "score": 0.0328,
+     "cosine": 0.478,
+     "status": "simulated"
+    },
+    {
+     "chunk_id": "sim_emergency_sop#1",
+     "doc_id": "sim_emergency_sop",
+     "title": "Simulated operator SOP for emergency traffic",
+     "section": "2 Starvation",
+     "page": 1,
+     "quote": "Priority for emergency cells must not leave any other cell without service for longer than the starvation limit.",
+     "score": 0.0323,
+     "cosine": 0.15,
+     "status": "simulated"
+    }
+   ],
+   "parameter_source": "scenario_event",
+   "queries": [
+    "emergency safety-of-life traffic priority keep service",
+    "illuminated every slot while declaration in force"
+   ]
+  },
+  {
+   "rule_id": "R3_human_oversight",
+   "title": "Automated decisions are logged and reviewable by a human",
+   "evidence_status": "FOUND",
+   "passages": [
+    {
+     "chunk_id": "sim_ai_oversight#0",
+     "doc_id": "sim_ai_oversight",
+     "title": "Simulated operator policy on automated network decisions",
+     "section": "1 Human oversight",
+     "page": 1,
+     "quote": "Automated radio resource decisions remain reviewable by a human.",
+     "score": 0.0328,
+     "cosine": 0.54,
+     "status": "simulated"
+    },
+    {
+     "chunk_id": "sim_ai_oversight#1",
+     "doc_id": "sim_ai_oversight",
+     "title": "Simulated operator policy on automated network decisions",
+     "section": "2 Record keeping",
+     "page": 1,
+     "quote": "Every automated decision is logged with the inputs, the proposed action, the executed action, the rule applied and its evidence.",
+     "score": 0.0328,
+     "cosine": 0.457,
+     "status": "simulated"
+    }
+   ],
+   "parameter_source": "none",
+   "queries": [
+    "human oversight automated decisions reviewable",
+    "record keeping log every automated decision"
+   ]
+  },
+  {
+   "rule_id": "R4_signalling",
+   "title": "Initial-access signalling (SSB/SIB) is protected",
+   "evidence_status": "FOUND",
+   "passages": [
+    {
+     "chunk_id": "sim_ai_oversight#2",
+     "doc_id": "sim_ai_oversight",
+     "title": "Simulated operator policy on automated network decisions",
+     "section": "3 Signalling protection",
+     "page": 1,
+     "quote": "Every cell receives SSB and system information broadcast within its configured maximum age.",
+     "score": 0.0328,
+     "cosine": 0.69,
+     "status": "simulated"
+    }
+   ],
+   "parameter_source": "config_assumption",
+   "queries": [
+    "initial access signalling SSB system information broadcast maximum age"
+   ]
+  },
+  {
+   "rule_id": "R5_emergency_exemption",
+   "title": "Is emergency traffic exempt from the cross-border power cap?",
+   "evidence_status": "NONE_FOUND",
+   "passages": [],
+   "parameter_source": "none",
+   "queries": [
+    "emergency exemption from cross-border power limit",
+    "cap waived for safety-of-life traffic exception"
+   ]
+  }
+ ],
+ "sample_queries": [
+  {
+   "query": "emergency traffic priority during a disaster",
+   "results": [
+    {
+     "doc_id": "sim_emergency_sop",
+     "section": "1 Emergency priority",
+     "score": 0.0328,
+     "cosine": 0.277,
+     "quote": "Cells carrying declared emergency or safety-of-life traffic must keep service."
+    },
+    {
+     "doc_id": "sim_emergency_sop",
+     "section": "2 Starvation",
+     "score": 0.032,
+     "cosine": 0.191,
+     "quote": "Priority for emergency cells must not leave any other cell without service for longer than the starvation limit."
+    },
+    {
+     "doc_id": "sim_ai_oversight",
+     "section": "1 Human oversight",
+     "score": 0.0318,
+     "cosine": 0.052,
+     "quote": "Decisions that trade a legal limit against emergency service are referred to a person."
+    }
+   ]
+  },
+  {
+   "query": "cross-border beam power limit",
+   "results": [
+    {
+     "doc_id": "sim_regulator_notice",
+     "section": "3 Coordination with the neighbouring administration",
+     "score": 0.0328,
+     "cosine": 0.352,
+     "quote": "The operator must coordinate any change in border beam power with the neighbouring administration."
+    },
+    {
+     "doc_id": "sim_regulator_notice",
+     "section": "1 Purpose",
+     "score": 0.032,
+     "cosine": 0.218,
+     "quote": "This notice sets a temporary limit on satellite beam power over cells whose footprint spills into a neighbouring jurisdiction, to limit transboundary interference."
+    },
+    {
+     "doc_id": "sim_regulator_notice",
+     "section": "2 Border cell power cap",
+     "score": 0.032,
+     "cosine": 0.198,
+     "quote": "Beams illuminating listed border cells must not exceed the transmit power cap stated in the notice."
+    }
+   ]
+  },
+  {
+   "query": "who reviews automated decisions?",
+   "results": [
+    {
+     "doc_id": "sim_ai_oversight",
+     "section": "1 Human oversight",
+     "score": 0.0328,
+     "cosine": 0.311,
+     "quote": "Automated radio resource decisions remain reviewable by a human."
+    },
+    {
+     "doc_id": "sim_ai_oversight",
+     "section": "2 Record keeping",
+     "score": 0.0323,
+     "cosine": 0.073,
+     "quote": "Every automated decision is logged with the inputs, the proposed action, the executed action, the rule applied and its evidence."
+    },
+    {
+     "doc_id": "sim_ai_oversight",
+     "section": "3 Signalling protection",
+     "score": 0.0315,
+     "cosine": 0.066,
+     "quote": "Automated controllers must not suppress initial access signalling."
+    }
+   ]
+  },
+  {
+   "query": "does an emergency waive the power cap?",
+   "results": [
+    {
+     "doc_id": "sim_regulator_notice",
+     "section": "2 Border cell power cap",
+     "score": 0.0328,
+     "cosine": 0.382,
+     "quote": "Beams illuminating listed border cells must not exceed the transmit power cap stated in the notice."
+    },
+    {
+     "doc_id": "sim_regulator_notice",
+     "section": "4 Reporting",
+     "score": 0.0323,
+     "cosine": 0.181,
+     "quote": "The operator must keep a record of every slot in which a proposed beam power was reduced to comply with the cap."
+    },
+    {
+     "doc_id": "sim_emergency_sop",
+     "section": "1 Emergency priority",
+     "score": 0.0317,
+     "cosine": 0.076,
+     "quote": "Cells carrying declared emergency or safety-of-life traffic must keep service."
+    }
+   ]
+  }
+ ]
+}

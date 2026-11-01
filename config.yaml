@@ -1,0 +1,106 @@
+# OrbitFlow configuration. Everything marked ASSUMPTION is a modelling choice
+# that the ECE teammates should confirm or replace with their own numbers.
+
+seed: 7
+
+scenario:
+  n_cells: 19            # from dataset
+  slot_ms: 10            # from dataset (timestamp_ms step)
+  k_beams: 4             # dataset logs exactly 4 active beams per slot
+  p_max_w: 100.0         # dataset: per-slot power sums to 100 W
+  p_min_w: 2.0           # ASSUMPTION: floor per lit beam (dataset min is ~2 W)
+  obs_lag_slots: 1       # ASSUMPTION: telemetry reaches the controller 1 slot late (E2 report delay)
+
+link:                    # ASSUMPTION: calibrated so a lit mid-pass beam sees ~12-15 dB.
+  bandwidth_mhz: 20.0    #   Replace with the ECE link budget (EIRP, G/T, bandwidth).
+  noise_figure_db: 7.0
+  temperature_k: 290.0
+  antenna_gain_db: 53.0  # combined Tx+Rx gain applied on top of dataset channel_gain_magnitude
+  interference_isolation_db: 20.0   # leakage of other lit beams into a cell
+  sinr_min_db: -6.0      # below this the link is not decodable
+  ssb_overhead: 0.05     # capacity share lost in an SSB slot
+  sib_overhead: 0.05     # extra capacity share lost in a SIB slot
+
+queues:
+  init_backlog_ms: 20    # warm start. The dataset's own queues are a flat ~125 ms backlog on EVERY
+                         # cell (queue = 36 kb x requested Mbps), so they are not used as initial state.
+  rt_share: 0.285        # from dataset: queue_rt / (queue_rt + queue_nrt)
+  buffer_rt_kb: 1600     # ~ dataset max RT queue
+  buffer_nrt_kb: 4000    # ~ dataset max NRT queue
+  rt_delay_budget_ms: 100     # dataset caps hol_delay_rt at 100 ms
+  nrt_delay_budget_ms: 1000   # dataset caps hol_delay_nrt at 1000 ms
+
+timing_guard:            # ASSUMPTION: confirm with whoever owns the 3GPP timing
+  ssb_max_age_slots: 40  # every cell must be lit in an SSB slot at least this often
+  sib_max_age_slots: 80  # ... and in a SIB slot at least this often
+  prach: always_open     # dataset prach_window_flag is constant 1 -> no PRACH restriction modelled
+  # Policy-layer hook (filled by the policy scenario): cells whose footprint spills
+  # into a neighbouring jurisdiction and the power cap that applies to them.
+  border_cells: []
+  border_power_cap_w: 0.0
+
+reward:                  # used later by BRIDGE training
+  w_throughput: 1.0
+  w_delay: 0.5
+  w_loss: 2.0
+  w_fairness: 0.5
+  w_energy: 0.0
+  w_rt_violation: 1.0
+  w_guard_violation: 5.0
+
+predictor:
+  window: 12
+  horizon: 3
+  hidden: 64
+  epochs: 30
+  batch: 512
+  lr: 0.001
+  jump_mbps: 5.0        # a target this far from the last observation counts as a "jump"
+  jump_weight: 5.0
+
+bridge:
+  batch_episodes: 32
+  iterations: 150
+  gamma: 0.95
+  lam: 0.95
+  clip: 0.2
+  lr: 0.0003
+  epochs: 4
+  minibatch: 512
+  value_coef: 0.5
+  entropy_beam: 0.01
+  entropy_power: 0.001
+  grad_clip: 0.5
+  dirichlet_offset: 1.0
+  bc_episodes: 200
+  bc_epochs: 5
+  eval_every: 10
+  kind_weights: {event_surge: 0.30, mixed: 0.25, block: 0.20, bursty: 0.15, normal: 0.10}
+
+demo:                    # Flood-relief storyline. Cells, notice and cap are SIMULATED placeholders.
+  event_cell: 13
+  background_hot: [2, 5, 9]   # 3 steady hotspots + the surge = the real trace's 3-4 hot cells
+  emergency_cells: [13, 14]
+  border_cells: [13, 14, 15, 16]
+  border_cap_w: 22.0
+  fade_db: 6.0
+
+agents:
+  starve_slots: 40
+  max_beam_share: 0.6
+  min_jain: 0.8
+  forecast_alert_ratio: 2.0
+
+rag:
+  chunk_words: 180
+  chunk_overlap: 40
+  rrf_k: 60
+  found_min_cosine: 0.08   # below this a retrieved passage does not count as evidence
+
+experiment:
+  n_seeds_training: 5
+emergency:              # variants compared in scripts/run_experiments.py
+  mode: need_based      # always | need_based
+  age_trigger: 0.3      # force an emergency cell when its RT age exceeds this share of the budget
+  release: taper        # abrupt | taper
+  taper_max_slots: 30

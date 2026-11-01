@@ -1,0 +1,344 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# IDE and Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+.atom/
+.vim/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node.js and npm
+node_modules/
+npm-debug.log
+npm-error.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# React
+build/
+dist/
+.eslintcache
+.next/
+out/
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Local Netlify folder
+.netlify
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+*.log
+
+# ML/Data related
+*.h5
+*.pkl
+*.pickle
+*.pth
+*.pt
+*.model
+*.ckpt
+data/processed/
+data/temp/
+logs/
+wandb/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.postgresql
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Mac OS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+
+# IDE temporary files
+*.swp
+*.swo
+*~
+.vimrc
+.viminfo
+
+# Python cache
+__pycache__/
+*.pyc
+.Python
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb
+
+# MacOS
+.DS_Store
+
+# Custom ignores for OrbitFlow
+
+# Large model files (commit checkpoint info instead)
+*.pth
+*.pt
+models/bridge_agent_ep*.pt
+models/bridge_agent_checkpoint*.pt
+
+# Training outputs
+results/bridge_training_run_*.json
+results/tmp/
+results/cache/
+
+# Data cache
+data/cache/
+data/processed/
+.cache/
+
+# Development
+.env.development
+.env.test
+.env.production
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# Dashboard builds
+dashboard/frontend/build/
+dashboard/frontend/.next/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Temporary
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Dependencies
+venv/
+.venv
+env/
+node_modules/
+
+# System
+*.swp
+*.swo
+*~
+.env.local
+
+# Documentation builds
+docs/_build/
+site/
+
+# Temporary test data
+tests/data/temp/
+tests/artifacts/
+
+# Experiment runs
+experiments/
+runs/
+mlruns/
+
+# API keys and secrets
+.env
+.env.local
+.env.*.local
+secrets/
+
+# User specific
+.vscode/settings.json
+.idea/workspace.xml
+
+# OrbitFlow: the demo needs its checkpoints and web data under version control
+!models/*.pt
+!dashboard/frontend/public
+!dashboard/frontend/public/**
+!package-lock.json
