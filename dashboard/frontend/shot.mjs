@@ -14,7 +14,9 @@ for (const [name, w, h] of [['d', 1440, 900], ['m', 390, 844]]) {
   for (const id of ['chase', 'foresee', 'loop', 'mission', 'evidence', 'lab', 'knowledge', 'ledger']) {
     await p.evaluate((i) => { document.documentElement.style.scrollBehavior = 'auto'; document.getElementById(i).scrollIntoView(); }, id);
     if (id === 'mission') await p.evaluate(() => [...document.querySelectorAll('#mission .chip')].find((x) => x.textContent.startsWith('Cap arrives')).click());
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 400));
+    await p.evaluate((i) => document.querySelectorAll(`#${i} .reveal`).forEach((e) => e.classList.add('in')), id);
+    await new Promise((r) => setTimeout(r, 2200));
     const el = await p.$(`#${id}`);
     await el.screenshot({ path: `${out}/${name}-${id}.png` });
   }

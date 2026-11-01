@@ -60,7 +60,7 @@ export function LineChart({ series, height = 240, xLabel, yLabel, marks = [], cu
         {marks.map((k) => k.to != null
           ? <rect key={k.label} x={X(k.x)} width={Math.max(0, X(k.to) - X(k.x))} y={m.t} height={height - m.t - m.b} fill={k.color} opacity=".1" />
           : <g key={k.label}><line x1={X(k.x)} x2={X(k.x)} y1={m.t} y2={height - m.b} stroke={k.color} strokeDasharray="3 3" /><text x={X(k.x) + 4} y={m.t + 10} fill={k.color} fontSize="11">{k.label}</text></g>)}
-        {series.map((s) => <path key={s.name} d={path(s.values)} fill="none" stroke={s.color} strokeWidth={s.width || 2} strokeDasharray={s.dash} strokeLinejoin="round" />)}
+        {series.map((s) => <path key={s.name} className={s.dash ? 'fade' : 'draw'} pathLength={s.dash ? undefined : 1} d={path(s.values)} fill="none" stroke={s.color} strokeWidth={s.width || 2} strokeDasharray={s.dash} strokeLinejoin="round" />)}
         {series.length <= 4 && ends.map(({ s, y }) => <text key={s.name} x={w - m.r + 6} y={y + 4} fill="var(--ink-2)" fontSize="11">{s.name.length > 14 ? s.name.slice(0, 13) + '…' : s.name}</text>)}
         {cursor != null && <line x1={X(cursor)} x2={X(cursor)} y1={m.t} y2={height - m.b} stroke="var(--beam)" />}
         {hover != null && <line x1={X(xs[hover])} x2={X(xs[hover])} y1={m.t} y2={height - m.b} stroke="var(--ink-3)" />}

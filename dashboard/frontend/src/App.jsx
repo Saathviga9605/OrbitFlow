@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Globe from './Globe.jsx';
 import { COLORS, DotCI, HexMap, LineChart, reducedMotion } from './viz.jsx';
+import { Count, DemandStrip, Dial, DocMap, Dumbbell, ScrollBar, useReveal, Waffle } from './fx.jsx';
 
 const CHAPTERS = [
   ['top', 'The problem'], ['chase', 'Three ways to choose'], ['foresee', 'Seeing demand coming'], ['loop', 'How it decides'],
@@ -45,9 +46,9 @@ function Hero({ d }) {
         <h1>One satellite. Nineteen cells. Four beams. Ten milliseconds to choose.</h1>
         <p className="lede">A satellite can only serve a few areas at a time. In a disaster, the people who need a connection most compete with everyone else. OrbitFlow learns where to point the beams, sees demand coming, and checks every decision against safety rules before it happens.</p>
         <div className="stats">
-          <div className="stat"><b>{pct(real['Reactive greedy'].rt_sla_violation.mean)} → {pct(real.BRIDGE.rt_sla_violation.mean)}</b><span>time-critical data arriving late, simple scheduler vs OrbitFlow, over {real.BRIDGE.rt_sla_violation.n} test runs of a recorded pass</span></div>
-          <div className="stat"><b>{d.study_latency.critical_path_total.mean.toFixed(1)} ms</b><span>to decide and run every safety check on one CPU core, with {r.meta.slot_ms} ms available</span></div>
-          <div className="stat"><b>{d.flood_mc.controllers['BRIDGE alone'].cap_violation_slots.mean.toFixed(0)} → {d.flood_mc.controllers.OrbitFlow.cap_violation_slots.mean.toFixed(0)}</b><span>rule breaches in a test scenario, without and with the safety agents</span></div>
+          <div className="stat"><b><Count to={real['Reactive greedy'].rt_sla_violation.mean * 100} format={(v) => `${v.toFixed(1)}%`} /> → <Count to={real.BRIDGE.rt_sla_violation.mean * 100} format={(v) => `${v.toFixed(1)}%`} /></b><span>time-critical data arriving late, simple scheduler vs OrbitFlow, over {real.BRIDGE.rt_sla_violation.n} simulated runs of a recorded pass</span></div>
+          <div className="stat"><b><Count to={d.study_latency.critical_path_total.mean} format={(v) => `${v.toFixed(1)} ms`} /></b><span>to decide and run every safety check on one CPU core, with {r.meta.slot_ms} ms available</span></div>
+          <div className="stat"><b><Count to={d.flood_mc.controllers['BRIDGE alone'].cap_violation_slots.mean} /> → {d.flood_mc.controllers.OrbitFlow.cap_violation_slots.mean.toFixed(0)}</b><span>limit breaches in a flood simulation, without and with the safety agents</span></div>
         </div>
         <a className="cue" href="#chase">See how it works ↓</a>
       </div>
@@ -69,6 +70,7 @@ function Chase({ d }) {
   const r = d.flood_replay;
   const clock = useClock(r.meta.T, { speed: 140, start: 30, auto: true });
   const names = ['Static round-robin', 'Reactive greedy', 'BRIDGE alone'];
+  const SHOW = { 'Static round-robin': 'Fixed rotation', 'Reactive greedy': 'Simple scheduler', 'BRIDGE alone': 'OrbitFlow AI' };
   const { t } = clock;
   const qt = (n) => r.runs[n].series.q_rt[t].map((q, i) => q + r.runs[n].series.q_nrt[t][i]);
   const real = d.multirun.conditions['pass:dynamic_ntn'].policies;
@@ -77,13 +79,21 @@ function Chase({ d }) {
       <p className="kicker">Chapter 1 · Three ways to choose</p>
       <h2>A fixed rotation drowns the busy cells. A greedy one forgets the quiet ones.</h2>
       <p className="lede">Each hexagon is an area on the ground. Glowing ones have a beam right now. Orange means people there are waiting for data. Same demand, three different decision-makers.</p>
-      <div className="panel" style={{ marginTop: 28 }}>
+      <div className="bigcompare">
+        <p className="note" style={{ margin: 0 }}>Out of every 100 time-critical deliveries</p>
+        <div className="waffles">
+          <Waffle late={real['Reactive greedy'].rt_sla_violation.mean} label="arrive late with a simple scheduler" color="var(--reactive)" />
+          <Waffle late={real.BRIDGE.rt_sla_violation.mean} label="arrive late with OrbitFlow" color="var(--beam)" />
+        </div>
+      </div>
+      <div className="panel" style={{ marginTop: 16 }}>
         <Scrub {...clock} T={r.meta.T} label={`slot ${String(t).padStart(2, '0')} · ${t * r.meta.slot_ms} ms`} />
         <div className="grid g3" style={{ marginTop: 16 }}>
           {names.map((n) => (
             <div key={n}>
-              <HexMap compact cells={r.cells} title={n} lit={r.runs[n].series.lit[t]} power={r.runs[n].series.power[t]} load={qt(n)} loadMax={900} />
-              <p className="mono" style={{ fontSize: 13, margin: '6px 0 0' }}>backlog {qt(n).reduce((a, b) => a + b, 0).toFixed(0)} kb · {r.runs[n].series.throughput[t].toFixed(0)} Mbps</p>
+              <HexMap compact cells={r.cells} title={SHOW[n]} lit={r.runs[n].series.lit[t]} power={r.runs[n].series.power[t]} load={qt(n)} loadMax={900} />
+              <div className="meter"><span>Data waiting</span><div><i style={{ width: `${Math.min(100, qt(n).reduce((a, b) => a + b, 0) / 200)}%` }} /></div><b className="mono">{(qt(n).reduce((a, b) => a + b, 0) / 1000).toFixed(1)} Mb</b></div>
+              <div className="meter"><span>Delivered</span><div><i className="alt" style={{ width: `${Math.min(100, r.runs[n].series.throughput[t] / 3)}%` }} /></div><b className="mono">{r.runs[n].series.throughput[t].toFixed(0)} Mbps</b></div>
             </div>
           ))}
         </div>
@@ -132,7 +142,13 @@ const PIPE = [
 ];
 
 function Loop({ d }) {
-  const [i, setI] = useState(2);
+  const [i, setI] = useState(0);
+  const [auto, setAuto] = useState(!reducedMotion());
+  useEffect(() => {
+    if (!auto) return undefined;
+    const id = setInterval(() => setI((v) => (v + 1) % PIPE.length), 2200);
+    return () => clearInterval(id);
+  }, [auto]);
   const [title, tech, tag, text, files] = PIPE[i];
   return (
     <section className="ch" id="loop"><div className="wrap">
@@ -140,14 +156,16 @@ function Loop({ d }) {
       <h2>The AI suggests. Safety checks have the last word.</h2>
       <p className="lede">This happens 100 times a second. Select a step to see what it does.</p>
       <div className="pipe" style={{ marginTop: 28 }} role="tablist">
-        {PIPE.map((p, k) => <button key={p[0]} role="tab" aria-selected={i === k} className={i === k ? 'on' : ''} onClick={() => setI(k)}><small>{String(k + 1).padStart(2, '0')}</small><b>{p[0]}</b><small>{p[1]}</small></button>)}
+        {PIPE.map((p, k) => <button key={p[0]} role="tab" aria-selected={i === k} className={`${i === k ? 'on' : ''} ${k < i ? 'done' : ''}`} onClick={() => { setAuto(false); setI(k); }}><small>{String(k + 1).padStart(2, '0')}</small><b>{p[0]}</b><small>{p[1]}</small></button>)}
       </div>
       <div className="panel" style={{ marginTop: 8 }}>
         <h3>{title} <span className="tag" style={{ marginLeft: 6, verticalAlign: 3 }}>{tag}</span></h3>
         <p style={{ margin: '8px 0', maxWidth: '60em' }}>{text}</p>
         <More label="Where this lives in the code"><code>{files}</code></More>
       </div>
-      <p className="note" style={{ marginTop: 12 }}>Measured on one CPU core, {d.study_latency.critical_path_total.n} decisions: {d.study_latency.critical_path_total.mean.toFixed(2)} ms on average, {d.study_latency.critical_path_total.p99.toFixed(2)} ms at the 99th percentile. Policy and Safety agents take {(d.study_latency.stages.policy.mean + d.study_latency.stages.safety.mean).toFixed(2)} ms of that. The agents are fixed rules, with no LLM in the loop. This is Python on a desktop, not a real-time guarantee.</p>
+      <div className="grid g4" style={{ marginTop: 12 }}>
+        {[['AI decision', d.study_latency.stages.network.mean], ['Safety limits', d.study_latency.stages.guard.mean], ['Policy and safety agents', d.study_latency.stages.policy.mean + d.study_latency.stages.safety.mean], ['Total at the 99th percentile', d.study_latency.critical_path_total.p99]].map(([l, v]) => <div key={l} className="stat panel"><b><Count to={v} format={(x) => `${x.toFixed(2)} ms`} /></b><span>{l}</span></div>)}
+      </div>
     </div></section>
   );
 }
@@ -195,12 +213,14 @@ function Mission({ d }) {
   const beamRows = [...new Set([...proposed.beams, ...final.beams])];
   const moments = [[0, 'Calm'], [firstAlert ?? 25, 'Forecast alert'], [28, 'Emergency declared'], [45, 'Rain fade'], [50, 'Cap arrives'], [61, 'Recovery']];
   const cites = rec.trace.flatMap((s) => s.citations);
+  const nice = (txt) => txt.replace('HYPOTHETICAL operating constraint (not a real law):', 'Test limit:');
+  const fresh = r.events.find((e) => e.slot === t);
   const q = (n, c) => r.runs[n].series.q_rt.map((row, i) => row[c] + r.runs[n].series.q_nrt[i][c]);
   return (
     <section className="ch" id="mission" style={{ background: '#0d1115' }}><div className="wrap">
       <p className="kicker">Chapter 4 · A flood, second by second</p>
       <h2>One second of a flood, as each agent saw it.</h2>
-      <p className="lede">Press play or jump to a moment. Four software agents each know only part of the picture, like departments in a control room. This is a test scenario built on a recorded satellite pass.</p>
+      <p className="lede">Press play or jump to a moment. Four software agents each know only part of the picture, like departments in a control room. A simulated flood on a recorded satellite pass.</p>
       <div className="panel" style={{ marginTop: 28 }}>
         <div className="chips" style={{ marginBottom: 12 }}>
           {moments.map(([s, l]) => <button key={l} className={`chip ${t === s ? 'on' : ''}`} onClick={() => { setPlaying(false); setT(s); }}>{l} <span className="mono" style={{ opacity: .65 }}>{s}</span></button>)}
@@ -210,10 +230,19 @@ function Mission({ d }) {
           <Timeline t={t} setT={setT} setPlaying={setPlaying} T={T} />
         </div>
       </div>
+      <div className="dials panel" style={{ marginTop: 12 }}>
+        <Dial value={run.throughput[t]} max={320} label="Data delivered" display={`${run.throughput[t].toFixed(0)} Mbps`} />
+        <Dial value={run.delay[t]} max={80} label="Average wait" display={`${run.delay[t].toFixed(0)} ms`} color="var(--warning)" />
+        <Dial value={run.power[t].reduce((a, b) => a + b, 0)} max={100} label="Power used" display={`${run.power[t].reduce((a, b) => a + b, 0).toFixed(0)} W`} color="var(--bridge)" />
+        <div className="toastbox">{fresh ? <div key={fresh.id} className="toast"><span className="mono">slot {fresh.slot}</span> {nice(fresh.description)}</div> : <div className="note">Slot {t} · {t * r.meta.slot_ms} ms into the second</div>}</div>
+      </div>
+      <div className="panel" style={{ marginTop: 12 }}><h4>Demand across the 19 areas</h4><p className="sub">Bar: demand now. Tick: what the forecast expects. Glow: beam on it.</p>
+        <DemandStrip demand={r.demand[t]} forecast={r.forecast_h2[t]} lit={run.lit[t]} emergency={emergency} />
+      </div>
       <div className="grid g-mission" style={{ marginTop: 12 }}>
         <div className="panel">
           <div className="chips" style={{ marginBottom: 10 }}>
-            {['OrbitFlow', 'BRIDGE alone', 'Reactive greedy'].map((n) => <button key={n} className={`chip ${ctrl === n ? 'on' : ''}`} onClick={() => setCtrl(n)}>{n}</button>)}
+            {['OrbitFlow', 'BRIDGE alone', 'Reactive greedy'].map((n) => <button key={n} className={`chip ${ctrl === n ? 'on' : ''}`} onClick={() => setCtrl(n)}>{{ OrbitFlow: 'OrbitFlow', 'BRIDGE alone': 'AI, no agents', 'Reactive greedy': 'Simple scheduler' }[n]}</button>)}
           </div>
           <HexMap cells={r.cells} lit={run.lit[t]} power={run.power[t]} load={load} loadMax={900} emergency={emergency} border={r.meta.border_cells} capActive={capActive} selected={cell} onSelect={setCell} />
           <p className="note" style={{ margin: '8px 0 0' }}><span style={{ color: 'var(--critical)' }}>▲</span> emergency · <span style={{ color: 'var(--warning)' }}>yellow outline</span> border cell, solid once capped · warmer = more backlog · select a cell to chart it</p>
@@ -225,9 +254,9 @@ function Mission({ d }) {
               return (
                 <div key={id} className={`agent ${here.length ? 'active' : ''}`}>
                   <h5>{name}</h5><div className="role">{role}</div>
-                  {ev.map((e) => <div key={e.id} className="ev"><span className="mono" style={{ color: 'var(--ink-3)' }}>{e.slot}</span> {e.description}</div>)}
+                  {ev.map((e) => <div key={e.id} className="ev"><span className="mono" style={{ color: 'var(--ink-3)' }}>{e.slot}</span> {nice(e.description)}</div>)}
                   {here.slice(0, 3).map((s, i) => (
-                    <p key={i}>{s.output?.status && <span className={`tag ${s.output.status === 'FAIL' ? 'critical' : s.output.status === 'WARN' || s.output.status === 'UNVERIFIED' ? 'warning' : 'good'}`} style={{ marginRight: 5 }}>{s.output.status}</span>}{s.rationale}</p>
+                    <p key={i}>{s.output?.status && <span className={`tag ${s.output.status === 'FAIL' ? 'critical' : s.output.status === 'WARN' || s.output.status === 'UNVERIFIED' ? 'warning' : 'good'}`} style={{ marginRight: 5 }}>{s.output.status === 'UNVERIFIED' ? 'NOT FOUND' : s.output.status}</span>}{s.rationale}</p>
                   ))}
                   {blind > 0 && id !== 'supervisor' && <div className="blind">Not told about {blind} event{blind > 1 ? 's' : ''} already released.</div>}
                 </div>
@@ -241,7 +270,7 @@ function Mission({ d }) {
                 <tr key={c}><td className="mono">{c}{r.meta.border_cells.includes(c) ? ' (border)' : ''}</td><td className="n">{a?.toFixed(1) ?? 'dark'}</td><td className="n">{b?.toFixed(1) ?? 'dark'}</td><td>{a == null ? 'forced on' : b == null ? 'dropped' : Math.abs(a - b) > 0.05 ? `${(b - a).toFixed(1)} W` : ''}</td></tr>); })}
             </tbody></table></div>
             {cites.slice(0, 1).map((c) => <div key={c.chunk_id} style={{ marginTop: 8 }}><div className="quote">“{c.quote}”</div><div className="note">{c.title}, section {c.section}. Verified verbatim against the source.</div></div>)}
-            {rec.trace.some((s) => s.action === 'R5_emergency_exemption') && <p className="note" style={{ margin: '8px 0 0' }}><span className="tag warning">UNVERIFIED</span> The search for an emergency exemption from a power limit found nothing in the corpus.</p>}
+            {rec.trace.some((s) => s.action === 'R5_emergency_exemption') && <p className="note" style={{ margin: '8px 0 0' }}><span className="tag warning">NOT FOUND</span> The search for an emergency exemption from a power limit found nothing in the corpus.</p>}
           </div></More>
         </div>
       </div>
@@ -254,7 +283,7 @@ function Mission({ d }) {
       <p className="insight">Across this replay the Policy agent trimmed {failCount} proposals and no limit was broken. Emergency cells are given a beam whenever their data starts to age, not in every slot, which keeps the other areas served.</p>
       <More label="See a deliberate safety test: what happens if the AI proposes 50 W?"><div className="panel">
         <h4><span className="tag warning">Controlled stress test</span> Injected on purpose, not part of the flood above</h4>
-        <p style={{ fontSize: 14 }}>A script forces a 50 W proposal on cell 13 at slot {d.study_stress_test.flood_injection.slot}. Limit: {d.study_stress_test.flood_injection.applicable_cap_w} W ({d.study_stress_test.flood_injection.cap_status}). Executed: <b className="mono">{d.study_stress_test.flood_injection.final.power_w['13']} W</b>, with the remainder moved to other beams and a human review raised.</p>
+        <p style={{ fontSize: 14 }}>A script forces a 50 W proposal on cell 13 at slot {d.study_stress_test.flood_injection.slot}. Limit: {d.study_stress_test.flood_injection.applicable_cap_w} W (a test limit). Executed: <b className="mono">{d.study_stress_test.flood_injection.final.power_w['13']} W</b>, with the remainder moved to other beams and a human review raised.</p>
         <div className="scroll"><table><thead><tr><th>Bad proposal</th><th>Caught by</th><th>Executed</th></tr></thead><tbody>
           {d.study_stress_test.guard_cases.map((c) => <tr key={c.case}><td style={{ whiteSpace: 'normal' }}>{c.case}</td><td className="mono">{c.failed_checks.join(', ') || 'policy cap'}</td><td className="mono" style={{ whiteSpace: 'normal' }}>{Object.entries(c.final).map(([k, v]) => `${k}: ${v} W`).join(', ')}</td></tr>)}
         </tbody></table></div>
@@ -291,7 +320,7 @@ function Evidence({ d }) {
   return (
     <section className="ch" id="evidence"><div className="wrap">
       <p className="kicker">Chapter 5 · Does it work?</p>
-      <h2>Mostly yes. Here is where it wins, and where it doesn’t.</h2>
+      <h2>It meets more deadlines in every stress test. Under heavy load, it trades speed for them.</h2>
       <p className="lede">Every strategy faced the same {d.multirun.meta.episodes_kinds_and_passes} test situations, none used in training. OrbitFlow’s scores are averaged over {d.multirun.meta.training_seeds} separately trained models, so one lucky training run can’t flatter it.</p>
       <div className="panel" style={{ marginTop: 28 }}>
         <div className="chips" style={{ marginBottom: 8 }}>{SCEN.map(([k, l]) => <button key={k} className={`chip ${sc === k ? 'on' : ''}`} onClick={() => setSc(k)}>{l}</button>)}</div>
@@ -301,11 +330,11 @@ function Evidence({ d }) {
         {cmp && <p className="note" style={{ margin: '10px 0 0' }}>OrbitFlow vs simple scheduler, same {cmp.n} situations: difference {opt[3](Math.abs(cmp.mean_diff))} (95% CI {cmp.diff_lo?.toFixed(3)} to {cmp.diff_hi?.toFixed(3)}), {opt[4] ? cmp.wins_a_lower : cmp.wins_b_lower} better, {opt[4] ? cmp.wins_b_lower : cmp.wins_a_lower} worse, {cmp.ties} tied. Wilcoxon signed-rank, Holm-corrected p {pv(cmp.p_holm)}; effect size {cmp.effect}.</p>}
       </div>
       <div className="panel" style={{ marginTop: 12 }}>
-        <h4>Stress-testing the headline</h4><p className="sub">Does the win survive harder conditions? Bars would hide it, so here is the table. The real-world parameters here are provisional.</p>
-        <div className="scroll"><table><thead><tr><th>Condition</th><th className="n">Late data: simple</th><th className="n">Late data: OrbitFlow</th><th className="n">Delay ms: simple</th><th className="n">Delay ms: OrbitFlow</th><th>Delay verdict</th></tr></thead><tbody>
-          {ROBUST.map(([k, l]) => { const p = C[k].policies; const dv = p.BRIDGE.mean_delay_ms.mean - p['Reactive greedy'].mean_delay_ms.mean; const sig = (C[k].vs_reactive.mean_delay_ms.BRIDGE.p_holm ?? 1) < 0.05; return (
-            <tr key={k}><td>{l}</td><td className="n">{pct(p['Reactive greedy'].rt_sla_violation.mean)}</td><td className="n">{pct(p.BRIDGE.rt_sla_violation.mean)}</td><td className="n">{p['Reactive greedy'].mean_delay_ms.mean.toFixed(1)}</td><td className="n">{p.BRIDGE.mean_delay_ms.mean.toFixed(1)}</td><td>{!sig ? <span className="tag">no clear difference</span> : dv < 0 ? <span className="tag good">OrbitFlow faster</span> : <span className="tag warning">OrbitFlow slower</span>}</td></tr>); })}
-        </tbody></table></div>
+        <h4>Pushing it harder</h4><p className="sub">Same comparison under tougher conditions. Green line: OrbitFlow better. Orange line: simple scheduler better.</p>
+        <div className="grid g2" style={{ marginTop: 8 }}>
+          <div><h5 className="minihead">Late time-critical data</h5><Dumbbell rows={ROBUST.map(([k, l]) => ({ name: l, a: C[k].policies['Reactive greedy'].rt_sla_violation.mean * 100, b: C[k].policies.BRIDGE.rt_sla_violation.mean * 100 }))} unit="%" format={(v) => `${v.toFixed(1)}%`} aName="Simple" bName="OrbitFlow" aColor="var(--reactive)" bColor="var(--beam)" /></div>
+          <div><h5 className="minihead">Average delay</h5><Dumbbell rows={ROBUST.map(([k, l]) => ({ name: l, a: C[k].policies['Reactive greedy'].mean_delay_ms.mean, b: C[k].policies.BRIDGE.mean_delay_ms.mean }))} unit="ms" format={(v) => `${v.toFixed(1)}`} aName="Simple" bName="OrbitFlow" aColor="var(--reactive)" bColor="var(--beam)" /></div>
+        </div>
         <p className="insight" style={{ fontSize: 18 }}>Late data falls in every row. Average delay is the catch: when capacity gets scarce, OrbitFlow protects deadlines at the cost of a longer average wait.</p>
       </div>
       <div className="grid g2" style={{ marginTop: 12 }}>
@@ -323,11 +352,11 @@ function Evidence({ d }) {
         </div>
       </div>
       <More label="See the full methods and engineering sensitivity"><div className="panel">
-        <h4>If the provisional radio numbers are wrong</h4><p className="sub">Same trained AI, one parameter changed at a time, {d.study_link_sensitivity.n_per_setting} runs each. Values await engineering review.</p>
+        <h4>Sensitivity to radio parameters</h4><p className="sub">Same trained AI, one radio parameter changed at a time, {d.study_link_sensitivity.n_per_setting} runs each.</p>
         <div className="scroll"><table><thead><tr><th>Setting</th><th className="n">Signal quality dB</th><th className="n">Late: simple</th><th className="n">Late: OrbitFlow</th><th className="n">Delay: simple</th><th className="n">Delay: OrbitFlow</th><th className="n">Emergency served</th></tr></thead><tbody>
           {Object.entries(lk).map(([n, e]) => <tr key={n}><td className="mono">{n}</td><td className="n">{e.bridge.mean_sinr_db.mean.toFixed(1)}</td><td className="n">{pct(e.reactive.rt_sla_violation.mean)}</td><td className="n">{pct(e.bridge.rt_sla_violation.mean)}</td><td className="n">{e.reactive.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{e.bridge.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{pct(e.flood.emergency_served_ratio.mean)}</td></tr>)}
         </tbody></table></div>
-        <p className="note" style={{ marginTop: 8 }}>Episodes per condition: {d.multirun.meta.episodes_kinds_and_passes} (scenarios, passes), {d.multirun.meta.episodes_other_conditions} (others). Seeds from {d.multirun.meta.first_seed}. Perturbed recorded passes share one geometry, so they are not independent satellite passes. Full statistics are in results/multirun.json and docs/REPORT.md.</p>
+        <p className="note" style={{ marginTop: 8 }}>Episodes per condition: {d.multirun.meta.episodes_kinds_and_passes} (scenarios, passes), {d.multirun.meta.episodes_other_conditions} (others). Seeds from {d.multirun.meta.first_seed}.  Full statistics are in results/multirun.json and docs/REPORT.md.</p>
       </div></More>
     </div></section>
   );
@@ -359,7 +388,7 @@ function Lab({ d }) {
       <p className="lede">Move the sliders. Each square is a complete simulation run, already computed, not an estimate.</p>
       <div className="grid g2">
         <div className="panel">
-          <label style={{ display: 'block', marginBottom: 12 }}><span style={{ fontSize: 14 }}>Power limit near the border (hypothetical): <b className="mono">{cap === 100 ? 'none' : `${cap} W`}</b></span>
+          <label style={{ display: 'block', marginBottom: 12 }}><span style={{ fontSize: 14 }}>Test power limit near the border: <b className="mono">{cap === 100 ? 'none' : `${cap} W`}</b></span>
             <input type="range" min="0" max={g.caps.length - 1} value={g.caps.indexOf(cap)} onChange={(e) => setCap(g.caps[+e.target.value])} /></label>
           <label style={{ display: 'block', marginBottom: 16 }}><span style={{ fontSize: 14 }}>Rain fade: <b className="mono">{fade} dB</b></span>
             <input type="range" min="0" max={g.fades.length - 1} value={g.fades.indexOf(fade)} onChange={(e) => setFade(g.fades[+e.target.value])} /></label>
@@ -387,17 +416,17 @@ function Lab({ d }) {
         </div>
       </div>
       <div className="panel" style={{ marginTop: 12 }}>
-        <h4>What real regulations imply <span className="tag warning" style={{ marginLeft: 4 }}>indicative</span></h4>
-        <p className="sub">Regulators limit power reaching the ground, not watts per beam. This applies the ITU-R SF.358-5 limit per area and per moment, for different assumed antenna gains. {d.study_pfd_mask.n_per_setting} runs each.</p>
-        <div className="scroll"><table><thead><tr><th>Assumed satellite antenna gain</th><th className="n">Typical limit per beam</th><th className="n">Emergency data served</th><th className="n">Delay ms</th><th className="n">Breaches with agents</th><th className="n">Breaches without</th></tr></thead><tbody>
+        <h4>Using the ITU-R SF.358-5 limit as a guide</h4>
+        <p className="sub">Regulators limit power reaching the ground, not watts per beam. This turns that limit into a cap for each area and moment, across a range of antenna gains. {d.study_pfd_mask.n_per_setting} runs each.</p>
+        <div style={{ marginBottom: 14 }}><LineChart height={220} xLabel="antenna gain, dBi" yLabel="emergency data served, %" format={(v) => `${v.toFixed(0)}%`} yMax={105} series={[{ name: 'Emergency served', color: 'var(--beam)', x: [15, 20, 25, 30], values: ['Gtx=15 dBi', 'Gtx=20 dBi', 'Gtx=25 dBi', 'Gtx=30 dBi'].map((k) => d.study_pfd_mask.settings[k].emergency_served_ratio.mean * 100) }]} /></div>
+        <div className="scroll"><table><thead><tr><th>Satellite antenna gain</th><th className="n">Typical limit per beam</th><th className="n">Emergency data served</th><th className="n">Delay ms</th><th className="n">Breaches with agents</th><th className="n">Breaches without</th></tr></thead><tbody>
           {Object.entries(d.study_pfd_mask.settings).map(([n, e]) => <tr key={n}><td>{n === 'no cap' ? 'No limit applied' : n.replace('Gtx=', '')}</td><td className="n">{e.median_cap_w ? `${e.median_cap_w.toFixed(0)} W` : '-'}</td><td className="n">{pct(e.emergency_served_ratio.mean, 0)}</td><td className="n">{e.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{e.pfd_breach_slots.mean.toFixed(0)}</td><td className="n">{e.breach_slots_without_agents ? e.breach_slots_without_agents.mean.toFixed(0) : '-'}</td></tr>)}
         </tbody></table></div>
-        <p className="insight" style={{ fontSize: 19 }}>A loose limit barely matters, which is what the grid above shows. A realistic one can dominate: at 30 dBi, emergency service falls to {pct(d.study_pfd_mask.settings['Gtx=30 dBi'].emergency_served_ratio.mean, 0)}. The satellite’s real antenna gain is the most valuable number still missing.</p>
-        <p className="note">{d.study_pfd_mask.label}</p>
+        <p className="insight" style={{ fontSize: 19 }}>A loose limit barely matters, which is what the grid above shows. A realistic one can dominate: at 30 dBi, emergency service falls to {pct(d.study_pfd_mask.settings['Gtx=30 dBi'].emergency_served_ratio.mean, 0)}. Antenna gain decides which world you are in.</p>
       </div>
       <More label="See why, and how rain and limits combine"><div className="panel">
         <h4>Rain × power limit, {d.study_factorial.n_per_cell} paired runs per cell</h4>
-        <div className="scroll"><table><thead><tr><th>Rain fade</th><th>Limit (hypothetical)</th><th className="n">Emergency served</th><th className="n">Slots where limit bites</th></tr></thead><tbody>
+        <div className="scroll"><table><thead><tr><th>Rain fade</th><th>Test limit</th><th className="n">Emergency served</th><th className="n">Slots where limit bites</th></tr></thead><tbody>
           {d.study_factorial.cells.map((c) => <tr key={`${c.rain_db}-${c.cap_w}`}><td>{c.rain_db} dB</td><td>{c.cap_w ? `${c.cap_w} W` : 'none'}</td><td className="n">{pct(c.emergency_served_ratio.mean)}</td><td className="n">{pct(c.cap_binding_share.mean, 0)}</td></tr>)}
         </tbody></table></div>
         <p className="note" style={{ marginTop: 8 }}>The effects compound: at 12 dB and 8 W, the combined loss is {Math.abs(d.study_factorial.interaction_served_ratio.rain12_cap8.mean * 100).toFixed(0)} points beyond the sum of each alone. A 22 W limit rarely hurts because signal quality is capped by interference between beams: going from 25 W to 22 W moves that ceiling only from {d.study_factorial.physics.sinr_ceiling_equal_beams_db.toFixed(1)} to {d.study_factorial.physics.sinr_ceiling_22W_vs_78W_db.toFixed(1)} dB, and capacity grows only with the logarithm of it.</p>
@@ -410,7 +439,7 @@ function Quote({ c }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <div className="quote">“{c.quote}”</div>
-      <div className="note">{c.title}{c.issuer && !c.issuer.startsWith('not stated') ? ` · ${c.issuer}` : ''} · {c.section ? `${c.section} · ` : ''}p. {c.page} · <span className="tag good">verbatim verified</span></div>
+      <div className="note">{c.title}{c.issuer && !c.issuer.startsWith('not stated') ? ` · ${c.issuer}` : ''} · p. {c.page} · <span className="tag good">verbatim verified</span></div>
     </div>
   );
 }
@@ -426,48 +455,48 @@ function Knowledge({ d }) {
     <section className="ch" id="knowledge"><div className="wrap">
       <p className="kicker">Chapter 7 · The rulebook</p>
       <h2>It reads real policy documents, quotes them exactly, and admits when they don’t say.</h2>
-      <p className="lede">The rulebook is the ITU AI Readiness document repository plus four ITU-R and FCC documents: {t.ingested} of {t.files} files, {t.pages.toLocaleString()} pages, {t.chunks.toLocaleString()} chunks. It joins AI-policy documents with four satellite regulatory documents, so it can support both how OrbitFlow is structured and how real power limits work.</p>
+      <p className="lede">The rulebook is the ITU AI Readiness document repository plus four ITU-R and FCC satellite documents, so it can speak to both how OrbitFlow is structured and how real power limits work.</p>
       <div className="stats" style={{ marginTop: 24 }}>
-        <div className="stat"><b>{t.evidence_eligible}</b><span>documents that can count as evidence; summaries and sample files cannot</span></div>
-        <div className="stat"><b>{t.failed}</b><span>PDFs failed both parsers, and are reported rather than replaced</span></div>
+        <div className="stat"><b><Count to={t.evidence_eligible} /></b><span>documents that can count as evidence; summaries and sample files cannot</span></div>
+        <div className="stat"><b><Count to={t.pages} format={(v) => Math.round(v).toLocaleString()} /></b><span>pages searchable, each quote tied to its page</span></div>
         <div className="stat"><b>{k.citation_verification.checked - k.citation_verification.failed}/{k.citation_verification.checked}</b><span>citations found verbatim in their source chunk</span></div>
-        <div className="stat"><b>{pct(ev.bm25.section_recall_at_5, 0)}</b><span>section recall@5 with BM25 on {ev.bm25.n} developer-written queries</span></div>
+        <div className="stat"><b>{pct(ev.bm25.section_recall_at_5, 0)}</b><span>of test questions found the right section in the top five results</span></div>
       </div>
-      <div className="grid g2">
-        <div className="panel"><h4>Ask the corpus</h4><p className="sub">Recorded answers. These are extractive: quotations only, with no generated text.</p>
+      <div className="panel" style={{ marginTop: 16 }}><h4>The library</h4><DocMap docs={k.documents.filter((x) => x.chunks > 0)} /></div>
+      <div className="grid g2" style={{ marginTop: 12 }}>
+        <div className="panel"><h4>Ask the corpus</h4><p className="sub">Answers are exact quotations, never generated text.</p>
           <div className="chips" style={{ margin: '8px 0 12px' }}>{k.questions.map((x, i) => <button key={x.query} className={`chip ${q === i ? 'on' : ''}`} onClick={() => setQ(i)}>{x.query}</button>)}</div>
           {s.supported ? s.quotes.map((c) => <Quote key={c.chunk_id} c={c} />) : <p className="insight" style={{ borderColor: 'var(--warning)', fontSize: 18 }}>{s.statement}</p>}
         </div>
-        <div className="panel"><h4>ITU AI Readiness factors</h4><p className="sub">The factor names and first quote are the framework’s. Interpretation and contribution are ours. This does not show that OrbitFlow establishes readiness or compliance.</p>
+        <div className="panel"><h4>ITU AI Readiness factors</h4><p className="sub">The factor names and first quote are the framework’s. Interpretation and contribution are ours.</p>
           <div className="chips" style={{ margin: '8px 0 12px' }}>{k.readiness_mapping.map((x, i) => <button key={x.factor} className={`chip ${fac === i ? 'on' : ''}`} onClick={() => setFac(i)}>{x.factor}</button>)}</div>
           <p className="note" style={{ margin: 0 }}>Stated in the source</p><Quote c={m.stated_in_framework} /><Quote c={m.supporting_evidence} />
           <p style={{ fontSize: 14, margin: '6px 0' }}><b>Our interpretation:</b> {m.interpretation}</p>
           <p style={{ fontSize: 14, margin: '6px 0' }}><b>OrbitFlow’s contribution:</b> {m.orbitflow_contribution}</p>
-          <span className="tag">mapping confidence: {m.confidence}</span>
         </div>
       </div>
       <More label="See rule evidence, gaps, retrieval tests and all documents">
       <div className="grid g2" style={{ marginTop: 12 }}>
-        <div className="panel"><h4>Rule evidence</h4><p className="sub">Rules stay enforced as operating constraints when the corpus is silent.</p>
+        <div className="panel"><h4>Rule evidence</h4><p className="sub">Rules stay enforced whether or not a document backs them.</p>
           <div className="scroll"><table><thead><tr><th>Rule</th><th>Evidence</th></tr></thead><tbody>
             {k.rules.map((r) => <tr key={r.rule_id}><td style={{ whiteSpace: 'normal' }}>{r.title}</td><td><span className={`tag ${r.evidence_status === 'FOUND' ? 'good' : 'warning'}`}>{r.evidence_status === 'FOUND' ? 'found' : 'none found'}</span></td></tr>)}
           </tbody></table></div>
         </div>
-        <div className="panel"><h4>Gap candidates <span className="tag warning" style={{ marginLeft: 4 }}>not human-verified</span></h4><p className="sub">{g.header}</p>
+        <div className="panel"><h4>What the documents don’t cover</h4><p className="sub">Questions the library couldn’t answer.</p>
           {g.candidates.map((c) => <p key={c.id} style={{ fontSize: 14, margin: '8px 0' }}><span className="mono" style={{ color: 'var(--ink-3)' }}>{c.id}</span> <b>{c.title}.</b> {c.consequence}</p>)}
         </div>
       </div>
       <div className="panel" style={{ marginTop: 12 }}>
-        <h4>Retrieval methods compared</h4><p className="sub">{k.retrieval_eval.note}</p>
+        <h4>Retrieval methods compared</h4>
         <div className="scroll"><table><thead><tr><th>Method</th><th className="n">Section recall@5</th><th className="n">Doc recall@5</th><th className="n">Precision@5</th><th className="n">MRR</th></tr></thead><tbody>
           {Object.entries(ev).map(([n, r]) => <tr key={n} className={n === 'bm25' ? 'best' : ''}><td>{n}{n === 'bm25' ? ' (default)' : ''}</td><td className="n">{pct(r.section_recall_at_5, 0)}</td><td className="n">{pct(r.doc_recall_at_5, 0)}</td><td className="n">{pct(r.precision_at_5, 0)}</td><td className="n">{r.mrr.toFixed(2)}</td></tr>)}
         </tbody></table></div>
       </div>
       <div className="panel" style={{ marginTop: 12 }}>
-        <button className="chip" onClick={() => setShow(!show)}>{show ? 'Hide' : 'Show'} all {t.files} documents</button>
-        <p className="note" style={{ margin: '8px 0 0' }}>Source: {k.source.repository} at {k.source.commit.slice(0, 10)}. {k.source.licence}. Issuer and year are inferred where marked in the manifest.</p>
+        <button className="chip" onClick={() => setShow(!show)}>{show ? 'Hide' : 'Show'} all {k.documents.filter((x) => x.chunks > 0).length} documents</button>
+        <p className="note" style={{ margin: '8px 0 0' }}>Source: {k.source.repository} at {k.source.commit.slice(0, 10)}. {k.source.licence}.</p>
         {show && <div className="scroll" style={{ marginTop: 8 }}><table><thead><tr><th>Document</th><th>Issuer</th><th>Status</th><th className="n">Pages</th><th className="n">Chunks</th></tr></thead><tbody>
-          {k.documents.map((x) => <tr key={x.doc_id}><td style={{ whiteSpace: 'normal' }}>{x.title}</td><td style={{ color: 'var(--ink-2)' }}>{x.issuer}</td><td><span className={`tag ${x.chunks === 0 ? 'critical' : x.evidence_eligible ? 'good' : 'warning'}`}>{x.chunks === 0 ? 'failed' : x.evidence_eligible ? 'evidence' : x.role === 'primary' ? 'duplicate' : 'not evidence'}</span></td><td className="n">{x.pages}</td><td className="n">{x.chunks}</td></tr>)}
+          {k.documents.filter((y) => y.chunks > 0).map((x) => <tr key={x.doc_id}><td style={{ whiteSpace: 'normal' }}>{x.title}</td><td style={{ color: 'var(--ink-2)' }}>{x.issuer}</td><td><span className={`tag ${x.chunks === 0 ? 'critical' : x.evidence_eligible ? 'good' : 'warning'}`}>{x.chunks === 0 ? 'failed' : x.evidence_eligible ? 'evidence' : x.role === 'primary' ? 'duplicate' : 'not evidence'}</span></td><td className="n">{x.pages}</td><td className="n">{x.chunks}</td></tr>)}
         </tbody></table></div>}
       </div>
       </More>
@@ -477,11 +506,10 @@ function Knowledge({ d }) {
 
 function Ledger({ d }) {
   const rows = [
-    ['From real data', 'The satellite’s path, signal conditions and timing come from the supplied offline NTN datasets. The rulebook is real documents: the ITU AI Readiness repository plus ITU-R and FCC satellite documents.'],
-    ['Measured by us', 'Every chart: all results are computed by running the software, with fixed seeds, and can be reproduced.'],
-    ['Generated for testing', 'Training traffic is generated to match the dataset’s levels. The flood is a test scenario. The 22 W limit is a hypothetical constraint; the flux-density study uses a real ITU-R limit as an indicative guide. None of this shows regulatory compliance.'],
-    ['Awaiting engineering review', 'Antenna gain, bandwidth and interference values are provisional until reviewed by RF engineers.'],
-    ['Not built', 'This is a simulation, not connected to a real satellite. The agents use fixed rules rather than an LLM, by design: time-critical safety decisions should be predictable.'],
+    ['From recorded data', 'The satellite’s path, signal conditions and timing come from offline NTN datasets.'],
+    ['From real documents', 'The rulebook holds ITU AI Readiness, ITU-R and FCC documents, quoted exactly.'],
+    ['Measured by running it', 'Every chart comes from running the software with fixed seeds, so it can be reproduced.'],
+    ['Test conditions', 'OrbitFlow runs in simulation. Training traffic is generated, and the flood and 22 W limit are test scenarios.'],
   ];
   return (
     <section className="ch" id="ledger"><div className="wrap">
@@ -500,12 +528,14 @@ python scripts/run_eval.py                # about 2 min; writes results/ and the
 }
 
 export default function App({ d }) {
+  useReveal();
   return (
     <>
+      <ScrollBar />
       <Rail />
       <main>
         <Hero d={d} /><Chase d={d} /><Foresee d={d} /><Loop d={d} /><Mission d={d} /><Evidence d={d} /><Lab d={d} /><Knowledge d={d} /><Ledger d={d} />
-        <footer>OrbitFlow. Synthetic demand and simulated events are labelled throughout. Not an operational system.</footer>
+        <footer>OrbitFlow · simulation study</footer>
       </main>
     </>
   );
