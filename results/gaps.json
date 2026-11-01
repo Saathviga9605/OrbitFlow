@@ -4,24 +4,9 @@
  "candidates": [
   {
    "id": "GAP-01",
-   "rule_id": "R1_border_power_cap",
-   "title": "Beam power limits for cross-border satellite coverage",
-   "statement": "No eligible passage in 59 documents met the evidence test for: transmit beam power limit satellite neighbouring country cross-border interference.",
-   "consequence": "OrbitFlow's cap stays a hypothetical operating constraint.",
-   "absence_evidence": {
-    "query": "transmit beam power limit satellite neighbouring country cross-border interference",
-    "must": [
-     "(beam|transmit|radiated|EIRP).{0,12}power|power flux|power limit",
-     "satellite|spectrum|cross-border|transboundary"
-    ]
-   },
-   "human_verified": false
-  },
-  {
-   "id": "GAP-02",
    "rule_id": "R2_emergency_priority",
    "title": "Priority for emergency traffic on network resources",
-   "statement": "No eligible passage in 59 documents met the evidence test for: priority for emergency and disaster communications network connectivity.",
+   "statement": "No eligible passage in 63 documents met the evidence test for: priority for emergency and disaster communications network connectivity.",
    "consequence": "OrbitFlow's emergency priority is a design choice, not derived from the corpus.",
    "absence_evidence": {
     "query": "priority for emergency and disaster communications network connectivity",
@@ -33,10 +18,10 @@
    "human_verified": false
   },
   {
-   "id": "GAP-03",
+   "id": "GAP-02",
    "rule_id": "R4_signalling",
    "title": "Initial-access signalling protection for NTN",
-   "statement": "No eligible passage in 59 documents met the evidence test for: SSB system information initial access non-terrestrial network signalling.",
+   "statement": "No eligible passage in 63 documents met the evidence test for: SSB system information initial access non-terrestrial network signalling.",
    "consequence": "The 40/80-slot limits stay configuration assumptions.",
    "absence_evidence": {
     "query": "SSB system information initial access non-terrestrial network signalling",
@@ -47,10 +32,10 @@
    "human_verified": false
   },
   {
-   "id": "GAP-04",
+   "id": "GAP-03",
    "rule_id": "R5_emergency_exemption",
    "title": "Emergency exemption from a power limit",
-   "statement": "No eligible passage in 59 documents met the evidence test for: emergency exemption from a cross-border power limit.",
+   "statement": "No eligible passage in 63 documents met the evidence test for: emergency exemption from a cross-border power limit.",
    "consequence": "The supervisor keeps the constraint and refers conflicts to a human.",
    "absence_evidence": {
     "query": "emergency exemption from a cross-border power limit",

@@ -35,6 +35,20 @@ ISSUERS = [("ITU-T", "ITU-T"), ("ITU", "ITU"), ("AI_Ready", "ITU"), ("KSA.T", "I
 STOP_EVIDENCE = re.compile(r"^(sample_|.*_summary\.txt$)", re.I)
 
 
+SUPPLEMENT = os.path.join(HERE, "knowledge_base", "_supplement")
+# Regulatory documents supplied by the project team. Titles and dates are as printed in each document.
+SUPPLEMENT_DOCS = {
+    "R-REC-SF.358-5-199510-W!!PDF-E.pdf": dict(title="ITU-R SF.358-5: Maximum permissible values of power flux-density at the surface of the Earth", issuer="ITU-R", year=1995, doc_type="standard", url="https://www.itu.int/dms_pubrec/itu-r/rec/sf/R-REC-SF.358-5-199510-W!!PDF-E.pdf",
+                                               scope_note="Limits for bands up to 19.7 GHz and 22.55-27.5 GHz, shared with radio-relay. OrbitFlow's 20.0 GHz carrier is outside the listed bands, so its use here is indicative."),
+    "R-REC-S.1503-4-202309-I!!PDF-E.pdf": dict(title="ITU-R S.1503-4: Software tools for determining conformity of non-GSO FSS systems with Article 22 limits", issuer="ITU-R", year=2023, doc_type="standard", url="https://www.itu.int/dms_pubrec/itu-r/rec/s/R-REC-S.1503-4-202309-I!!PDF-E.pdf",
+                                               scope_note="Describes a method. It does not itself set limits, and OrbitFlow does not implement it."),
+    "R-REC-S.524-8-200401-S!!PDF-E.pdf": dict(title="ITU-R S.524-8: Maximum permissible off-axis e.i.r.p. density from earth stations", issuer="ITU-R", year=2003, doc_type="standard", url="https://www.itu.int/dms_pubrec/itu-r/rec/s/R-REC-S.524-8-200401-S!!PDF-E.pdf",
+                                              scope_note="Applies to earth-station uplinks, not satellite downlink beams. Not applied to OrbitFlow's beams."),
+    "FCC-26-26A1.pdf": dict(title="FCC 26-26: Modernizing Spectrum Sharing for Satellite Broadband, Report and Order", issuer="US Federal Communications Commission", year=2026, doc_type="regulation", url="https://docs.fcc.gov/public/attachments/FCC-26-26A1.pdf",
+                            scope_note="United States only. Addresses NGSO-GSO sharing; check the current rule text and effective dates before relying on it."),
+}
+
+
 def inputs_table() -> dict:
     """filename -> (type, description), exactly as the source repository's Inputs.md states them."""
     out = {}
@@ -72,7 +86,8 @@ SENT = re.compile(r"(?<=[.;:!?])\s+(?=[\"'(A-Z0-9])")
 
 
 def clean(line: str) -> str:
-    return " ".join(line.replace("­", "").replace("￾", "").replace("\x02", "").split())
+    drop = {0xAD, 0xFFFE}                                     # soft hyphens join; control characters become spaces
+    return " ".join("".join(" " if ord(ch) < 32 else ch for ch in line if ord(ch) not in drop).split())
 
 
 def chunk_pages(pages, words=180, overlap=30) -> list[dict]:
@@ -121,7 +136,7 @@ def chunk_pages(pages, words=180, overlap=30) -> list[dict]:
         for ln in lines:
             if not ln:
                 add_para()
-            elif HEADING.match(ln) and len(ln.split()) <= 14:
+            elif HEADING.match(ln) and len(ln.split()) <= 14 and not ln.endswith((":", ",", ";")) and not (para and not para[-1].endswith((".", ":", ";", "?", "!"))):
                 add_para()
                 flush()
                 section = ln
@@ -143,12 +158,13 @@ def main(limit=None):
     for root, _, names in os.walk(DOCS):
         files += [os.path.join(root, n) for n in names if n != "Inputs.md"]
     files.sort()
+    files += [os.path.join(SUPPLEMENT, n) for n in SUPPLEMENT_DOCS if os.path.exists(os.path.join(SUPPLEMENT, n))]
     if limit:
         files = files[:limit]
     now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     manifest, all_chunks, sigs, shas = [], [], {}, {}
     for path in files:
-        rel = os.path.relpath(path, DOCS).replace("\\", "/")
+        rel = os.path.basename(path) if path.startswith(SUPPLEMENT) else os.path.relpath(path, DOCS).replace("\\", "/")
         name = os.path.basename(path)
         raw = open(path, "rb").read()
         sha = hashlib.sha256(raw).hexdigest()
@@ -177,6 +193,10 @@ def main(limit=None):
             e.update(pages=0, chars=0, chunks=0, low_text_pages=0, extraction=f"failed: {type(ex).__name__}: {ex}"[:200])
         e["duplicate_of"] = shas.get(sha)
         shas.setdefault(sha, e["doc_id"])
+        if name in SUPPLEMENT_DOCS:
+            s = SUPPLEMENT_DOCS[name]
+            e.update(title=s["title"], description=s["scope_note"], scope_note=s["scope_note"], issuer=s["issuer"], issuer_basis="printed in document", year=s["year"], year_basis="printed in document", doc_type=s["doc_type"], category="Regulatory_Supplement",
+                     source_repository=s["url"], source_commit="downloaded 2026-11-01", source_path=s["url"], licence="Publisher's terms; fetched by scripts/fetch_kb.py, not redistributed", role="primary")
         manifest.append(e)
         print(f"{e['extraction'][:12]:12} {e['pages']:5}p {e['chunks']:5}c {name}", flush=True)
     ids = list(sigs)

@@ -41,11 +41,11 @@ timing_guard:            # ASSUMPTION: confirm with whoever owns the 3GPP timing
 
 reward:                  # used later by BRIDGE training
   w_throughput: 1.0
-  w_delay: 0.5
+  w_delay: 2.0
   w_loss: 2.0
-  w_fairness: 0.5
+  w_fairness: 0.0
   w_energy: 0.0
-  w_rt_violation: 1.0
+  w_rt_violation: 3.0
   w_guard_violation: 5.0
 
 predictor:
@@ -57,6 +57,7 @@ predictor:
   lr: 0.001
   jump_mbps: 5.0        # a target this far from the last observation counts as a "jump"
   jump_weight: 5.0
+  gate: true            # uncertainty gate selected on validation, see docs/REPORT.md
 
 bridge:
   batch_episodes: 32

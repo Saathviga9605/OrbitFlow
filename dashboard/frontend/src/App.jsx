@@ -3,11 +3,15 @@ import Globe from './Globe.jsx';
 import { COLORS, DotCI, HexMap, LineChart, reducedMotion } from './viz.jsx';
 
 const CHAPTERS = [
-  ['top', 'The constraint'], ['chase', 'Three schedulers'], ['foresee', 'Prediction'], ['loop', 'The loop'],
-  ['mission', 'Flood relief'], ['evidence', 'Evidence'], ['lab', 'What-if lab'], ['knowledge', 'Knowledge'], ['ledger', 'Honest ledger'],
+  ['top', 'The problem'], ['chase', 'Three ways to choose'], ['foresee', 'Seeing demand coming'], ['loop', 'How it decides'],
+  ['mission', 'A flood, second by second'], ['evidence', 'Does it work?'], ['lab', 'Try it yourself'], ['knowledge', 'The rulebook'], ['ledger', 'How we know'],
 ];
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function More({ label = 'See the technical details', children }) {
+  return <details className="more"><summary>{label}</summary><div className="more-body">{children}</div></details>;
+}
 
 function Rail() {
   const [on, setOn] = useState('top');
@@ -39,13 +43,13 @@ function Hero({ d }) {
       <div className="copy">
         <p className="kicker">OrbitFlow · LEO beam hopping</p>
         <h1>One satellite. Nineteen cells. Four beams. Ten milliseconds to choose.</h1>
-        <p className="lede">When a flood hits, the people who need a link most are competing for it with everyone else under the same footprint. OrbitFlow forecasts demand, learns where to point the beams, and checks every decision against law and safety before it is transmitted.</p>
+        <p className="lede">A satellite can only serve a few areas at a time. In a disaster, the people who need a connection most compete with everyone else. OrbitFlow learns where to point the beams, sees demand coming, and checks every decision against safety rules before it happens.</p>
         <div className="stats">
-          <div className="stat"><b>{pct(real['Reactive greedy'].rt_sla_violation.mean)} → {pct(real.BRIDGE.rt_sla_violation.mean)}</b><span>real-time deadline misses against a reactive scheduler, on a pass it never trained on</span></div>
-          <div className="stat"><b>{r.latency.bridge_ms.toFixed(1)} ms</b><span>BRIDGE inference on this CPU, inside the {r.meta.slot_ms} ms slot</span></div>
-          <div className="stat"><b>{d.flood_mc.controllers['BRIDGE alone'].cap_violation_slots.mean.toFixed(0)} → {d.flood_mc.controllers.OrbitFlow.cap_violation_slots.mean.toFixed(0)}</b><span>slots breaking a simulated power cap, without and with the agents</span></div>
+          <div className="stat"><b>{pct(real['Reactive greedy'].rt_sla_violation.mean)} → {pct(real.BRIDGE.rt_sla_violation.mean)}</b><span>late deliveries of time-critical data, compared with a simple scheduler, on a recorded pass it never trained on</span></div>
+          <div className="stat"><b>{r.latency.bridge_ms.toFixed(1)} ms</b><span>to make a decision on an ordinary CPU, with {r.meta.slot_ms} ms available</span></div>
+          <div className="stat"><b>{d.flood_mc.controllers['BRIDGE alone'].cap_violation_slots.mean.toFixed(0)} → {d.flood_mc.controllers.OrbitFlow.cap_violation_slots.mean.toFixed(0)}</b><span>rule breaches in a test scenario, without and with the safety agents</span></div>
         </div>
-        <a className="cue" href="#chase">See how a beam gets chosen ↓</a>
+        <a className="cue" href="#chase">See how it works ↓</a>
       </div>
     </header>
   );
@@ -70,9 +74,9 @@ function Chase({ d }) {
   const real = d.kpi_table.scenarios.real_trace;
   return (
     <section className="ch" id="chase"><div className="wrap">
-      <p className="kicker">Chapter 1 · Three schedulers, same sky</p>
+      <p className="kicker">Chapter 1 · Three ways to choose</p>
       <h2>A fixed rotation drowns the busy cells. A greedy one forgets the quiet ones.</h2>
-      <p className="lede">The same demand plays under three controllers. Lit cells have a glowing ring and show their watts. The warmer a cell, the more data is stuck waiting there.</p>
+      <p className="lede">Each hexagon is an area on the ground. Glowing ones have a beam right now. Orange means people there are waiting for data. Same demand, three different decision-makers.</p>
       <div className="panel" style={{ marginTop: 28 }}>
         <Scrub {...clock} T={r.meta.T} label={`slot ${String(t).padStart(2, '0')} · ${t * r.meta.slot_ms} ms`} />
         <div className="grid g3" style={{ marginTop: 16 }}>
@@ -98,9 +102,9 @@ function Foresee({ d }) {
   const order = [['event_surge', 'Surge with a ramp'], ['mixed', 'Surge plus steady hotspot'], ['bursty', 'Random bursts'], ['block', 'Abrupt block switches'], ['real_trace', 'Real pass (abrupt)']];
   return (
     <section className="ch" id="foresee"><div className="wrap">
-      <p className="kicker">Chapter 2 · Prediction</p>
+      <p className="kicker">Chapter 2 · Seeing demand coming</p>
       <h2>Forecasting buys time only when demand gives a warning.</h2>
-      <p className="lede">Telemetry reaches the controller one slot late, so the forecaster predicts the next three slots from what has been seen. It starts as “repeat the last value” and learns only corrections.</p>
+      <p className="lede">When demand builds up gradually, OrbitFlow can see it coming and act early. When it jumps from nothing, no forecast can help, and we show that too.</p>
       <div className="grid g2">
         <div className="panel">
           <h4>The flood ramp, cell {ec}</h4><p className="sub">The forecast shown at each slot is its estimate for two slots later, made from lagged telemetry.</p>
@@ -109,7 +113,7 @@ function Foresee({ d }) {
         <div className="panel">
           <h4>Error reduction at demand jumps, against repeat-last</h4><p className="sub">Held-out test episodes, MAE on targets more than 5 Mbps from the last observation.</p>
           <DotCI unit="reduction" format={(v) => pct(v, 0)} rows={order.map(([k, name]) => { const v = sc[k].gru_jump_skill; return { name, mean: v, lo: v, hi: v, n: sc[k].persistence.n_jump, color: v > 0.2 ? 'var(--orbit)' : 'var(--static)' }; })} />
-          <p className="note" style={{ marginTop: 10 }}>Over all slots, including the calm ones, the GRU is no better than repeat-last and is worse on bursty and block traffic. Its value is concentrated at ramps. A gradient-boosted baseline was also tested and lost on most scenarios.</p>
+          <More><p className="note">The forecaster is a small GRU neural network that predicts three 10 ms slots ahead from delayed measurements. Over all slots, including calm ones, it is no better than repeating the last value, and worse on bursty and block traffic. Its value is concentrated at ramps. A gradient-boosted baseline was also tested and lost on most scenarios.</p></More>
         </div>
       </div>
       <p className="insight">A forecaster cannot see a hotspot that appears from nothing. It cut surge error by {pct(sc.event_surge.gru_jump_skill, 0)}, and by only {pct(sc.real_trace.gru_jump_skill, 0)} on the real pass.</p>
@@ -132,16 +136,16 @@ function Loop({ d }) {
   const [title, tech, tag, text, files] = PIPE[i];
   return (
     <section className="ch" id="loop"><div className="wrap">
-      <p className="kicker">Chapter 3 · The closed loop</p>
-      <h2>A learned policy proposes. It never gets the last word.</h2>
-      <p className="lede">Each slot runs this chain. Select a stage to see what it does and where the code lives.</p>
+      <p className="kicker">Chapter 3 · How it decides</p>
+      <h2>The AI suggests. Safety checks have the last word.</h2>
+      <p className="lede">This happens 100 times a second. Select a step to see what it does.</p>
       <div className="pipe" style={{ marginTop: 28 }} role="tablist">
         {PIPE.map((p, k) => <button key={p[0]} role="tab" aria-selected={i === k} className={i === k ? 'on' : ''} onClick={() => setI(k)}><small>{String(k + 1).padStart(2, '0')}</small><b>{p[0]}</b><small>{p[1]}</small></button>)}
       </div>
       <div className="panel" style={{ marginTop: 8 }}>
         <h3>{title} <span className="tag" style={{ marginLeft: 6, verticalAlign: 3 }}>{tag}</span></h3>
         <p style={{ margin: '8px 0', maxWidth: '60em' }}>{text}</p>
-        <code>{files}</code>
+        <More label="Where this lives in the code"><code>{files}</code></More>
       </div>
       <p className="note" style={{ marginTop: 12 }}>Measured on this CPU: forecast {d.flood_replay.latency.forecast_ms.toFixed(2)} ms per slot, BRIDGE {d.flood_replay.latency.bridge_ms.toFixed(2)} ms per decision, {d.bridge_training.n_params.toLocaleString()} parameters. Agent and guard time are not included.</p>
     </div></section>
@@ -194,9 +198,9 @@ function Mission({ d }) {
   const q = (n, c) => r.runs[n].series.q_rt.map((row, i) => row[c] + r.runs[n].series.q_nrt[i][c]);
   return (
     <section className="ch" id="mission" style={{ background: '#0d1115' }}><div className="wrap">
-      <p className="kicker">Chapter 4 · Flood relief, a scripted scenario on the real pass</p>
-      <h2>The same second, as each agent knew it.</h2>
-      <p className="lede">Press play or jump to a moment. No agent sees everything: Network hears nothing of the emergency, and Safety never sees the notice. Demand, the flood and the regulator’s notice are simulated; the geometry and channel come from the real pass.</p>
+      <p className="kicker">Chapter 4 · A flood, second by second</p>
+      <h2>One second of a flood, as each agent saw it.</h2>
+      <p className="lede">Press play or jump to a moment. Four software agents each know only part of the picture, like departments in a control room. This is a test scenario built on a recorded satellite pass.</p>
       <div className="panel" style={{ marginTop: 28 }}>
         <div className="chips" style={{ marginBottom: 12 }}>
           {moments.map(([s, l]) => <button key={l} className={`chip ${t === s ? 'on' : ''}`} onClick={() => { setPlaying(false); setT(s); }}>{l} <span className="mono" style={{ opacity: .65 }}>{s}</span></button>)}
@@ -230,15 +234,15 @@ function Mission({ d }) {
               );
             })}
           </div>
-          <div className="panel" style={{ marginTop: 8 }}>
+          <More label="See the audit record for this moment"><div className="panel">
             <h4>Audit record, slot {t} <span className={`tag ${rec.decision === 'REPAIRED' ? 'warning' : 'good'}`} style={{ marginLeft: 6 }}>{rec.decision}</span></h4>
             <div className="scroll"><table style={{ marginTop: 6 }}><thead><tr><th>Cell</th><th className="n">Proposed W</th><th className="n">Executed W</th><th>Change</th></tr></thead><tbody>
               {beamRows.map((c) => { const a = proposed.power_w[c]; const b = final.power_w[c]; return (
                 <tr key={c}><td className="mono">{c}{r.meta.border_cells.includes(c) ? ' (border)' : ''}</td><td className="n">{a?.toFixed(1) ?? 'dark'}</td><td className="n">{b?.toFixed(1) ?? 'dark'}</td><td>{a == null ? 'forced on' : b == null ? 'dropped' : Math.abs(a - b) > 0.05 ? `${(b - a).toFixed(1)} W` : ''}</td></tr>); })}
             </tbody></table></div>
-            {cites.slice(0, 1).map((c) => <div key={c.chunk_id} style={{ marginTop: 8 }}><div className="quote">“{c.quote}”</div><div className="note">{c.title}, section {c.section}. Verified verbatim; the document is simulated.</div></div>)}
-            {rec.trace.some((s) => s.action === 'R5_emergency_exemption') && <p className="note" style={{ margin: '8px 0 0' }}><span className="tag warning">UNVERIFIED</span> The search for an emergency exemption from the cap found nothing.</p>}
-          </div>
+            {cites.slice(0, 1).map((c) => <div key={c.chunk_id} style={{ marginTop: 8 }}><div className="quote">“{c.quote}”</div><div className="note">{c.title}, section {c.section}. Verified verbatim against the source.</div></div>)}
+            {rec.trace.some((s) => s.action === 'R5_emergency_exemption') && <p className="note" style={{ margin: '8px 0 0' }}><span className="tag warning">UNVERIFIED</span> The search for an emergency exemption from a power limit found nothing in the corpus.</p>}
+          </div></More>
         </div>
       </div>
       <div className="grid g2" style={{ marginTop: 12 }}>
@@ -288,8 +292,8 @@ function Evidence({ d }) {
   }, [d, opt]);
   return (
     <section className="ch" id="evidence"><div className="wrap">
-      <p className="kicker">Chapter 5 · Evidence, including the losses</p>
-      <h2>Tested on episodes the model never saw, and on a real pass it never trained on.</h2>
+      <p className="kicker">Chapter 5 · Does it work?</p>
+      <h2>We tested it on situations it had never seen, including where it loses.</h2>
       <p className="lede">{d.kpi_table.meta.test_episodes_per_kind} held-out episodes per synthetic scenario. Dots are means, bars are 95% bootstrap intervals. The real pass is a single episode, so it has no interval.</p>
       <div className="panel" style={{ marginTop: 28 }}>
         <div className="chips" style={{ marginBottom: 8 }}>{SCEN.map(([k, l]) => <button key={k} className={`chip ${sc === k ? 'on' : ''}`} onClick={() => setSc(k)}>{l}</button>)}</div>
@@ -339,12 +343,12 @@ function Lab({ d }) {
   };
   return (
     <section className="ch" id="lab"><div className="wrap">
-      <p className="kicker">Chapter 6 · What-if lab</p>
+      <p className="kicker">Chapter 6 · Try it yourself</p>
       <h2>Tighten the law. Worsen the storm. See which one hurts.</h2>
-      <p className="lede">Each square is a complete run of the pipeline, not an interpolation. It is the same flood-relief demand with a different cap and fade.</p>
+      <p className="lede">Move the sliders. Each square is a complete simulation run, already computed, not an estimate.</p>
       <div className="grid g2">
         <div className="panel">
-          <label style={{ display: 'block', marginBottom: 12 }}><span style={{ fontSize: 14 }}>Border power cap: <b className="mono">{cap === 100 ? 'none' : `${cap} W`}</b></span>
+          <label style={{ display: 'block', marginBottom: 12 }}><span style={{ fontSize: 14 }}>Power limit near the border (hypothetical): <b className="mono">{cap === 100 ? 'none' : `${cap} W`}</b></span>
             <input type="range" min="0" max={g.caps.length - 1} value={g.caps.indexOf(cap)} onChange={(e) => setCap(g.caps[+e.target.value])} /></label>
           <label style={{ display: 'block', marginBottom: 16 }}><span style={{ fontSize: 14 }}>Rain fade: <b className="mono">{fade} dB</b></span>
             <input type="range" min="0" max={g.fades.length - 1} value={g.fades.indexOf(fade)} onChange={(e) => setFade(g.fades[+e.target.value])} /></label>
@@ -394,8 +398,8 @@ function Knowledge({ d }) {
   const ev = k.retrieval_eval.methods;
   return (
     <section className="ch" id="knowledge"><div className="wrap">
-      <p className="kicker">Chapter 7 · Knowledge and gaps</p>
-      <h2>Real documents, exact quotes, and an honest “not in this corpus”.</h2>
+      <p className="kicker">Chapter 7 · The rulebook</p>
+      <h2>It reads real policy documents, quotes them exactly, and admits when they don’t say.</h2>
       <p className="lede">The knowledge base is the ITU AI Readiness training repository at a pinned commit: {t.ingested} of {t.files} files, {t.pages.toLocaleString()} pages, {t.chunks.toLocaleString()} chunks. It covers AI policy, not spectrum law, so it can support how OrbitFlow is structured, but not the value of a power cap.</p>
       <div className="stats" style={{ marginTop: 24 }}>
         <div className="stat"><b>{t.evidence_eligible}</b><span>documents that can count as evidence; summaries and sample files cannot</span></div>
@@ -416,6 +420,7 @@ function Knowledge({ d }) {
           <span className="tag">mapping confidence: {m.confidence}</span>
         </div>
       </div>
+      <More label="See rule evidence, gaps, retrieval tests and all documents">
       <div className="grid g2" style={{ marginTop: 12 }}>
         <div className="panel"><h4>Rule evidence</h4><p className="sub">Rules stay enforced as operating constraints when the corpus is silent.</p>
           <div className="scroll"><table><thead><tr><th>Rule</th><th>Evidence</th></tr></thead><tbody>
@@ -439,24 +444,23 @@ function Knowledge({ d }) {
           {k.documents.map((x) => <tr key={x.doc_id}><td style={{ whiteSpace: 'normal' }}>{x.title}</td><td style={{ color: 'var(--ink-2)' }}>{x.issuer}</td><td><span className={`tag ${x.chunks === 0 ? 'critical' : x.evidence_eligible ? 'good' : 'warning'}`}>{x.chunks === 0 ? 'failed' : x.evidence_eligible ? 'evidence' : x.role === 'primary' ? 'duplicate' : 'not evidence'}</span></td><td className="n">{x.pages}</td><td className="n">{x.chunks}</td></tr>)}
         </tbody></table></div>}
       </div>
+      </More>
     </div></section>
   );
 }
 
 function Ledger({ d }) {
   const rows = [
-    ['Real', 'Pass geometry, channel gains, SSB/SIB schedule and the external test trace, from the supplied NTN dataset.'],
-    ['Measured', 'Everything in the charts: forecaster, BRIDGE, baselines, agents and guard, run through the digital twin with seeds fixed.'],
-    ['Synthetic', 'Training and test demand is generated and calibrated to the dataset’s hot and cold levels. No real trace was used for training or model selection.'],
-    ['Simulated', 'Flood, regulator notice, 22 W cap, border-cell choice, operator procedures and the 19 cells’ map location.'],
-    ['Assumed', 'Link budget (calibrated to about 11 dB mean SINR, not measured), and the 40 and 80-slot signalling limits. Real numbers from RF engineers could move every result.'],
-    ['Not built', 'Agents use deterministic rules, not an LLM. Retrieval uses TF-IDF and BM25, not neural embeddings. No live E2 or O-RAN interface. No real legal corpus yet.'],
-    ['Limits', 'One satellite, 100 slots, 19 cells. The real-trace result is one pass. PPO improved only modestly on behaviour cloning. BRIDGE’s fairness to cold cells costs extra beam switching. Emergency priority ends abruptly at slot 61, causing a backlog spike; it should taper with demand.'],
+    ['From real data', 'The satellite’s path, signal conditions and timing come from the supplied offline NTN datasets. The rulebook is 65 real documents from the ITU AI Readiness repository.'],
+    ['Measured by us', 'Every chart: all results are computed by running the software, with fixed seeds, and can be reproduced.'],
+    ['Generated for testing', 'Training traffic is generated to match the dataset’s levels. The flood is a test scenario. The 22 W limit is a hypothetical constraint, not a real law.'],
+    ['Awaiting engineering review', 'Antenna gain, bandwidth and interference values are provisional until reviewed by RF engineers.'],
+    ['Not built', 'This is a simulation, not connected to a real satellite. The agents use fixed rules rather than an LLM, by design: time-critical safety decisions should be predictable.'],
   ];
   return (
     <section className="ch" id="ledger"><div className="wrap">
-      <p className="kicker">Chapter 8 · Honest ledger</p>
-      <h2>What is real, what is simulated, and how to check us.</h2>
+      <p className="kicker">Chapter 8 · How we know</p>
+      <h2>Where every number comes from, and how to check it.</h2>
       <div className="panel" style={{ marginTop: 28 }}><table className="ledger"><tbody>{rows.map(([a, b]) => <tr key={a}><td>{a}</td><td>{b}</td></tr>)}</tbody></table></div>
       <div className="panel" style={{ marginTop: 12 }}><h4>Reproduce every number</h4>
         <pre style={{ margin: '8px 0 0', font: '13px/1.7 var(--mono)', color: 'var(--ink-2)', overflowX: 'auto' }}>{`pip install -r requirements.txt

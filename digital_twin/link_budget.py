@@ -41,3 +41,23 @@ def link_margin_db(sinr_db_value: float, required_db: float) -> float:
 
 def shannon_mbps(sinr_db_value: float, bandwidth_hz: float, overhead: float = 0.0) -> float:
     return bandwidth_hz * math.log2(1 + 10 ** (sinr_db_value / 10)) * (1 - overhead) / 1e6
+
+
+def sf358_pfd_limit_db(elevation_deg: float) -> float:
+    """ITU-R SF.358-5 recommends 1.5 mask, dB(W/m2) in any 1 MHz: -115 up to 5 deg, rising 0.5 dB/deg to -105 at 25 deg."""
+    if elevation_deg <= 5:
+        return -115.0
+    if elevation_deg <= 25:
+        return -115.0 + 0.5 * (elevation_deg - 5)
+    return -105.0
+
+
+def pfd_db_per_mhz(ptx_w: float, gtx_dbi: float, distance_km: float, bandwidth_mhz: float) -> float:
+    """Free-space flux density at the surface, spread evenly over the carrier. SF.358-5 recommends 2 sets free-space conditions."""
+    return 10 * math.log10(ptx_w) + gtx_dbi - 10 * math.log10(4 * math.pi * (distance_km * 1e3) ** 2) - 10 * math.log10(bandwidth_mhz)
+
+
+def pfd_power_cap_w(elevation_deg: float, gtx_dbi: float, distance_km: float, bandwidth_mhz: float) -> float:
+    """Largest beam power whose surface flux density stays within the SF.358-5 mask."""
+    db = sf358_pfd_limit_db(elevation_deg) - gtx_dbi + 10 * math.log10(4 * math.pi * (distance_km * 1e3) ** 2) + 10 * math.log10(bandwidth_mhz)
+    return 10 ** (db / 10)

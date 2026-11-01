@@ -30,3 +30,7 @@
 - {q: "use cases collected for AI for good in telecommunications", docs: [2024_waic_final_ai_for_good_use_cases_collection, innovate_for_impact_geneva_ai_for_good_2025, ksa_t_ai4g_ai4good_2024_2_pdf_e], match: "(?i)use case|AI for Good"}
 - {q: "AI use in disaster response and early warning", docs: [any], match: "(?i)disaster|early warning"}
 - {q: "transparency of AI: policy alignment across frameworks", docs: [pai_policy_alignment_ai_transparency_2024], match: "(?i)transparen"}
+- {q: "limit on flux density reaching the ground from satellites sharing with radio relay", docs: [r_rec_sf_358_5_199510_w_pdf_e], match: "(?i)flux.density"}
+- {q: "off-axis emission limits for earth station uplinks at 30 GHz", docs: [r_rec_s_524_8_200401_s_pdf_e], match: "(?i)e\\.i\\.r\\.p"}
+- {q: "software used by the Radiocommunication Bureau to examine non-GSO notifications", docs: [r_rec_s_1503_4_202309_i_pdf_e], match: "(?i)software"}
+- {q: "US rule change on sharing between NGSO and GSO satellite systems", docs: [fcc_26_26a1], match: "(?i)NGSO"}

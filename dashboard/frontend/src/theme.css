@@ -128,3 +128,8 @@ footer { padding: 40px clamp(20px, 5vw, 72px); border-top: 1px solid var(--line)
   .stat:last-child { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+.more { margin-top: 12px; }
+.more > summary { cursor: pointer; color: var(--beam); font-size: 14px; padding: 6px 0; list-style-position: inside; }
+.more > summary:hover { color: #8cf0d6; }
+.more-body { margin-top: 6px; }

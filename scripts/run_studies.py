@@ -127,6 +127,50 @@ def _G_cfg():
     return load_config()
 
 
+def _pfd_task(args):
+    """Flood relief with a physics-derived per-cell, per-slot cap from the SF.358-5 mask. No 22 W notice."""
+    from agents.supervisor import Supervisor
+    from bridge.policy import BridgePolicy
+    from digital_twin.link_budget import pfd_power_cap_w
+    from scenarios.flood_relief import build
+    from traffic.dataset import load_slant_km
+    from traffic.forecaster import prepare_forecast
+    seed, gtx, on = args
+    cfg = _G["cfg"]
+    tr, feed = build(_G["base"], {"border_cap_w": 100.0}, seed)
+    tr.forecast = prepare_forecast(_G["fc"], tr, cfg)
+    if gtx is not None:
+        km = load_slant_km()
+        tr.meta["pfd_cap_w"] = np.array([[pfd_power_cap_w(tr.elev[t, c], gtx, km[t, c], cfg["link"]["bandwidth_mhz"]) for c in range(tr.N)] for t in range(tr.T)])
+    r = Supervisor(cfg, BridgePolicy(cfg, _G["ckpts"][seed % len(_G["ckpts"])]), feed, _G["kb"], agents_on=on).run(tr)
+    k = r["kpis"]
+    H = r["history"]
+    return {**{m: k[m] for m in ("emergency_served_ratio", "mean_delay_ms", "throughput_mbps", "served_ratio", "rt_sla_violation", "packet_loss", "pfd_breach_slots", "pfd_binding_slots", "human_reviews", "mean_sinr_db")},
+            "mean_total_w": float(np.mean([h["power"].sum() for h in H])), "median_cap_w": float(np.median(tr.meta["pfd_cap_w"])) if gtx is not None else None}
+
+
+def pfd_study(ex, n):
+    gains = (None, 15.0, 20.0, 25.0, 30.0)
+    keys = ["emergency_served_ratio", "mean_delay_ms", "throughput_mbps", "served_ratio", "rt_sla_violation", "packet_loss", "pfd_breach_slots", "pfd_binding_slots", "human_reviews", "mean_sinr_db", "mean_total_w"]
+    out = {"label": "INDICATIVE. Mask from ITU-R SF.358-5 recommends 1.5. Its listed bands stop at 19.7 GHz and OrbitFlow's carrier is 20.0 GHz; the definitive limits are in the Radio Regulations, which are not in the corpus. Tx gain is assumed because config.yaml lumps Tx and Rx gain.", "n_per_setting": n, "settings": {}}
+    base = None
+    for g in gains:
+        rows = list(ex.map(_pfd_task, [(100 + i, g, True) for i in range(n)]))
+        e = _table(rows, keys)
+        e["median_cap_w"] = rows[0]["median_cap_w"]
+        if g is None:
+            base = rows
+        else:
+            e["delay_vs_no_cap"] = paired([r["mean_delay_ms"] for r in rows], [r["mean_delay_ms"] for r in base])
+            e["emergency_vs_no_cap"] = paired([r["emergency_served_ratio"] for r in rows], [r["emergency_served_ratio"] for r in base])
+        if g is not None:
+            off = list(ex.map(_pfd_task, [(100 + i, g, False) for i in range(n)]))
+            e["breach_slots_without_agents"] = summary([r["pfd_breach_slots"] for r in off])
+        out["settings"]["no cap" if g is None else f"Gtx={g:g} dBi"] = e
+        print(g, rows[0]["median_cap_w"], {k: round(e[k]["mean"], 3) for k in keys}, flush=True)
+    json.dump(out, open(os.path.join(OUT, "pfd_mask.json"), "w"), indent=1)
+
+
 def latency(n):
     """Compute time per stage, single process, separate from queueing delay in the twin."""
     _init(_TAG)
@@ -325,6 +369,8 @@ def main(n, tag, only):
     if run("bc"):
         bc_diagnostics()
     with ProcessPoolExecutor(14, initializer=_init, initargs=(tag,)) as ex:
+        if run("pfd"):
+            pfd_study(ex, n)
         if run("factorial"):
             _G.setdefault("cfg", load_config())
             factorial(ex, n)

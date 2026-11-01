@@ -26,10 +26,11 @@ def toy():
 
 
 def test_corpus_is_the_real_repository_with_full_provenance():
-    assert len(KB.manifest) == 67 and len(KB.ingested) >= 60
+    assert len(KB.manifest) == 71 and len(KB.ingested) >= 65
     assert not any(d["doc_id"].startswith("sim_") for d in KB.manifest)
     for d in KB.manifest:
-        assert d["source_repository"].endswith("ITUAIReadiness") and len(d["sha256"]) == 64 and d["source_path"].endswith(d["filename"])
+        assert len(d["sha256"]) == 64 and d["source_path"].endswith(d["filename"])
+        assert d["source_repository"].endswith("ITUAIReadiness") or d["category"] == "Regulatory_Supplement"
 
 
 def test_checksums_match_source_files():
@@ -93,3 +94,17 @@ def test_unsupported_claim_says_so():
 def test_supported_answer_cites_y3172():
     a = answer(KB, "What does the policy node do?", ["polic"], doc_ids={"t_rec_y_3172_201906_i_pdf_e"})
     assert a.supported and all(q["verified_verbatim"] and q["page"] >= 1 and q["kind"] == "quotation" for q in a.quotes)
+
+
+def test_flux_density_rule_cites_sf358_and_scope_is_recorded():
+    a = answer(KB, "power flux-density limits 17.7 to 19.7 GHz angle of arrival any 1 MHz band", ["1 MHz band|in any 1 MHz"], doc_ids={"r_rec_sf_358_5_199510_w_pdf_e"})
+    assert a.supported and a.quotes[0]["verified_verbatim"]
+    d = next(x for x in KB.manifest if x["doc_id"] == "r_rec_sf_358_5_199510_w_pdf_e")
+    assert "indicative" in d["scope_note"]
+    assert "uplink" in next(x for x in KB.manifest if x["doc_id"] == "r_rec_s_524_8_200401_s_pdf_e")["scope_note"]
+
+
+def test_a_clause_broken_across_lines_is_not_split_by_a_false_heading():
+    pages = [(1, "1.5 in the bands 17.7 to 19.7 GHz and other shared frequency ranges, in any\n1 MHz band:\n-115 dB(W/m2) for low angles of arrival at the surface")]
+    c = chunk_pages(pages)
+    assert len(c) == 1 and "in any 1 MHz band: -115" in c[0]["text"]

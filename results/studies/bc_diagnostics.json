@@ -1,0 +1,50 @@
+{
+ "teacher": "HeuristicPredictive, the hand-written rule the clone imitates",
+ "kinds": {
+  "normal": {
+   "decisions": 3000,
+   "valid_share": 1.0,
+   "cell_selection_share_min": 0.20466666666666666,
+   "cell_selection_share_max": 0.224,
+   "max_beam_power_share_mean": 0.2713240138797334,
+   "hottest4_coverage": 0.20966666666666667,
+   "bc_teacher_beam_overlap": 0.9508333333333333
+  },
+  "block": {
+   "decisions": 3000,
+   "valid_share": 0.998,
+   "cell_selection_share_min": 0.18833333333333332,
+   "cell_selection_share_max": 0.245,
+   "max_beam_power_share_mean": 0.29685062802728734,
+   "hottest4_coverage": 0.4395,
+   "bc_teacher_beam_overlap": 0.9454166666666667
+  },
+  "event_surge": {
+   "decisions": 3000,
+   "valid_share": 1.0,
+   "cell_selection_share_min": 0.18866666666666668,
+   "cell_selection_share_max": 0.24366666666666667,
+   "max_beam_power_share_mean": 0.3071637507607846,
+   "hottest4_coverage": 0.2961666666666667,
+   "bc_teacher_beam_overlap": 0.88325
+  },
+  "bursty": {
+   "decisions": 3000,
+   "valid_share": 0.9996666666666667,
+   "cell_selection_share_min": 0.2,
+   "cell_selection_share_max": 0.226,
+   "max_beam_power_share_mean": 0.3137626255080555,
+   "hottest4_coverage": 0.25116666666666665,
+   "bc_teacher_beam_overlap": 0.8143333333333334
+  },
+  "mixed": {
+   "decisions": 3000,
+   "valid_share": 0.9996666666666667,
+   "cell_selection_share_min": 0.17733333333333334,
+   "cell_selection_share_max": 0.24833333333333332,
+   "max_beam_power_share_mean": 0.31405549455328735,
+   "hottest4_coverage": 0.35783333333333334,
+   "bc_teacher_beam_overlap": 0.8914166666666666
+  }
+ }
+}

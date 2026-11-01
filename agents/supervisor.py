@@ -49,6 +49,7 @@ class PolicyAgent:
         with open(RULES, encoding="utf8") as f:
             self.rules = {r["id"]: r for r in yaml.safe_load(f)}
         self._cache: dict = {}
+        self.pfd_cap = None
         for rid in self.rules:                       # evidence is precomputed so retrieval never runs in the slot's critical path
             self.evidence(rid)
 
@@ -68,9 +69,15 @@ class PolicyAgent:
     def review(self, act, t, n):
         verdicts, cap_arr = [], None
         cap = self.active_cap(t)
+        if self.pfd_cap is not None:
+            cap_arr = self.pfd_cap[t].copy()
+            over = np.where(act.lit & (act.power > cap_arr + 1e-9))[0].tolist()
+            ev, pas = self.evidence("R8_pfd_mask")
+            verdicts.append({"rule_id": "R8_pfd_mask", "status": "FAIL" if over else "PASS", "evidence_status": ev, "passages": pas, "parameter_source": "sf358_indicative",
+                             "detail": f"cells {over} over the flux-density power cap" if over else "within the flux-density power cap"})
         if cap:
-            cap_arr = np.full(n, np.inf)
-            cap_arr[cap["cells"]] = cap["cap_w"]
+            cap_arr = np.full(n, np.inf) if cap_arr is None else cap_arr
+            cap_arr[cap["cells"]] = np.minimum(cap_arr[cap["cells"]], cap["cap_w"])
             over = [int(c) for c in cap["cells"] if act.lit[c] and act.power[c] > cap["cap_w"] + 1e-9]
             ev, pas = self.evidence("R1_border_power_cap")
             verdicts.append({"rule_id": "R1_border_power_cap", "status": "FAIL" if over else "PASS", "evidence_status": ev,
@@ -148,12 +155,14 @@ class Supervisor:
         self.guard = BamGuard(cfg)
 
     def run(self, trace, scenario="flood_relief"):
+        self.policy_agent.pfd_cap = trace.meta.get("pfd_cap_w")
         twin = NTNTwin(trace, self.cfg)
         self.network.policy.reset()
         obs = twin.reset()
         N, records, review, deliberations = trace.N, [], [], 0
         self._short_run = 0
         alerted, cap_violations, repairs = False, 0, 0
+        pfd_breach = pfd_bind = 0
         lat = {k: [] for k in ("network", "policy", "safety", "guard", "audit")}
         clock = time.perf_counter
         while not twin.done:
@@ -198,6 +207,10 @@ class Supervisor:
             lat["guard"].append(clock() - t0)
 
             cap_now = self._true_cap(t)
+            pfd = trace.meta.get("pfd_cap_w")
+            if pfd is not None:
+                pfd_breach += int((res.power > pfd[t] + 1e-6).any())
+                pfd_bind += int((act.lit & (act.power > pfd[t] + 1e-9)).any())
             if cap_now is not None:
                 cap_violations += int(any(res.lit[c] and res.power[c] > cap_now["cap_w"] + 1e-6 for c in cap_now["cells"]))
             repairs += int(res.repaired)
@@ -251,6 +264,7 @@ class Supervisor:
         srv = np.array([h["served_kb"] for h in twin.history])
         kpis["emergency_served_ratio"] = float(srv[em_mask].sum() / max(arr[em_mask].sum(), 1e-9))
         kpis["cap_violation_slots"] = cap_violations
+        kpis["pfd_breach_slots"], kpis["pfd_binding_slots"] = pfd_breach, pfd_bind
         kpis["human_reviews"] = len(review)
         kpis["deliberations"] = deliberations
         return {"kpis": kpis, "records": records, "history": twin.history, "human_review": review,

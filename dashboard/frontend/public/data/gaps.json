@@ -1,22 +1,64 @@
 {
  "human_verified": false,
- "real_sources_indexed": 0,
- "header": "Machine-generated candidates. Verify each against a source document.",
+ "header": "Machine-generated candidates. These are gaps in this corpus, not findings about the law.",
  "candidates": [
   {
    "id": "GAP-01",
-   "title": "No retrievable emergency exemption from a cross-border power cap",
-   "domain": "NTN radio resource management",
-   "trigger": "Slot 50 conflict: law and emergency service disagree",
-   "statement": "The indexed corpus has no passage allowing emergency traffic to exceed a cross-border beam power cap, so the controller keeps the cap and escalates.",
+   "rule_id": "R1_border_power_cap",
+   "title": "Beam power limits for cross-border satellite coverage",
+   "statement": "No eligible passage in 59 documents met the evidence test for: transmit beam power limit satellite neighbouring country cross-border interference.",
+   "consequence": "OrbitFlow's cap stays a hypothetical operating constraint.",
    "absence_evidence": {
-    "queries": [
-     "emergency exemption from cross-border power limit",
-     "cap waived for safety-of-life traffic exception"
-    ],
-    "must_contain": "exempt|waive|exception|derogat"
+    "query": "transmit beam power limit satellite neighbouring country cross-border interference",
+    "must": [
+     "(beam|transmit|radiated|EIRP).{0,12}power|power flux|power limit",
+     "satellite|spectrum|cross-border|transboundary"
+    ]
    },
-   "limitation": "0 real legal or standards documents are indexed, so this shows a gap in the corpus, not yet in the law.",
+   "human_verified": false
+  },
+  {
+   "id": "GAP-02",
+   "rule_id": "R2_emergency_priority",
+   "title": "Priority for emergency traffic on network resources",
+   "statement": "No eligible passage in 59 documents met the evidence test for: priority for emergency and disaster communications network connectivity.",
+   "consequence": "OrbitFlow's emergency priority is a design choice, not derived from the corpus.",
+   "absence_evidence": {
+    "query": "priority for emergency and disaster communications network connectivity",
+    "must": [
+     "emergenc|disaster",
+     "priorit|connectivity|telecommunication"
+    ]
+   },
+   "human_verified": false
+  },
+  {
+   "id": "GAP-03",
+   "rule_id": "R4_signalling",
+   "title": "Initial-access signalling protection for NTN",
+   "statement": "No eligible passage in 59 documents met the evidence test for: SSB system information initial access non-terrestrial network signalling.",
+   "consequence": "The 40/80-slot limits stay configuration assumptions.",
+   "absence_evidence": {
+    "query": "SSB system information initial access non-terrestrial network signalling",
+    "must": [
+     "SSB|synchroni[sz]ation signal|system information block"
+    ]
+   },
+   "human_verified": false
+  },
+  {
+   "id": "GAP-04",
+   "rule_id": "R5_emergency_exemption",
+   "title": "Emergency exemption from a power limit",
+   "statement": "No eligible passage in 59 documents met the evidence test for: emergency exemption from a cross-border power limit.",
+   "consequence": "The supervisor keeps the constraint and refers conflicts to a human.",
+   "absence_evidence": {
+    "query": "emergency exemption from a cross-border power limit",
+    "must": [
+     "exempt|waive|derogat",
+     "power limit|power cap|transmit power|beam power"
+    ]
+   },
    "human_verified": false
   }
  ]

@@ -38,10 +38,11 @@ QUESTIONS = [
     ("What does Y.3172 say the policy node does?", ["polic"], Y3172), ("How should the level of human oversight be decided?", ["human oversight"], None),
     ("What should an AI audit trail capture?", ["audit trail|traceab"], None), ("What is an ML sandbox?", ["sandbox"], Y3172),
     ("What are the AI Readiness factors?", ["factor"], FRAMEWORK), ("Is emergency traffic exempt from a cross-border beam power limit?", ["exempt|waive|derogat", "power limit|power cap|transmit power|beam power"], None),
-    ("What is the maximum satellite beam EIRP allowed over a border?", ["EIRP|power flux", "satellite"], None),
+    ("What is the maximum satellite beam power allowed per country?", ["per beam|beam power", "country|border"], None),
+    ("What power flux-density limit applies at the Earth's surface?", ["1 MHz band|in any 1 MHz"], {"r_rec_sf_358_5_199510_w_pdf_e"}),
+    ("Which downlink bands have EPFD limits?", ["19\\.7.20\\.2"], {"fcc_26_26a1"}),
 ]
-GAPS = {"R1_border_power_cap": ("Beam power limits for cross-border satellite coverage", "OrbitFlow's cap stays a hypothetical operating constraint."),
-        "R2_emergency_priority": ("Priority for emergency traffic on network resources", "OrbitFlow's emergency priority is a design choice, not derived from the corpus."),
+GAPS = {"R2_emergency_priority": ("Priority for emergency traffic on network resources", "OrbitFlow's emergency priority is a design choice, not derived from the corpus."),
         "R4_signalling": ("Initial-access signalling protection for NTN", "The 40/80-slot limits stay configuration assumptions."),
         "R5_emergency_exemption": ("Emergency exemption from a power limit", "The supervisor keeps the constraint and refers conflicts to a human.")}
 
@@ -73,13 +74,13 @@ def main():
     prov = sum(all(d.get(k) for k in ("sha256", "source_path", "source_commit", "filename")) for d in kb.manifest)
     report = {"source": {"repository": kb.manifest[0]["source_repository"], "commit": kb.manifest[0]["source_commit"], "directory": "simulation/server/knowledge/InputDocs", "licence": kb.manifest[0]["licence"]},
               "totals": {"files": len(kb.manifest), "ingested": len(kb.ingested), "failed": len(kb.skipped), "evidence_eligible": eligible, "pages": sum(d["pages"] for d in kb.manifest), "chunks": len(kb.passages), "chars": sum(d["chars"] for d in kb.manifest), "provenance_complete": prov},
-              "documents": [{k: d.get(k) for k in ("doc_id", "filename", "title", "issuer", "issuer_basis", "year", "year_basis", "doc_type", "category", "role", "pages", "chunks", "extraction", "evidence_eligible", "overlaps", "sha256")} for d in kb.manifest],
+              "documents": [{k: d.get(k) for k in ("doc_id", "filename", "title", "scope_note", "issuer", "issuer_basis", "year", "year_basis", "doc_type", "category", "role", "pages", "chunks", "extraction", "evidence_eligible", "overlaps", "sha256")} for d in kb.manifest],
               "failed": [{"filename": d["filename"], "reason": d["extraction"]} for d in kb.skipped],
               "retrieval_eval": json.load(open(os.path.join(ROOT, "results", "retrieval_eval.json"))),
               "index": {"default_method": "bm25", "implementation": "scipy sparse BM25 (k1 1.5, b 0.75) over section-aware sentence-packed chunks", "dense_kept_for_comparison": "BAAI/bge-small-en-v1.5"},
               "citation_verification": {"checked": len(all_cites), "failed": len(bad), "method": "whitespace-normalised containment in the source chunk, at most 40 words"},
               "rules": verdicts, "readiness_mapping": mapping, "questions": qa,
-              "limitations": ["Issuer and year metadata are inferred from filenames and the repository's index, not checked against each document.", "Two PDFs failed in both parsers and no OCR tool is available.", "The corpus is AI policy; it has no spectrum regulation, 3GPP or O-RAN documents.", "Gold queries were written by the developer, n=30.", "Nothing has been verified by a human or legal reviewer. Retrieval does not establish compliance."]}
+              "limitations": ["Issuer and year metadata are inferred from filenames and the repository's index, not checked against each document.", "Two PDFs failed in both parsers and no OCR tool is available.", "The AI-policy corpus is supplemented by four team-supplied regulatory documents. The Radio Regulations themselves (Articles 21 and 22), 3GPP and O-RAN documents are not in the corpus.", "Gold queries were written by the developer, n=30.", "Nothing has been verified by a human or legal reviewer. Retrieval does not establish compliance."]}
     json.dump(report, open(os.path.join(ROOT, "results", "kb_report.json"), "w"), indent=1)
     gaps = {"human_verified": False, "header": "Machine-generated candidates. These are gaps in this corpus, not findings about the law.",
             "candidates": [{"id": f"GAP-{i+1:02d}", "rule_id": v["rule_id"], "title": GAPS[v["rule_id"]][0], "statement": f"No eligible passage in {eligible} documents met the evidence test for: {v['query']}.", "consequence": GAPS[v["rule_id"]][1],

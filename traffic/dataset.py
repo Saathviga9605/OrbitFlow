@@ -103,3 +103,11 @@ def load_openntn_sionna(root: str) -> Trace:
                  logged_mask=np.zeros((T, N)), logged_power=np.zeros((T, N)), q0_rt_kb=first.queue_length_rt_kb.to_numpy(dtype=float),
                  q0_nrt_kb=first.queue_length_nrt_kb.to_numpy(dtype=float), emergency=np.zeros((T, N)), forecast=None, events=[], slot_ms=10.0,
                  source="open_ntn_l2_output.csv + sionna_physics_output.csv")
+
+
+def load_slant_km(path: str | None = None) -> np.ndarray:
+    """(T, N) slant range from the dataset, for flux-density calculations."""
+    import os
+    path = path or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw", "dynamic_ntn_dataset.csv")
+    df = pd.read_csv(path)
+    return df.pivot(index="slot_id", columns="cell_id", values="slant_range_km").to_numpy(dtype=float)

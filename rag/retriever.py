@@ -157,11 +157,14 @@ def best_quote(p: Passage, query: str, max_words: int = 30, must: list[str] | No
     if len(words) <= max_words:
         return " ".join(words)
     # keep the window around the first required term or query word
-    hit = next((i for i, w in enumerate(words) if any(re.search(m, w, re.I) for m in (must or []))), None)
+    joined = " ".join(words)
+    found = next((x for x in (re.search(m, joined, re.I) for m in (must or [])) if x), None)
+    hit = len(joined[:found.start()].split()) if found else None      # required terms may span several words
     if hit is None:
         hit = next((i for i, w in enumerate(words) if w.lower().strip(",.;:") in q), 0)
     start = max(0, min(hit - 8, len(words) - max_words))
-    return " ".join(words[start:start + max_words])
+    window = " ".join(words[start:start + max_words])
+    return window
 
 
 @dataclass

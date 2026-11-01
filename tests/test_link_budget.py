@@ -76,3 +76,17 @@ def test_boundaries_capacity_zero_below_threshold_and_without_los():
     assert cap[0] == 0 and cap[1] > 0 and cap[2] == 0
     assert shannon_mbps(0.0, 20e6) == pytest.approx(20.0)
     assert link_margin_db(10.0, -6.0) == 16.0
+
+
+def test_sf358_mask_matches_the_recommendation_text():
+    from digital_twin.link_budget import sf358_pfd_limit_db as m
+    assert m(0) == -115 and m(5) == -115 and m(15) == -110 and m(25) == -105 and m(90) == -105
+
+
+def test_pfd_reference_and_cap_round_trip():
+    from digital_twin.link_budget import pfd_db_per_mhz, pfd_power_cap_w, sf358_pfd_limit_db
+    # 1 W, 0 dBi at 1000 km over 1 MHz: 10 log10(1 / (4 pi 1e12)) = -130.99 dB(W/m2)
+    assert pfd_db_per_mhz(1.0, 0.0, 1000.0, 1.0) == pytest.approx(-130.99, abs=0.01)
+    cap = pfd_power_cap_w(60.0, 25.0, 650.0, 20.0)
+    assert pfd_db_per_mhz(cap, 25.0, 650.0, 20.0) == pytest.approx(sf358_pfd_limit_db(60.0))
+    assert pfd_power_cap_w(60.0, 28.0, 650.0, 20.0) == pytest.approx(cap / 10 ** 0.3)

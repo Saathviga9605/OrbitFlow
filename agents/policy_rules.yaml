@@ -1,10 +1,10 @@
 # Auditable, human-editable rules. Deterministic code checks them; retrieval over the real corpus supplies evidence only.
 # `must` patterns must ALL appear in a passage for it to count. NONE_FOUND rules stay enforced as operating constraints.
 - id: R1_border_power_cap
-  title: Power limit on beams over border cells
-  query: "transmit beam power limit satellite neighbouring country cross-border interference"
-  must: ["(beam|transmit|radiated|EIRP).{0,12}power|power flux|power limit", "satellite|spectrum|cross-border|transboundary"]
-  parameter_source: hypothetical_constraint   # the number is ours; the corpus holds no such rule
+  title: Satellite emissions are limited to protect other services
+  query: "maximum power flux-density at the surface of the Earth produced by satellites"
+  must: ["power.flux.density|power limits expressed", "satell|space station|NGSO"]
+  parameter_source: hypothetical_constraint   # sources limit flux density on the ground; 22 W per beam is our simplification
 - id: R2_emergency_priority
   title: Emergency traffic keeps service
   query: "priority for emergency and disaster communications network connectivity"
@@ -41,4 +41,16 @@
   query: "ML sandbox train and validate models before applying them to the network"
   must: ["sandbox"]
   doc_ids: [t_rec_y_3172_201906_i_pdf_e]
+  parameter_source: none
+- id: R8_pfd_mask
+  title: Surface power flux-density mask, dB(W/m2) in 1 MHz, by arrival angle
+  query: "power flux-density limits 17.7 to 19.7 GHz angle of arrival any 1 MHz band"
+  must: ["1 MHz band|in any 1 MHz"]
+  doc_ids: [r_rec_sf_358_5_199510_w_pdf_e]
+  parameter_source: sf358_indicative          # 20 GHz is outside the listed bands; Tx gain is assumed
+- id: R9_ngso_limits_in_band
+  title: NGSO downlink limits apply in the 19.7-20.2 GHz band (US statement)
+  query: "NGSO FSS systems EPFD downlink limits apply 19.7-20.2 GHz PFD terrestrial services"
+  must: ["19\\.7.20\\.2|power limits expressed"]
+  doc_ids: [fcc_26_26a1]
   parameter_source: none
