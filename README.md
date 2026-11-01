@@ -255,15 +255,6 @@ All tunables are in [`config.yaml`](config.yaml):
 
 If you change `link`, rerun the experiments and studies.
 
-## Limitations
-
-- **Simulation:** the system uses offline dataset exports. It doesn't run Sionna or OpenNTN live, and it has no real-time guarantees.
-- **Radio parameters:** antenna gain, bandwidth, isolation and noise figure are provisional engineering values. See the [parameter sheet](docs/link_budget_parameters.md).
-- **Scenarios:** training demand is generated, calibrated to the dataset. The flood, rain fade and 22 W limit are test conditions, not real events or law.
-- **One geometry:** all runs share one compressed pass, so other orbits are untested. Second-dataset runs reuse it too.
-- **Not modelled:** beam-switching overhead, MCS tables (capacity uses the Shannon bound), polarisation and implementation losses, multi-satellite handover.
-- **Regulatory:** the SF.358-5 study is indicative, because a 20 GHz carrier falls outside its listed bands. OrbitFlow makes no compliance claim, and its citations haven't had legal review.
-- **Knowledge base:** two source PDFs couldn't be extracted, and the Radio Regulations, 3GPP and O-RAN texts aren't included.
 
 ## Documentation
 
