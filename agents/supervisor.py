@@ -198,14 +198,20 @@ class Supervisor:
                 lat["safety"].append(clock() - t0)
             policy_fail = any(v["status"] == "FAIL" for v in verdicts)
             safety_warn = any(f["status"] == "WARN" for f in findings)
+            protected = np.zeros(N, bool)
+            if self.agents_on:
+                protected[self.safety.emergency_cells(t)] = True
+            constraints = Constraints(
+                power_cap=cap_arr,
+                forced_lit=forced,
+                protected_lit=protected,
+            ) if self.agents_on else None
+            checks = self.guard.check(act.lit, act.power, obs["guard"], obs["ssb"], obs["sib"], constraints)
+            rec.constraints = checks
             guard_fail = any(c["status"] == "FAIL" for c in checks.values())
             deliberate = self.agents_on and bool(new_events or alert or policy_fail or safety_warn or guard_fail)
 
-            constraints = Constraints(power_cap=cap_arr, forced_lit=forced) if self.agents_on else None
             prio = act.priority
-            if self.agents_on and self.safety.emergency_cells(t):      # if a beam must go, it is never an emergency cell's
-                prio = np.array(act.priority, dtype=float).copy()
-                prio[self.safety.emergency_cells(t)] += 1e6
             t0 = clock()
             res = self.guard.repair(act.lit, act.power, obs["guard"], obs["ssb"], obs["sib"], priority=prio, constraints=constraints)
             lat["guard"].append(clock() - t0)
@@ -249,7 +255,12 @@ class Supervisor:
                 for f in findings:
                     if f["status"] == "WARN" or new_events:
                         rec.add_step(TraceStep("safety", f["check"], output={"status": f["status"]}, rationale=f["detail"]))
-                rec.add_step(TraceStep("guard", "repair", output={"ok": res.ok}, rationale="; ".join(res.notes) or "No change needed."))
+                rec.add_step(TraceStep(
+                    "guard",
+                    "repair",
+                    output={"ok": res.ok, "checks": res.checks},
+                    rationale="; ".join(res.notes) or "No change needed.",
+                ))
                 rec.add_step(TraceStep("supervisor", "resolve", output={"human_review": bool(human)},
                                        rationale=self._resolve_text(policy_fail, safety_warn, guard_fail, human)))
             self.safety.observe(res.lit)

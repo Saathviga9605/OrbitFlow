@@ -36,8 +36,12 @@ def test_every_slot_audited_and_cap_never_broken(run):
     assert [x.slot for x in r["records"]] == list(range(trace.T))
     assert r["kpis"]["cap_violation_slots"] == 0
     for rec in r["records"][50:]:
+        assert rec.constraints["dynamic_power_cap"]["status"] == "FAIL"
         for c in cfg["demo"]["border_cells"]:
             assert rec.final["power_w"].get(c, 0) <= cfg["demo"]["border_cap_w"] + 1e-6
+        repair = next(step for step in rec.trace if step["agent"] == "guard" and step["action"] == "repair")
+        assert repair["output"]["ok"]
+        assert all(check["status"] == "PASS" for check in repair["output"]["checks"].values())
 
 
 def test_conflict_reaches_human_review_with_no_exemption(run):

@@ -121,6 +121,8 @@ class BridgePolicy(Policy):
         f = build_features(obs, self.cfg, self.guard, self.link, self.T, self.use_forecast)
         z, alpha, _ = self.net(torch.from_numpy(f)[None])
         z, alpha = z[0].numpy(), alpha[0].numpy()
+        if not np.isfinite(z).all() or not np.isfinite(alpha).all():
+            raise ValueError("BRIDGE produced non-finite beam scores or power concentrations")
         order = np.argsort(-z)[: self.K]
         w = alpha[order] / alpha[order].sum()
         lit = np.zeros(len(z), bool)

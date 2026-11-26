@@ -97,6 +97,23 @@ def test_masked_cells_are_not_selected_when_enough_are_visible():
     assert 3 not in torch.topk(z, 4).indices[0].tolist()
 
 
+def test_bridge_rejects_non_finite_model_outputs(policy, monkeypatch):
+    obs = NTNTwin(BASE, CFG).reset()
+
+    class NonFiniteNetwork:
+        def __call__(self, features):
+            batch, cells = features.shape[:2]
+            return (
+                torch.full((batch, cells), float("nan")),
+                torch.ones(batch, cells),
+                torch.zeros(batch),
+            )
+
+    monkeypatch.setattr(policy, "net", NonFiniteNetwork())
+    with pytest.raises(ValueError, match="non-finite"):
+        policy.act(obs)
+
+
 def test_reproducible_and_fast(policy):
     t = make_trace("mixed", BASE, 22)
     t.forecast = Forecaster.load(CFG, FC_PATH).predict_trace(t)
@@ -237,5 +254,5 @@ def test_emergency_cell_is_not_dropped_when_another_is_forced_on():
     t, feed = build(BASE, None, 9)
     r = Supervisor(CFG, FourWithOneEmergency(), feed, KB).run(t)
     # only hard signalling deadlines may take its beam
-    assert all(13 in x.final["beams"] or any("timing deadline" in n for n in x.repairs) for x in r["records"][28:61])
+    assert all(13 in x.final["beams"] or any("forced cells" in n for n in x.repairs) for x in r["records"][28:61])
     assert sum(13 in x.final["beams"] for x in r["records"][28:61]) >= 30

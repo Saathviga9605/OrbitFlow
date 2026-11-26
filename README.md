@@ -142,7 +142,7 @@ flowchart LR
 | **Forecaster** | GRU that learns corrections to repeating the last value. It predicts 3 slots ahead, and falls back when its recent error is high. A leak test proves future demand can't affect it. |
 | **BRIDGE** | Permutation-equivariant actor-critic trained with PPO. Gumbel-Top-K samples beams with an exact Plackett-Luce probability, and a Dirichlet splits power. About 38,600 parameters. |
 | **Agents** | Network, Policy, Safety and Supervisor, each seeing only its own events. These are deterministic rules, chosen so time-critical decisions stay predictable. There is no LLM in the system. |
-| **Guard** | Enforces beam count, power budget, power floor, signalling deadlines and caps. It runs in every configuration, and raw model output never reaches the twin. |
+| **Guard** | Enforces beam count, power budget, power floors, signalling deadlines and per-cell caps. It schedules signalling service early, protects selected emergency beams during proactive scheduling, and rejects infeasible hard constraints instead of returning an invalid action. It runs in every configuration; raw model output never reaches the twin. |
 | **Knowledge base** | Section-aware chunks with page numbers and checksums. BM25 was the best retriever tested. A quote that isn't verbatim in its source is dropped, and off-topic questions are refused. |
 | **Digital twin** | Slot-level queues with real-time priority, SINR with inter-beam interference, and KPI aggregation. |
 
@@ -210,7 +210,7 @@ python -m pytest -q tests
 |---|---|
 | Digital twin and channel | Queue conservation, SINR behaviour, capacity boundaries |
 | Link budget | FSPL and noise reference values, agreement with an independent budget |
-| Guard | Every hard limit, under random proposals |
+| Guard | Hard limits, dynamic-constraint conflicts, bounded power allocation and proactive signalling under random proposals |
 | Forecasting | No leakage from future demand, serialisation, gate causality |
 | BRIDGE | Sampler matches its probability, action validity, inference time |
 | Agents | Information boundaries, full audit coverage, emergency priority |

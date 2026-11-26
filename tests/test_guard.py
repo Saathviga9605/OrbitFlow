@@ -104,6 +104,41 @@ def test_timing_due_urgency_ranking(guard):
     assert result.ok, "Result should be OK"
 
 
+def test_guard_schedules_starved_cells_before_signalling_deadline(guard):
+    state = GuardState.fresh(5)
+    proposed = np.array([True, True, False, False, False])
+
+    for slot in range(80):
+        ssb = float(slot % 2 == 0)
+        result = guard.repair(proposed, proposed.astype(float) * 50, state, ssb, 0)
+
+        assert result.ok
+        state.advance(result.lit, ssb, 0)
+
+
+def test_guard_rejects_unrecoverable_overdue_cells(guard):
+    state = GuardState.fresh(5)
+    state.ssb_age[:3] = 39
+    with pytest.raises(ValueError, match="past deadline or forced"):
+        guard.repair(np.zeros(5, bool), np.zeros(5), state, 1, 0), "Result should be OK"
+
+
+def test_proactive_timing_service_preserves_protected_beams(guard):
+    state = GuardState.fresh(5)
+    state.ssb_age[:] = 33
+    lit = np.array([False, False, False, True, True])
+    power = lit.astype(float) * 50
+    protected = np.array([False, False, False, False, True])
+    constraints = Constraints(protected_lit=protected)
+
+    result = guard.repair(lit, power, state, 1, 0, constraints=constraints)
+
+    assert result.lit[4]
+    assert result.lit[0]
+    assert result.lit.sum() == 2
+    assert result.ok, "Result should be OK"
+
+
 def test_power_redistribution_after_beam_drop(guard):
     """When beams are dropped, power should be redistributed to remaining beams."""
     lit = np.array([True, True, True, False, False])  # 3 lit
@@ -181,6 +216,59 @@ def test_forced_lit_override(guard):
     assert result.lit[1], "Forced cell 1 must be lit"
     assert result.lit.sum() == 2, "Only forced cells should be lit (K=2)"
     assert result.ok
+
+
+def test_forbidden_cell_cannot_be_relit_by_timing_deadline(guard):
+    state = GuardState.fresh(5)
+    state.ssb_age[1] = 39
+    constraints = Constraints(forbidden_lit=np.array([False, True, False, False, False]))
+
+    with pytest.raises(ValueError, match="both required and forbidden"):
+        guard.repair(np.zeros(5, bool), np.zeros(5), state, ssb=1, sib=0, constraints=constraints)
+
+
+def test_forced_and_forbidden_conflict_is_rejected(guard):
+    constraints = Constraints(
+        forced_lit=np.array([False, True, False, False, False]),
+        forbidden_lit=np.array([False, True, False, False, False]),
+    )
+
+    with pytest.raises(ValueError, match="both required and forbidden"):
+        guard.repair(np.zeros(5, bool), np.zeros(5), GuardState.fresh(5), 0, 0, constraints=constraints)
+
+
+def test_dynamic_constraints_are_included_in_final_checks(guard):
+    lit = np.array([True, True, False, False, False])
+    power = np.array([30.0, 20.0, 0.0, 0.0, 0.0])
+    constraints = Constraints(
+        power_cap=np.array([20.0, 40.0, np.inf, np.inf, np.inf]),
+        min_power=np.array([25.0, 0.0, 0.0, 0.0, 0.0]),
+    )
+
+    checks = guard.check(lit, power, GuardState.fresh(5), 0, 0, constraints=constraints)
+
+    assert checks["dynamic_power_cap"]["status"] == "FAIL"
+    assert checks["dynamic_min_power"]["status"] == "PASS"
+    assert checks["forced_lit"]["status"] == "PASS"
+    assert checks["forbidden_lit"]["status"] == "PASS"
+
+
+def test_infeasible_power_bounds_are_rejected(guard):
+    constraints = Constraints(
+        forced_lit=np.array([True, False, False, False, False]),
+        power_cap=np.array([4.0, np.inf, np.inf, np.inf, np.inf]),
+    )
+
+    with pytest.raises(ValueError, match="power bounds are infeasible"):
+        guard.repair(np.zeros(5, bool), np.zeros(5), GuardState.fresh(5), 0, 0, constraints=constraints)
+
+
+def test_guard_rejects_non_finite_proposals(guard):
+    lit = np.array([True, False, False, False, False])
+    power = np.array([np.nan, 0.0, 0.0, 0.0, 0.0])
+
+    with pytest.raises(ValueError, match="power must contain only finite values"):
+        guard.repair(lit, power, GuardState.fresh(5), 0, 0)
 
 
 def test_min_power_constraint(guard):
