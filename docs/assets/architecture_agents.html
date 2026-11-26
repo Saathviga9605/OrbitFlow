@@ -1,0 +1,112 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>OrbitFlow architecture</title>
+<style>
+  body { margin: 0; background: #fff; font-family: "Times New Roman", Times, serif; }
+  svg { display: block; }
+  .box { fill: #fff; stroke: #222; stroke-width: 1.6; }
+  .ai { fill: #fff; stroke: #222; }
+  .agent { fill: #fff; stroke: #222; }
+  .safe { fill: #fff; stroke: #222; }
+  .src { fill: #fff; stroke: #222; }
+  .dash { stroke-dasharray: 6 4; }
+  .t { font-size: 15px; font-weight: 700; text-anchor: middle; fill: #111; }
+  .s { font-size: 12.5px; text-anchor: middle; fill: #222; }
+  .lbl { font-size: 12px; fill: #222; }
+  .band { fill: none; stroke: #ddd; stroke-dasharray: 3 4; }
+  .bandt { font-size: 13px; font-weight: 700; fill: #444; letter-spacing: .04em; }
+  .ar { stroke: #222; stroke-width: 1.6; fill: none; marker-end: url(#a); }
+  .ard { stroke: #777; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; marker-end: url(#ag); }
+</style></head>
+<body>
+<svg width="1100" height="820" viewBox="0 0 1100 820" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#222"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#777"/></marker>
+  </defs>
+
+  <!-- bands -->
+  <rect class="band" x="8" y="12" width="1084" height="232" rx="6"/>
+  <text class="bandt" x="20" y="232">1 · PREDICT AND PROPOSE</text>
+  <rect class="band" x="8" y="262" width="1084" height="356" rx="6"/>
+  <text class="bandt" x="20" y="606">2 · AI AGENT DELIBERATION (deterministic rules, no LLM)</text>
+  <rect class="band" x="8" y="636" width="1084" height="120" rx="6"/>
+  <text class="bandt" x="20" y="746">3 · GUARD, EXECUTE, AUDIT</text>
+
+  <!-- proposed xApp packaging -->
+  <rect x="470" y="28" width="612" height="190" rx="8" fill="#fff" stroke="#555" stroke-width="1.6" stroke-dasharray="7 5"/>
+  <text x="482" y="212" font-size="13" font-weight="700" fill="#333">SatRRM-xApp (proposed O-RAN xApp packaging of prediction + policy)</text>
+  <!-- row 1 -->
+  <rect class="box src" x="20" y="38" width="180" height="64" rx="6"/>
+  <text class="t" x="110" y="64">LEO NTN Multi-Beam</text><text class="s" x="110" y="84">Satellite (digital twin)</text>
+  <rect class="box src" x="240" y="38" width="200" height="64" rx="6"/>
+  <text class="t" x="340" y="60">Traffic Data</text><text class="s" x="340" y="78">cell-level demand + KPIs</text><text class="s" x="340" y="94">lagged telemetry (t−1)</text>
+  <rect class="box ai" x="480" y="38" width="220" height="64" rx="6"/>
+  <text class="t" x="590" y="62">Traffic Prediction</text><text class="s" x="590" y="80">Residual GRU, 3 slots ahead</text><text class="s" x="590" y="96">+ uncertainty gate</text>
+  <rect class="box ai" x="740" y="38" width="210" height="64" rx="6"/>
+  <text class="t" x="845" y="64">BRIDGE DRL Policy</text><text class="s" x="845" y="84">actor-critic, PPO-trained</text>
+  <rect class="box dash" x="980" y="38" width="100" height="64" rx="6"/>
+  <text class="t" x="1030" y="64">Reward</text><text class="s" x="1030" y="84">training only</text>
+
+  <path class="ar" d="M200 70H238"/>
+  <path class="ar" d="M440 70H478"/>
+  <path class="ar" d="M700 70H738"/>
+  <path class="ard" d="M950 70H978"/>
+
+  <!-- row 2 -->
+  <rect class="box ai" x="620" y="150" width="200" height="56" rx="6"/>
+  <text class="t" x="720" y="174">Gumbel-Top-K</text><text class="s" x="720" y="192">select 4 of 19 beams</text>
+  <rect class="box ai" x="860" y="150" width="200" height="56" rx="6"/>
+  <text class="t" x="960" y="174">Dirichlet Power Split</text><text class="s" x="960" y="192">share of 100 W budget</text>
+  <path class="ar" d="M820 102L740 148"/><text class="lbl" x="765" y="122" text-anchor="end">discrete beams</text>
+  <path class="ar" d="M870 102L940 148"/><text class="lbl" x="920" y="130">continuous power</text>
+
+  <!-- agents -->
+  <rect class="box src" x="20" y="290" width="170" height="64" rx="6"/>
+  <text class="t" x="105" y="316">Event Feed</text><text class="s" x="105" y="336">alerts + telemetry, filtered per agent</text>
+  <rect class="box src" x="20" y="420" width="170" height="64" rx="6"/>
+  <text class="t" x="105" y="444">Knowledge Base</text><text class="s" x="105" y="462">69 documents, evidence</text><text class="s" x="105" y="477">precomputed</text>
+  <rect class="box src" x="20" y="520" width="170" height="64" rx="6"/>
+  <text class="t" x="105" y="544">Network State</text><text class="s" x="105" y="562">beam measurements</text><text class="s" x="105" y="578">and KPIs</text>
+
+  <rect class="box agent" x="420" y="286" width="250" height="74" rx="6"/>
+  <text class="t" x="545" y="308">Network Agent</text><text class="s" x="545" y="326">proposes 4 beams + watts</text><text class="s" x="545" y="344">sees: traffic, forecast, state</text>
+  <rect class="box agent" x="230" y="420" width="260" height="74" rx="6"/>
+  <text class="t" x="360" y="442">Policy Agent</text><text class="s" x="360" y="460">checks constraints (e.g. power limit)</text><text class="s" x="360" y="478">sees: constraint notices, evidence</text>
+  <rect class="box agent" x="600" y="420" width="260" height="74" rx="6"/>
+  <text class="t" x="730" y="442">Safety Agent</text><text class="s" x="730" y="460">protects emergency traffic, starvation</text><text class="s" x="730" y="478">sees: emergency declarations, KPIs</text>
+  <rect class="box agent" x="380" y="520" width="330" height="74" rx="6"/>
+  <text class="t" x="545" y="542">Supervisor Agent</text><text class="s" x="545" y="560">resolves: limits › constraints › safety › optimisation</text><text class="s" x="545" y="578">sees: everything</text>
+  <rect class="box dash" x="780" y="526" width="170" height="62" rx="6"/>
+  <text class="t" x="865" y="550">Human Review</text><text class="s" x="865" y="569">unresolved conflicts</text>
+
+  <path class="ar" d="M720 206L585 284"/>
+  <path class="ar" d="M960 206L640 284"/>
+  <path class="ar" d="M190 322H418"/>
+  <path class="ar" d="M190 452H228"/>
+  <path class="ar" d="M190 552H205V330H418"/><text class="lbl" x="214" y="318">state + KPIs</text>
+  <path class="ar" d="M490 360L410 418"/>
+  <path class="ar" d="M600 360L680 418"/>
+  <path class="ar" d="M545 360V518"/><text class="lbl" x="552" y="404">proposal</text>
+  <path class="ar" d="M380 494L450 518"/><text class="lbl" x="372" y="512" text-anchor="end">verdicts + citations</text>
+  <path class="ar" d="M680 494L610 518"/><text class="lbl" x="718" y="512">required changes</text>
+  <path class="ard" d="M710 557H778"/>
+
+  <!-- guard / execution / audit -->
+  <rect class="box safe" x="420" y="660" width="250" height="70" rx="6"/>
+  <text class="t" x="545" y="682">BAM Guard (hard limits)</text><text class="s" x="545" y="700">≤ 4 beams · 100 W · 2 W floor · caps</text><text class="s" x="545" y="717">NR timing: SSB / SIB / PRACH*</text>
+  <rect class="box safe" x="740" y="660" width="320" height="70" rx="6"/>
+  <text class="t" x="900" y="682">Beam-Hopping Execution</text><text class="s" x="900" y="700">Throughput, Delay, Late data, Loss,</text><text class="s" x="900" y="717">Fairness, SINR, Beam switches</text>
+  <rect class="box safe" x="160" y="660" width="220" height="70" rx="6"/>
+  <text class="t" x="270" y="684">Audit Log</text><text class="s" x="270" y="702">JSONL, every slot:</text><text class="s" x="270" y="718">proposed vs final, rules, sources</text>
+
+  <path class="ar" d="M545 594V658"/><text class="lbl" x="552" y="630">approved plan</text>
+  <path class="ar" d="M670 695H738"/>
+  <path class="ar" d="M420 695H382"/>
+  <path class="ard" d="M430 594L330 658"/>
+
+  <!-- feedback -->
+  <path class="ar" d="M900 730V790H6V552H18"/>
+  <text class="lbl" x="330" y="782">beam-hopping feedback (network state, KPIs) for the next 10 ms slot</text>
+  <text x="20" y="812" font-size="11.5" fill="#333">* PRACH is checked as part of NR timing, but the dataset's PRACH window is always open, so it never restricts a beam in these simulations. Dashed boxes are proposed or training-only components.</text>
+</svg>
+</body></html>
