@@ -155,3 +155,26 @@ Honest notes from the suite:
 - **Change a fallback:** `fallback` in the registry (`reactive_greedy`, `static_round_robin`).
 - **Replace the forecaster:** any object with `predict_trace(trace, lag)` returning `(T, N, 3)` works in `scenarios/suite.py:forecast_for`. Keep the leak test passing.
 - **Another network environment:** provide a `Trace` (see `traffic/dataset.py`). The twin, agents and suite are agnostic to its source; `n_cells` and `k_beams` come from `config.yaml`.
+
+## 12. Why "BRIDGE + guard, agents off" looked better, and what was fixed
+
+**Symptom.** In the flood scenarios the baseline without agents showed lower delay and less late data than full OrbitFlow (for example 17.7 vs 19.6 ms mean delay over 30 seeds).
+
+**Decomposition** (30 flood seeds, same traces, baseline profile):
+
+| Variant | Mean delay | Late RT data | Emergency served | Cap breaches | Delay, slots 28–49 (before any cap) |
+|---|---:|---:|---:|---:|---:|
+| BRIDGE alone | 17.67 ms | 0.06% | 92.6% | **21.2** | 14.5 ms |
+| OrbitFlow, before fix | 19.58 ms | 0.15% | 92.5% | 0 | 17.3 ms |
+| OrbitFlow, after fix | **18.47 ms** | **0.09%** | 92.5% | 0 | **15.3 ms** |
+| BRIDGE + guard + cap only (after fix) | 18.38 ms | 0.09% | 91.3% | 0 | 14.9 ms |
+
+**Root cause (a bug).** With agents on, the Supervisor marks emergency cells as *protected* for the guard. The guard's proactive-signalling scheduler (`BamGuard._due`) subtracted **every** protected cell from the beams available for SSB/SIB service, lit or not. With two emergency cells, it assumed two beams instead of four, doubled its reserve and forced signalling beams far earlier than needed, overriding BRIDGE. BRIDGE had been trained against the four-beam reserve, so its proposals kept being repaired. The cost showed before any cap existed (slots 28–49).
+
+**Fix.** `bam/validator.py`: only protected cells that actually hold a beam this slot (proposed or forced) reduce signalling capacity. Hard deadlines are unchanged; expired cells are still mandatory, and the randomized guard tests still pass.
+
+**What remains, and why it should remain.**
+- **The cap (slots 50–60).** Obeying a 22 W operating constraint costs capacity. BRIDGE alone is faster there only because it breaks the cap in about 21 slots per run. It is not a compliant alternative, and the suite now labels it "cap NOT enforced".
+- **The Safety agent's need-based emergency forcing.** Sweeping its trigger (0.2–0.6 of the delay budget) trades about 0.5 ms of mean delay against about 2 points of emergency service. The default (0.3) keeps emergency RT violations at 0 with the best service among compliant variants.
+
+**Fairer comparisons in the suite.** Baselines now face the same injected telemetry and network faults as OrbitFlow (previously only OrbitFlow was faulted in S6/S10). A compliant baseline "BRIDGE + guard, cap enforced" is added. Among controllers that respect the cap, OrbitFlow serves the most emergency traffic.

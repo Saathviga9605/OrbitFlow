@@ -110,9 +110,16 @@ def forecast_for(rt, trace, seed: int, noise: dict | None = None) -> dict:
             "injected_noise": noise, "note": "MAE of the one-slot-ahead forecast against simulated demand"}
 
 
-def run_once(rt, trace, feed, profile, faults=None, agents_on=True, impl="bridge_ppo"):
+def _policy_only():
+    from agents.registry import entry, load_registry
+    reg = copy.deepcopy(load_registry())
+    entry(reg, "safety")["enabled"] = False
+    return reg
+
+
+def run_once(rt, trace, feed, profile, faults=None, agents_on=True, impl="bridge_ppo", registry=None):
     policy = build_network_policy(rt["cfg"], impl, rt["ckpt"])
-    sup = Supervisor(rt["cfg"], policy, feed, rt["kb"], agents_on=agents_on, profile=profile, faults=faults)
+    sup = Supervisor(rt["cfg"], policy, feed, rt["kb"], agents_on=agents_on, profile=profile, faults=faults, registry=registry)
     t0 = time.perf_counter()
     r = sup.run(trace)
     r["wall_s"] = round(time.perf_counter() - t0, 2)
@@ -204,9 +211,15 @@ def _single(rt, s: dict, seed: int, pid: str) -> dict:
            "kpis": kpis_of(r), "coordination": coordination_of(r), "forecast": fmetrics, "series": series_of(r),
            "trace_samples": trace_samples(r), "human_review": _finite(r["human_review"][:8]), "wall_s": r["wall_s"],
            "model_param_sha": r.get("model_param_sha")}
-    out["baselines"] = {"bridge_alone": {"label": "BRIDGE + guard, agents off", "kpis": kpis_of(run_once(rt, trace, feed, profile, agents_on=False))},
-                        "reactive": {"label": "Reactive greedy + guard, agents off",
-                                     "kpis": kpis_of(run_once(rt, trace, feed, profile, agents_on=False, impl="reactive_greedy"))}}
+    # Baselines face the same trace AND the same injected faults (telemetry/network); agent faults do not apply to them.
+    bf = {k: v for k, v in (s.get("faults") or {}).items() if k in ("telemetry", "network")} or None
+    out["baselines"] = {
+        "bridge_cap": {"label": "BRIDGE + guard, cap enforced, no Safety/Supervisor deliberation", "compliant": True,
+                       "kpis": kpis_of(run_once(rt, trace, feed, profile, bf, registry=_policy_only()))},
+        "bridge_alone": {"label": "BRIDGE + guard, agents off (operating cap NOT enforced)", "compliant": False,
+                         "kpis": kpis_of(run_once(rt, trace, feed, profile, bf, agents_on=False))},
+        "reactive": {"label": "Reactive greedy + guard, agents off (cap NOT enforced)", "compliant": False,
+                     "kpis": kpis_of(run_once(rt, trace, feed, profile, bf, agents_on=False, impl="reactive_greedy"))}}
     if s.get("reference") == "no_faults":
         ref = run_once(rt, trace, feed, profile)
         out["reference"] = {"label": "Same scenario without injected faults", "kpis": kpis_of(ref)}

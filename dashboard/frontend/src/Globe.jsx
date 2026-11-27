@@ -5,12 +5,12 @@ import { feature } from 'topojson-client';
 import land from 'world-atlas/land-110m.json';
 import { reducedMotion } from './viz.jsx';
 
-const toVec = (lat, lon, r) => {
+export const toVec = (lat, lon, r) => {
   const p = (lat * Math.PI) / 180; const l = (lon * Math.PI) / 180;
   return new THREE.Vector3(r * Math.cos(p) * Math.sin(l), r * Math.sin(p), r * Math.cos(p) * Math.cos(l));
 };
 
-function landDots() {
+export function landDots() {
   const W = 720; const H = 360;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d', { willReadFrequently: true });

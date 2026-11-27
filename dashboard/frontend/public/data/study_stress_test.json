@@ -35,6 +35,22 @@
    "timing_guard": {
     "status": "PASS",
     "detail": "all due cells lit"
+   },
+   "dynamic_power_cap": {
+    "status": "FAIL",
+    "detail": "cells [13] exceed dynamic power caps"
+   },
+   "dynamic_min_power": {
+    "status": "PASS",
+    "detail": "within dynamic minimum powers"
+   },
+   "forced_lit": {
+    "status": "PASS",
+    "detail": "all required cells lit"
+   },
+   "forbidden_lit": {
+    "status": "PASS",
+    "detail": "all forbidden cells dark"
    }
   },
   "policy_findings": [
@@ -60,9 +76,7 @@
    },
    "p_total_w": 100.0
   },
-  "repairs": [
-   "capped cells [13] to per-cell limits (excess redistributed)"
-  ],
+  "repairs": [],
   "decision": "REPAIRED"
  },
  "run_summary": {
@@ -104,9 +118,7 @@
     "9": 24.33,
     "13": 22.0
    },
-   "notes": [
-    "capped cells [13] to per-cell limits (excess redistributed)"
-   ],
+   "notes": [],
    "total_w": 100.0,
    "final_ok": true,
    "cap_respected": true
@@ -187,9 +199,9 @@
   "episodes": 200,
   "decisions": 20000,
   "max_w": 84.49569518303757,
-  "p99_w": 41.08596070183,
-  "median_max_beam_w": 27.407523937217427,
-  "share_over_50w": 0.0028,
+  "p99_w": 40.74819422043624,
+  "median_max_beam_w": 27.582077956503078,
+  "share_over_50w": 0.00285,
   "share_over_22w": 1.0,
   "explanation": "Capacity grows with the log of SINR and interference sets a ceiling, so concentrating power gains little and costs other beams. Large shares are rare but do occur."
  }

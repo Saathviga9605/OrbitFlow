@@ -11,7 +11,7 @@ Every number below comes from files in `results/`. OrbitFlow is an offline simul
 | Unverified link budget | Calibrated values with no parameter record | Independent equations, parameter sheet, sensitivity runs | `tests/test_link_budget.py`, `docs/link_budget_parameters.md` |
 | "PPO barely helps" | Judged on a reward dominated by near-constant terms | Compared on KPIs; 8-variant sweep, then 5 seeds per candidate | `results/ppo_summary.json` |
 | Bursty traffic loss | BRIDGE slower than Reactive | Forecast uncertainty gate and reward rebalance | 14.8 vs 15.6 ms, n=100 |
-| "Agent overhead" | Assumed to be agent compute | Traced to always-on emergency beams; made need-based | 27.0 to 15.9 ms, `studies/emergency.json` |
+| "Agent overhead" | Assumed to be agent compute | Traced to always-on emergency beams; made need-based | 34.0 to 18.1 ms, `studies/emergency.json` |
 | Slot 61 backlog spike | Blamed on abrupt priority end | Taper tested and rejected; need-based service reduced it | Peak 1243 to 837 kb |
 | 22 W "legal cap" | Described as law | Relabelled hypothetical; added study using a real ITU-R limit | `tests/test_system.py`, `studies/pfd_mask.json` |
 | Unused datasets | OpenNTN and Sionna files unused by any result | Used as a second test trace | `pass:openntn_sionna` |
@@ -153,7 +153,7 @@ Recorded pass with noise and fading replicates, n=100, 5 training seeds averaged
 
 ### Agent overhead
 
-Compute, 1,000 decisions on one core: **1.43 ms mean, 2.16 ms p99, 3.18 ms max**, within the 10 ms slot. BRIDGE 1.04, guard 0.32, Policy 0.02, Safety 0.05 ms; audit 0.08 ms outside the decision. Precomputing avoids about 24 ms per live retrieval. Python on a desktop is not a real-time guarantee.
+Compute, 1,000 decisions on one core: **2.14 ms mean, 3.46 ms p99, 5.27 ms max** on the evaluation laptop (1.43 ms mean on the original desktop), within the 10 ms slot. BRIDGE 1.25, guard 0.81, Policy 0.03, Safety 0.05 ms; audit 0.10 ms outside the decision. Precomputing avoids about 24 ms per live retrieval. Python on a desktop is not a real-time guarantee.
 
 The 14 to 23 ms rise was queueing, from lighting emergency cells every slot. Flood relief, end=61, n=30:
 
@@ -165,7 +165,7 @@ The 14 to 23 ms rise was queueing, from lighting emergency cells every slot. Flo
 | Need-based + taper | 16.3 | 0.0% | 94.4% | 0% | 845 |
 | Agents off | 15.6 | 0.0% | 96.3% | 0% | 757 |
 
-**Trade-offs:** need-based delivers less total emergency data than always-on (94% vs 101%), and slightly less than agents off (96%), while no emergency deadline was missed. In this scenario the agents buy constraint compliance (22.9 breach slots to 0), not more emergency service. Always-on mode stays configurable if an operator values emergency volume. Taper added nothing. The same pattern held across durations of 45, 61 and 80 slots and traffic of 75–125%.
+**Trade-offs:** need-based delivers less total emergency data than always-on (92.8% vs 101%) and about the same as agents off (92.7%), while no emergency deadline was missed. The agents buy constraint compliance (22.8 breach slots to 0) at about 0.65 ms of mean delay; before the guard fix in docs/OPERATIONS.md §12, that cost was about 2 ms. Always-on mode stays configurable if an operator values emergency volume. Taper added nothing. The same pattern held across durations of 45, 61 and 80 slots and traffic of 75–125%.
 
 ### Rain and resource limits
 

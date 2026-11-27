@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import Globe from './Globe.jsx';
+import HeroScene from './Hero.jsx';
+import Flow from './Flow.jsx';
 import { COLORS, DotCI, HexMap, LineChart, reducedMotion } from './viz.jsx';
-import { Count, DemandStrip, Dial, DocMap, Dumbbell, FlowLine, LabScene, ScrollBar, useApi, useReveal, Waffle } from './fx.jsx';
+import { Count, DemandStrip, Dial, DocMap, Dumbbell, LabScene, ScrollBar, useApi, useReveal, Waffle } from './fx.jsx';
 import Game from './Game.jsx';
 import Console from './Console.jsx';
 
 const CHAPTERS = [
-  ['top', 'The problem'], ['chase', 'Three ways to choose'], ['foresee', 'Seeing demand coming'], ['loop', 'How it decides'],
-  ['mission', 'A flood, second by second'], ['game', 'Your turn: beat the AI'], ['evidence', 'Does it work?'], ['lab', 'Try it yourself'], ['knowledge', 'The rulebook'], ['ops', 'Operations console'], ['ledger', 'How we know'],
+  ['chase', 'Problem'], ['loop', 'How it works'], ['mission', 'Flood replay'], ['evidence', 'Results'],
+  ['lab', 'Try it'], ['game', 'Play'], ['knowledge', 'Rulebook'], ['ops', 'Console'],
 ];
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -16,14 +17,20 @@ function More({ label = 'See the technical details', children }) {
   return <details className="more"><summary>{label}</summary><div className="more-body">{children}</div></details>;
 }
 
-function Rail() {
+function TopNav() {
   const [on, setOn] = useState('top');
   useEffect(() => {
-    const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setOn(e.target.id)), { rootMargin: '-45% 0px -50% 0px' });
-    CHAPTERS.forEach(([id]) => { const el = document.getElementById(id); if (el) io.observe(el); });
+    const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setOn(e.target.id)), { rootMargin: '-40% 0px -55% 0px' });
+    ['top', ...CHAPTERS.map(([id]) => id)].forEach((id) => { const el = document.getElementById(id); if (el) io.observe(el); });
     return () => io.disconnect();
   }, []);
-  return <nav className="rail" aria-label="Chapters">{CHAPTERS.map(([id, label], i) => <a key={id} href={`#${id}`} className={on === id ? 'on' : ''} aria-label={label}>{i}<span>{label}</span></a>)}</nav>;
+  return (
+    <nav className="topnav" aria-label="Sections">
+      <a href="#top" className="brand" aria-label="OrbitFlow home"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="var(--beam)" /><ellipse cx="12" cy="12" rx="10.5" ry="4.2" fill="none" stroke="currentColor" strokeWidth="1.4" transform="rotate(-24 12 12)" /></svg>OrbitFlow</a>
+      <div className="navlinks">{CHAPTERS.map(([id, label]) => <a key={id} href={`#${id}`} className={on === id ? 'on' : ''}>{label}</a>)}</div>
+      <span className="simpill" title="OrbitFlow runs on offline datasets in a digital twin; it is not connected to a satellite.">Simulation</span>
+    </nav>
+  );
 }
 
 function useClock(T, { speed = 110, start = 0, auto = false } = {}) {
@@ -42,18 +49,18 @@ function Hero({ d }) {
   const real = d.multirun.conditions['pass:dynamic_ntn'].policies;
   return (
     <header className="hero" id="top">
-      <Globe cells={r.cells} lit={r.runs.OrbitFlow.series.lit} />
-      <div className="copy">
-        <p className="kicker">OrbitFlow · LEO beam hopping</p>
-        <h1>One satellite. Nineteen cells. Four beams. Ten milliseconds to choose.</h1>
-        <p className="lede">A satellite can only serve a few areas at a time. In a disaster, the people who need a connection most compete with everyone else. OrbitFlow learns where to point the beams, sees demand coming, and checks every decision against safety rules before it happens.</p>
-        <div className="stats">
-          <div className="stat"><b><Count to={real['Reactive greedy'].rt_sla_violation.mean * 100} format={(v) => `${v.toFixed(1)}%`} /> → <Count to={real.BRIDGE.rt_sla_violation.mean * 100} format={(v) => `${v.toFixed(1)}%`} /></b><span>time-critical data arriving late, simple scheduler vs OrbitFlow, over {real.BRIDGE.rt_sla_violation.n} simulated runs of a recorded pass</span></div>
-          <div className="stat"><b><Count to={d.study_latency.critical_path_total.mean} format={(v) => `${v.toFixed(1)} ms`} /></b><span>to decide and run every safety check on one CPU core, with {r.meta.slot_ms} ms available</span></div>
-          <div className="stat"><b><Count to={d.flood_mc.controllers['BRIDGE alone'].cap_violation_slots.mean} /> → {d.flood_mc.controllers.OrbitFlow.cap_violation_slots.mean.toFixed(0)}</b><span>limit breaches in a flood simulation, without and with the safety agents</span></div>
-        </div>
-        <a className="cue" href="#chase">See how it works ↓</a>
+      <div className="hero-copy">
+        <p className="kicker">LEO beam hopping · ITU AI for Good</p>
+        <h1>Four beams.<br />Nineteen cells.<br /><em>Ten milliseconds.</em></h1>
+        <p className="lede">OrbitFlow forecasts demand, lets a learned policy point the beams, and has every decision checked before it runs.</p>
+        <div className="hero-cta"><a className="cue" href="#loop">See how it works</a><a className="cue ghost" href="#ops">Run a scenario</a></div>
+        <dl className="hero-stats">
+          <div><dt>Late time-critical data</dt><dd><Count to={real['Reactive greedy'].rt_sla_violation.mean * 100} format={(v) => `${v.toFixed(1)}%`} /> <span>→</span> <Count to={real.BRIDGE.rt_sla_violation.mean * 100} format={(v) => `${v.toFixed(1)}%`} /></dd></div>
+          <div><dt>Decision + checks</dt><dd><Count to={d.study_latency.critical_path_total.mean} format={(v) => `${v.toFixed(1)} ms`} /></dd></div>
+          <div><dt>Limit breaches, flood</dt><dd><Count to={d.flood_mc.controllers['BRIDGE alone'].cap_violation_slots.mean} /> <span>→</span> {d.flood_mc.controllers.OrbitFlow.cap_violation_slots.mean.toFixed(0)}</dd></div>
+        </dl>
       </div>
+      <HeroScene replay={r} />
     </header>
   );
 }
@@ -70,7 +77,7 @@ function Scrub({ t, setT, T, playing, setPlaying, label }) {
 
 function Chase({ d }) {
   const r = d.flood_replay;
-  const clock = useClock(r.meta.T, { speed: 140, start: 30, auto: true });
+  const clock = useClock(r.meta.T, { speed: 140, start: 40, auto: false });
   const names = ['Static round-robin', 'Reactive greedy', 'BRIDGE alone'];
   const SHOW = { 'Static round-robin': 'Fixed rotation', 'Reactive greedy': 'Simple scheduler', 'BRIDGE alone': 'OrbitFlow AI' };
   const { t } = clock;
@@ -78,9 +85,9 @@ function Chase({ d }) {
   const real = d.multirun.conditions['pass:dynamic_ntn'].policies;
   return (
     <section className="ch" id="chase"><div className="wrap">
-      <p className="kicker">Chapter 1 · Three ways to choose</p>
+      <p className="kicker">The problem</p>
       <h2>A fixed rotation drowns the busy cells. A greedy one forgets the quiet ones.</h2>
-      <p className="lede">Each hexagon is an area on the ground. Glowing ones have a beam right now. Orange means people there are waiting for data. Same demand, three different decision-makers.</p>
+      <p className="lede">Same demand, three schedulers. Orange means data is waiting.</p>
       <div className="bigcompare">
         <p className="note" style={{ margin: 0 }}>Out of every 100 time-critical deliveries</p>
         <div className="waffles">
@@ -115,9 +122,9 @@ function Foresee({ d }) {
   const order = [['event_surge', 'Surge with a ramp'], ['mixed', 'Surge plus steady hotspot'], ['bursty', 'Random bursts'], ['block', 'Abrupt block switches'], ['real_trace', 'Real pass (abrupt)']];
   return (
     <section className="ch" id="foresee"><div className="wrap">
-      <p className="kicker">Chapter 2 · Seeing demand coming</p>
+      <p className="kicker">Forecasting</p>
       <h2>Forecasting buys time only when demand gives a warning.</h2>
-      <p className="lede">When demand builds up gradually, OrbitFlow can see it coming and act early. When it jumps from nothing, no forecast can help, and we show that too.</p>
+      <p className="lede">A gradual ramp can be seen early. A sudden jump cannot.</p>
       <div className="grid g2">
         <div className="panel">
           <h4>The flood ramp, cell {ec}</h4><p className="sub">The forecast shown at each slot is its estimate for two slots later, made from lagged telemetry.</p>
@@ -134,42 +141,13 @@ function Foresee({ d }) {
   );
 }
 
-const PIPE = [
-  ['Observe', 'digital_twin', 'Lagged telemetry', 'Demand and channel state arrive one slot old. Geometry and SSB/SIB timing are known exactly from ephemeris and configuration.', 'digital_twin/environment.py'],
-  ['Predict', 'GRU', '3 slots ahead', 'A residual GRU forecasts each cell’s demand. A leak test proves a forecast never changes when future demand is corrupted.', 'traffic/forecaster.py · tests/test_forecast_leak.py'],
-  ['Decide', 'BRIDGE', 'PPO policy', 'The same small network scores every cell. Gumbel-Top-K samples 4 beams with an exact Plackett-Luce probability, and a Dirichlet splits the power.', 'bridge/policy.py · bridge/train_ppo.py'],
-  ['Deliberate', '4 agents', 'Different knowledge', 'Network, Policy and Safety each see only their own events, and the Supervisor resolves conflicts. These agents are deterministic code, with no LLM in the loop.', 'agents/supervisor.py · scenarios/engine.py'],
-  ['Retrieve', 'RAG', 'BM25, precomputed', 'Rules look up evidence in real documents ahead of time, so reading never slows a decision. A quote that is not verbatim in its source is dropped.', 'rag/retriever.py · agents/policy_rules.yaml'],
-  ['Guard', 'BamGuard', 'Hard limits', 'Beam count, power budget, floor, signalling deadlines and caps are enforced last. Raw model output never reaches the twin.', 'bam/validator.py'],
-  ['Audit', 'JSONL', 'Every slot', 'Each slot records what was proposed, what ran, the rule applied and its sources. Conflicts go to a human review queue.', 'audit/ · results/audit/demo.jsonl'],
-];
-
 function Loop({ d }) {
-  const [i, setI] = useState(0);
-  const [auto, setAuto] = useState(!reducedMotion());
-  useEffect(() => {
-    if (!auto) return undefined;
-    const id = setInterval(() => setI((v) => (v + 1) % PIPE.length), 2200);
-    return () => clearInterval(id);
-  }, [auto]);
-  const [title, tech, tag, text, files] = PIPE[i];
   return (
     <section className="ch" id="loop"><div className="wrap">
-      <p className="kicker">Chapter 3 · How it decides</p>
-      <h2>The AI suggests. Safety checks have the last word.</h2>
-      <p className="lede">This happens 100 times a second. Select a step to see what it does.</p>
-      <div className="pipe" style={{ marginTop: 28 }} role="tablist">
-        {PIPE.map((p, k) => <button key={p[0]} role="tab" aria-selected={i === k} className={`${i === k ? 'on' : ''} ${k < i ? 'done' : ''}`} onClick={() => { setAuto(false); setI(k); }}><small>{String(k + 1).padStart(2, '0')}</small><b>{p[0]}</b><small>{p[1]}</small></button>)}
-      </div>
-      <FlowLine i={i} n={PIPE.length} />
-      <div className="panel" style={{ marginTop: 8 }}>
-        <h3>{title} <span className="tag" style={{ marginLeft: 6, verticalAlign: 3 }}>{tag}</span></h3>
-        <p style={{ margin: '8px 0', maxWidth: '60em' }}>{text}</p>
-        <More label="Where this lives in the code"><code>{files}</code></More>
-      </div>
-      <div className="grid g4" style={{ marginTop: 12 }}>
-        {[['AI decision', d.study_latency.stages.network.mean], ['Safety limits', d.study_latency.stages.guard.mean], ['Policy and safety agents', d.study_latency.stages.policy.mean + d.study_latency.stages.safety.mean], ['Total at the 99th percentile', d.study_latency.critical_path_total.p99]].map(([l, v]) => <div key={l} className="stat panel"><b><Count to={v} format={(x) => `${x.toFixed(2)} ms`} /></b><span>{l}</span></div>)}
-      </div>
+      <p className="kicker">How it works</p>
+      <h2>The AI proposes. Everything else checks.</h2>
+      <p className="lede">One loop, every 10 ms. Select any step.</p>
+      <Flow d={d} />
     </div></section>
   );
 }
@@ -192,6 +170,18 @@ function Timeline({ t, setT, setPlaying, T }) {
       {STAGES.map(([a, b, l, c]) => <div key={l} className={`stage ${c || ''}`} style={{ left: `${a}%`, width: `${b - a}%` }}>{l}</div>)}
       <div className="track" />
       <div className="head" style={{ left: `${(t / (T - 1)) * 100}%` }}><b>{t}</b></div>
+    </div>
+  );
+}
+
+function FloodSummary({ rec, t }) {
+  const last = rec.trace.filter((s) => s.agent === 'supervisor').slice(-1)[0];
+  const tag = rec.decision === 'REPAIRED' ? 'warning' : 'good';
+  return (
+    <div className="panel floodsum">
+      <p className="kicker" style={{ marginBottom: 6 }}>Slot {t} · decision</p>
+      <h3><span className={`tag ${tag}`}>{rec.decision}</span> {rec.final.beams.length} beams, {rec.final.p_total_w} W</h3>
+      <p>{last ? last.rationale : 'Proposal approved; no agent raised an issue.'}</p>
     </div>
   );
 }
@@ -222,9 +212,9 @@ function Mission({ d }) {
   const q = (n, c) => r.runs[n].series.q_rt.map((row, i) => row[c] + r.runs[n].series.q_nrt[i][c]);
   return (
     <section className="ch" id="mission" style={{ background: '#0d1115' }}><div className="wrap">
-      <p className="kicker">Chapter 4 · A flood, second by second</p>
-      <h2>One second of a flood, as each agent saw it.</h2>
-      <p className="lede">Press play or jump to a moment. Four software agents each know only part of the picture, like departments in a control room. A simulated flood on a recorded satellite pass.</p>
+      <p className="kicker">Flood replay</p>
+      <h2>One second of a flood.</h2>
+      <p className="lede">Press play. Each agent sees only its part of a simulated flood.</p>
       <div className="panel" style={{ marginTop: 28 }}>
         <div className="chips" style={{ marginBottom: 12 }}>
           {moments.map(([s, l]) => <button key={l} className={`chip ${t === s ? 'on' : ''}`} onClick={() => { setPlaying(false); setT(s); }}>{l} <span className="mono" style={{ opacity: .65 }}>{s}</span></button>)}
@@ -252,7 +242,8 @@ function Mission({ d }) {
           <p className="note" style={{ margin: '8px 0 0' }}><span style={{ color: 'var(--critical)' }}>▲</span> emergency · <span style={{ color: 'var(--warning)' }}>yellow outline</span> border cell, solid once capped · warmer = more backlog · select a cell to chart it</p>
         </div>
         <div>
-          <div className="grid g2" style={{ marginTop: 0, gap: 8 }}>
+          <FloodSummary rec={rec} t={t} />
+          <More label="What each agent knew at this moment"><div className="grid g2" style={{ marginTop: 0, gap: 8 }}>
             {AGENTS.map(([id, name, role]) => {
               const here = steps(id); const ev = seen(id).slice(-2); const blind = hidden(id);
               return (
@@ -266,7 +257,7 @@ function Mission({ d }) {
                 </div>
               );
             })}
-          </div>
+          </div></More>
           <More label="See the audit record for this moment"><div className="panel">
             <h4>Audit record, slot {t} <span className={`tag ${rec.decision === 'REPAIRED' ? 'warning' : 'good'}`} style={{ marginLeft: 6 }}>{rec.decision}</span></h4>
             <div className="scroll"><table style={{ marginTop: 6 }}><thead><tr><th>Cell</th><th className="n">Proposed W</th><th className="n">Executed W</th><th>Change</th></tr></thead><tbody>
@@ -278,12 +269,12 @@ function Mission({ d }) {
           </div></More>
         </div>
       </div>
-      <div className="grid g2" style={{ marginTop: 12 }}>
+      <More label={`Charts for area ${cell}`}><div className="grid g2" style={{ marginTop: 0 }}>
         <div className="panel"><h4>Data waiting in area {cell}</h4><p className="sub">Hover to read any moment.</p>
           <LineChart height={220} xLabel="slot" yLabel="kb" cursor={t} format={(v) => v.toFixed(0)} marks={[{ x: 28, to: 61, label: 'em', color: 'var(--critical)' }]} series={['OrbitFlow', 'BRIDGE alone', 'Reactive greedy'].map((n) => ({ name: n, color: COLORS[n], values: q(n, cell) }))} /></div>
         <div className="panel"><h4>Power on cell {cell}</h4><p className="sub">Watts per slot. The dashed line is the {cap} W cap on border cells from slot 50.</p>
           <LineChart height={220} xLabel="slot" yLabel="W" cursor={t} format={(v) => v.toFixed(1)} marks={[{ x: 50, label: `${cap} W cap`, color: 'var(--warning)' }]} series={['OrbitFlow', 'BRIDGE alone'].map((n) => ({ name: n, color: COLORS[n], values: r.runs[n].series.power.map((p) => p[cell]) }))} /></div>
-      </div>
+      </div></More>
       <p className="insight">Across this replay the Policy agent trimmed {failCount} proposals and no limit was broken. Emergency cells are given a beam whenever their data starts to age, not in every slot, which keeps the other areas served.</p>
       <More label="See a deliberate safety test: what happens if the AI proposes 50 W?"><div className="panel">
         <h4><span className="tag warning">Controlled stress test</span> Injected on purpose, not part of the flood above</h4>
@@ -323,9 +314,9 @@ function Evidence({ d }) {
   const LAB = { 'bandwidth_mhz=10': 0 };
   return (
     <section className="ch" id="evidence"><div className="wrap">
-      <p className="kicker">Chapter 5 · Does it work?</p>
-      <h2>It meets more deadlines in every stress test. Under heavy load, it trades speed for them.</h2>
-      <p className="lede">Every strategy faced the same {d.multirun.meta.episodes_kinds_and_passes} test situations, none used in training. OrbitFlow’s scores are averaged over {d.multirun.meta.training_seeds} separately trained models, so one lucky training run can’t flatter it.</p>
+      <p className="kicker">Results</p>
+      <h2>Fewer missed deadlines in every test. Under heavy load, it trades speed for them.</h2>
+      <p className="lede">Same {d.multirun.meta.episodes_kinds_and_passes} unseen test situations for every strategy; OrbitFlow averaged over {d.multirun.meta.training_seeds} trained models.</p>
       <div className="panel" style={{ marginTop: 28 }}>
         <p className="sub">Choose one test group and one result to compare.</p>
         <div className="filters">
@@ -439,9 +430,9 @@ function Lab({ d }) {
   };
   return (
     <section className="ch" id="lab"><div className="wrap">
-      <p className="kicker">Chapter 6 · Try it yourself</p>
+      <p className="kicker">Try it</p>
       <h2>Tighten the limit. Worsen the storm. See which one hurts.</h2>
-      <p className="lede">Move the sliders. Each square is a complete simulation run, already computed, not an estimate.</p>
+      <p className="lede">Each square is a complete, precomputed run.</p>
       <div className="grid g2">
         <div className="panel">
           <label style={{ display: 'block', marginBottom: 12 }}><span style={{ fontSize: 14 }}>Test power limit near the border: <b className="mono">{cap === 100 ? 'none' : `${cap} W`}</b></span>
@@ -543,9 +534,9 @@ function Knowledge({ d }) {
   const ev = k.retrieval_eval.methods;
   return (
     <section className="ch" id="knowledge"><div className="wrap">
-      <p className="kicker">Chapter 7 · The rulebook</p>
-      <h2>Ask the document library. See the source behind every supported answer.</h2>
-      <p className="lede">The collection includes the ITU AI Readiness repository and ITU-R and FCC satellite documents. Answers link back to exact passages; unsupported questions are called out.</p>
+      <p className="kicker">Rulebook</p>
+      <h2>Ask the documents. Get the source, word for word.</h2>
+      <p className="lede">Answers are exact quotations, or an honest “not supported”.</p>
       <div className="stats" style={{ marginTop: 24 }}>
         <div className="stat"><b><Count to={t.evidence_eligible} /></b><span>documents that can count as evidence; summaries and sample files cannot</span></div>
         <div className="stat"><b><Count to={t.pages} format={(v) => Math.round(v).toLocaleString()} /></b><span>pages searchable, each quote tied to its page</span></div>
@@ -609,7 +600,7 @@ function Ledger({ d }) {
   ];
   return (
     <section className="ch" id="ledger"><div className="wrap">
-      <p className="kicker">Chapter 9 · How we know</p>
+      <p className="kicker">Provenance</p>
       <h2>Where every number comes from, and how to check it.</h2>
       <div className="panel" style={{ marginTop: 28 }}><table className="ledger"><tbody>{rows.map(([a, b]) => <tr key={a}><td>{a}</td><td>{b}</td></tr>)}</tbody></table></div>
       <More label="Show exact commands to reproduce the results"><div className="panel" style={{ marginTop: 12 }}><h4>Reproduce every number</h4>
@@ -628,9 +619,9 @@ export default function App({ d }) {
   return (
     <>
       <ScrollBar />
-      <Rail />
+      <TopNav />
       <main>
-        <Hero d={d} /><Chase d={d} /><Foresee d={d} /><Loop d={d} /><Mission d={d} /><Game d={d} /><Evidence d={d} /><Lab d={d} /><Knowledge d={d} /><Console d={d} /><Ledger d={d} />
+        <Hero d={d} /><Chase d={d} /><Loop d={d} /><Foresee d={d} /><Mission d={d} /><Evidence d={d} /><Lab d={d} /><Game d={d} /><Knowledge d={d} /><Console d={d} /><Ledger d={d} />
         <footer>OrbitFlow · simulation study</footer>
       </main>
     </>

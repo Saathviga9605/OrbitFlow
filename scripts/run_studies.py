@@ -368,7 +368,7 @@ def main(n, tag, only):
         stress()
     if run("bc"):
         bc_diagnostics()
-    with ProcessPoolExecutor(14, initializer=_init, initargs=(tag,)) as ex:
+    with ProcessPoolExecutor(min(8, os.cpu_count() or 4), initializer=_init, initargs=(tag,)) as ex:
         if run("pfd"):
             pfd_study(ex, n)
         if run("factorial"):

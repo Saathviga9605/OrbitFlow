@@ -48,17 +48,17 @@ BRIDGE beat Reactive on late data in 100 of 100 paired episodes (Wilcoxon signed
 | Other measures | Result |
 |---|---|
 | Second dataset (OpenNTN demand, Sionna-derived channel) | Late data 13.7% → 2.0% against Reactive |
-| Flood scenario, 30 runs | Breaches of a test power limit: 22.9 slots → 0 with agents |
+| Flood scenario, 30 runs | Breaches of a test power limit: 22.8 slots → 0 with agents; emergency data served 92.7% → 92.8% |
 | Emergency deadlines in that flood scenario | None missed |
 | Forecast error at gradual demand surges | 71% lower than repeating the last value |
-| Decision plus safety checks | 1.43 ms mean, 2.16 ms p99, on one CPU core |
+| Decision plus safety checks | 2.14 ms mean, 3.46 ms p99, on one CPU core of the evaluation laptop (1.43 ms on the original 16-core desktop) |
 | Knowledge base | 69 documents, 4,105 pages, 46 of 46 checked citations verbatim |
 
 ### Trade-offs
 
 - **Scarce capacity:** BRIDGE still misses fewer deadlines, but its average delay is worse than Reactive's (36.1 vs 25.6 ms at 150% traffic).
 - **Beam switching:** it switches about twice as often as Reactive, and the simulator doesn't charge for switching.
-- **Emergency volume:** in the flood, agents deliver slightly less total emergency data than no agents (94% vs 96%). Their gain is keeping to the limit.
+- **Agent cost:** in the flood, agents add about 0.65 ms of mean delay (18.1 vs 17.5 ms) in exchange for zero limit breaches and slightly more emergency data served (92.8% vs 92.7%). A guard bug that had inflated this cost to about 2 ms was found and fixed; see [docs/OPERATIONS.md §12](docs/OPERATIONS.md).
 - **Forecasting:** it barely helps on abrupt demand jumps (2%), and its delay benefit isn't fully explained.
 
 The full statistics are in [docs/REPORT.md](docs/REPORT.md).
@@ -108,7 +108,8 @@ The "Ask anything" and "Run it live" features need the API. They switch off, and
 
 | Chapter | What you see |
 |---|---|
-| The problem | 3D globe with the beams the model chose |
+| Hero | 3D satellite story in four acts: observe, forecast, decide, check (real BRIDGE beams from the flood replay) |
+| How it works | Interactive flowchart of the decision loop; select any step for its role, permissions, latency and code |
 | Three ways to choose | The same demand under three schedulers, and 100-dot comparison of late data |
 | Seeing demand coming | Forecast against actual demand |
 | How it decides | The decision chain, with measured timing |

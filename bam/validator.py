@@ -227,7 +227,10 @@ class BamGuard:
         constraints = constraints or Constraints()
         cap, minimum, forced, forbidden, protected = self._constraint_arrays(constraints, n)
         before = self.check(lit, power, state, ssb, sib, constraints)
-        due, urgency = self._due(state, ssb, sib, protected=protected)
+        # Only protected cells that actually hold a beam this slot reduce the beams left for signalling.
+        # Counting every protected cell (lit or not) halved the assumed service capacity and forced
+        # signalling beams far too early whenever the agents were on (see docs/OPERATIONS.md §12).
+        due, urgency = self._due(state, ssb, sib, protected=protected & (lit | forced))
         expired = self._expired(state, ssb, sib)
         mandatory = expired | forced
 

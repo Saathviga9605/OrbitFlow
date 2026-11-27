@@ -63,7 +63,7 @@
     "custom_flood": "Flood relief (custom)"
   },
   "ui": {
-    "kicker": "Chapter 8 · Operations console",
+    "kicker": "Operations console",
     "title": "Run every scenario through the real pipeline, under any policy profile, in four languages.",
     "lede": "Each scenario below was executed by the same forecaster, BRIDGE model, agents, guard and digital twin. Expected behaviours were written before the runs; the ticks show whether they were observed.",
     "language": "Language",
