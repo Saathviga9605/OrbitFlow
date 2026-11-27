@@ -1,0 +1,222 @@
+# Standards and frameworks mapping. Machine-readable; served by /api/governance and shown in the UI.
+# OrbitFlow claims NO certification, compliance or conformance with any entry below.
+# status values:
+#   implemented_in_simulation  the stated requirement is implemented and exercised in the simulator
+#   partial                    part of the requirement is implemented; the rest is listed under not_implemented
+#   conceptual                 design is informed by the document; nothing is implemented against its text
+#   proposed                   identified as relevant future work only
+#   not_implemented            relevant, deliberately not built yet
+#   not_applicable             reviewed and out of OrbitFlow's scope
+# version_verified: false means the edition was not checked against the publisher's site in this work.
+statuses: [implemented_in_simulation, partial, conceptual, proposed, not_implemented, not_applicable]
+entries:
+  - id: ITU-T-Y.3172
+    standard: ITU-T Y.3172
+    title: Architectural framework for machine learning in future networks including IMT-2020
+    organization: ITU-T
+    version: "06/2019"
+    version_verified: true
+    in_knowledge_base: t_rec_y_3172_201906_i_pdf_e
+    scope: ML pipeline (source, collector, preprocessor, model, policy, distributor, sink), ML sandbox, MLFO
+    requirement: Model output passes a policy function before it reaches the network; models are trained and validated in a sandbox
+    orbitflow_components: [agents/supervisor.py (Policy agent), bam/validator.py (guard), digital_twin/ (sandbox role)]
+    kb_rules: [R6_ml_policy_before_sink, R7_sandbox_validation]
+    implementation_evidence: [agents/supervisor.py, bam/validator.py, tests/test_guard.py, tests/test_agents.py]
+    status: partial
+    not_implemented: No ML Function Orchestrator (MLFO), no ML intent, no standard interfaces between pipeline nodes; mapping is by design, not tested conformance.
+    next_step: Express the profile + scenario as a Y.3172-style ML intent and map pipeline nodes to named interfaces.
+  - id: ITU-T-Y.3173
+    standard: ITU-T Y.3173
+    title: Framework for evaluating intelligence levels of future networks including IMT-2020
+    organization: ITU-T
+    version: "02/2020"
+    version_verified: false
+    in_knowledge_base: null
+    scope: Levels of network intelligence across action implementation, data collection, analysis, decision
+    requirement: Assess the intelligence level of each network operation dimension
+    orbitflow_components: [agents/supervisor.py, agents/registry.yaml]
+    kb_rules: []
+    implementation_evidence: []
+    status: proposed
+    not_implemented: No intelligence-level assessment has been made; the document is not in the knowledge base.
+    next_step: Add the document to the corpus and score each pipeline stage against its levels.
+  - id: ITU-T-Y.3174
+    standard: ITU-T Y.3174
+    title: Framework for data handling to enable machine learning in future networks including IMT-2020
+    organization: ITU-T
+    version: "02/2020"
+    version_verified: false
+    in_knowledge_base: null
+    scope: Data collection, processing and provenance for ML in networks
+    requirement: Documented data sources, handling and quality for ML
+    orbitflow_components: [docs/data_provenance.md, traffic/splits.py, agents/supervisor.py (telemetry validator)]
+    kb_rules: []
+    implementation_evidence: [docs/data_provenance.md, tests/test_no_leakage.py, tests/test_resilience.py]
+    status: conceptual
+    not_implemented: Data handling is documented and tested for leakage and corruption, but not structured per Y.3174; document not in the corpus.
+    next_step: Map dataset, split and validator metadata to the Y.3174 data-handling functions.
+  - id: ITU-R-SF.358-5
+    standard: ITU-R SF.358-5
+    title: Maximum permissible values of power flux-density at the surface of the Earth produced by satellites in the fixed-satellite service using the same frequency bands above 1 GHz as line-of-sight radio-relay systems
+    organization: ITU-R
+    version: "SF.358-5 (10/1995)"
+    version_verified: true
+    in_knowledge_base: r_rec_sf_358_5_199510_w_pdf_e
+    scope: Surface power flux-density limits by angle of arrival
+    requirement: PFD at the Earth's surface stays below the angle-dependent mask
+    orbitflow_components: [scripts/run_studies.py (pfd study), agents/supervisor.py (R8 verdicts), bam/validator.py (power caps)]
+    kb_rules: [R1_border_power_cap, R8_pfd_mask]
+    implementation_evidence: [results/studies/pfd_mask.json, tests/test_system.py]
+    status: partial
+    not_implemented: Indicative only - 20 GHz lies outside the listed bands and Tx gain is assumed; not part of the default flood scenario.
+    next_step: Apply the mask that actually governs the simulated band, with a reviewed antenna pattern.
+  - id: ITU-R-S.1503-4
+    standard: ITU-R S.1503-4
+    title: Functional description for software to determine conformance of NGSO FSS systems with EPFD limits
+    organization: ITU-R
+    version: "S.1503-4 (09/2023)"
+    version_verified: true
+    in_knowledge_base: r_rec_s_1503_4_202309_i_pdf_e
+    scope: Equivalent power flux-density (EPFD) evaluation for NGSO systems
+    requirement: EPFD statistics computed per the functional description
+    orbitflow_components: []
+    kb_rules: [R9_ngso_limits_in_band]
+    implementation_evidence: []
+    status: not_implemented
+    not_implemented: No EPFD computation; one satellite and one pass only.
+    next_step: Multi-satellite constellation geometry before any EPFD estimate is meaningful.
+  - id: ITU-R-S.524-8
+    standard: ITU-R S.524-8
+    title: Maximum permissible levels of off-axis e.i.r.p. density from earth stations in GSO networks
+    organization: ITU-R
+    version: "S.524-8 (04/2004)"
+    version_verified: true
+    in_knowledge_base: r_rec_s_524_8_200401_s_pdf_e
+    scope: Earth-station uplink emissions in GSO networks
+    requirement: Off-axis e.i.r.p. density limits for earth stations
+    orbitflow_components: []
+    kb_rules: []
+    implementation_evidence: []
+    status: not_applicable
+    not_implemented: OrbitFlow schedules LEO downlink beams only; no earth-station uplink is modelled.
+    next_step: None unless uplink scheduling is added.
+  - id: 3GPP-TR-38.811
+    standard: 3GPP TR 38.811
+    title: Study on New Radio (NR) to support non-terrestrial networks
+    organization: 3GPP
+    version: Release 15
+    version_verified: false
+    in_knowledge_base: null
+    scope: NTN deployment scenarios and channel models
+    requirement: NTN channel characteristics (path loss, shadowing, elevation dependence)
+    orbitflow_components: [data/raw/sionna_physics_output.csv, traffic/dataset.py (load_openntn_sionna), digital_twin/channel.py]
+    kb_rules: []
+    implementation_evidence: [docs/data_provenance.md, tests/test_channel.py, results/multirun.json (pass:openntn_sionna)]
+    status: partial
+    not_implemented: Channel models are not run live; the second test trace is an offline OpenNTN/Sionna output. 3GPP documents are not in the corpus.
+    next_step: Generate traces from the TR 38.811 models directly for several elevations and orbits.
+  - id: 3GPP-TR-38.821
+    standard: 3GPP TR 38.821
+    title: Solutions for NR to support non-terrestrial networks (NTN)
+    organization: 3GPP
+    version: Release 16
+    version_verified: false
+    in_knowledge_base: null
+    scope: NTN timing, feeder links, beam/cell relations, mobility
+    requirement: Account for large and varying propagation delay in control loops
+    orbitflow_components: [config.yaml (obs_lag_slots), digital_twin/environment.py (lagged telemetry)]
+    kb_rules: []
+    implementation_evidence: [tests/test_forecast_leak.py]
+    status: conceptual
+    not_implemented: Delay is a fixed one-slot telemetry lag; no timing advance, feeder link or handover.
+    next_step: Model elevation-dependent delay and inter-satellite handover.
+  - id: 3GPP-TS-38.300-NTN
+    standard: 3GPP TS 38.300 / TS 38.213 (NTN, Rel-17)
+    title: NR overall description; physical layer procedures for control (SSB)
+    organization: 3GPP
+    version: Release 17
+    version_verified: false
+    in_knowledge_base: null
+    scope: Initial access signalling (SSB, SIB) and NTN support in NR
+    requirement: Every cell receives synchronisation and system information often enough for initial access
+    orbitflow_components: [bam/validator.py (SSB/SIB age deadlines)]
+    kb_rules: [R4_signalling]
+    implementation_evidence: [tests/test_guard.py]
+    status: partial
+    not_implemented: The 40/80-slot deadlines are configuration assumptions, not derived from the specification (GAP-02).
+    next_step: Derive the deadlines from the SSB periodicity and SIB scheduling of the target configuration.
+  - id: ETSI-EN-302-307-2
+    standard: ETSI EN 302 307-2 (DVB-S2X), Annex E
+    title: DVB-S2X superframe formats, including beam-hopping support
+    organization: ETSI / DVB
+    version: V1.x
+    version_verified: false
+    in_knowledge_base: null
+    scope: Physical-layer framing that carries beam-hopping illumination
+    requirement: Beam switching aligned to superframe boundaries with defined switching overhead
+    orbitflow_components: []
+    kb_rules: []
+    implementation_evidence: []
+    status: not_implemented
+    not_implemented: Capacity is Shannon-based; no MODCOD table, no superframe, and beam switching has no cost in the simulator.
+    next_step: Add a MODCOD table and a switching penalty, then re-evaluate BRIDGE's higher switch rate.
+  - id: O-RAN-E2
+    standard: O-RAN E2 interface / near-RT RIC
+    title: O-RAN Alliance E2 and near-real-time RIC specifications
+    organization: O-RAN Alliance (industry specification body, not an SDO)
+    version: unspecified
+    version_verified: false
+    in_knowledge_base: null
+    scope: Telemetry reporting and control from a near-real-time controller
+    requirement: Controller acts on periodic, delayed reports through a standard interface
+    orbitflow_components: [config.yaml (obs_lag_slots), agents/supervisor.py (telemetry validator)]
+    kb_rules: []
+    implementation_evidence: []
+    status: conceptual
+    not_implemented: No E2 interface or xApp packaging; telemetry delay is modelled only.
+    next_step: Wrap the decision loop as an xApp against an E2 simulator.
+  - id: ISO-IEC-42001
+    standard: ISO/IEC 42001
+    title: Artificial intelligence - Management system
+    organization: ISO/IEC JTC 1/SC 42
+    version: "2023"
+    version_verified: true
+    in_knowledge_base: null
+    scope: Organisational AI management system
+    requirement: Defined roles, risk treatment, monitoring and records for AI systems
+    orbitflow_components: [agents/registry.yaml, policy/profiles/, audit/, results/human_review_queue.jsonl]
+    kb_rules: [R3_human_oversight, R3b_record_keeping]
+    implementation_evidence: [tests/test_registry.py, tests/test_policy_profiles.py]
+    status: proposed
+    not_implemented: No management system exists; OrbitFlow only produces artefacts (registry, audit trail, profiles) an AIMS could use.
+    next_step: None at prototype stage; relevant once an operator adopts the system.
+  - id: NIST-AI-RMF
+    standard: NIST AI RMF 1.0
+    title: Artificial Intelligence Risk Management Framework
+    organization: NIST (US)
+    version: "1.0 (2023)"
+    version_verified: true
+    in_knowledge_base: null
+    scope: Govern, Map, Measure, Manage functions for AI risk
+    requirement: Measure and manage AI failure modes with documented fallbacks
+    orbitflow_components: [agents/registry.yaml (failure modes, fallbacks), scenarios/suite.yaml (S5, S6, S10)]
+    kb_rules: []
+    implementation_evidence: [tests/test_resilience.py, results/scenario_suite.json]
+    status: conceptual
+    not_implemented: No formal RMF profile; the mapping is informal.
+    next_step: Write a RMF profile listing each registry failure mode as a measured risk.
+  - id: FCC-26-26
+    standard: FCC 26-26
+    title: FCC document on NGSO FSS EPFD limits (United States)
+    organization: US Federal Communications Commission (national regulator)
+    version: "FCC 26-26"
+    version_verified: false
+    in_knowledge_base: fcc_26_26a1
+    scope: US position on NGSO downlink limits in 19.7-20.2 GHz
+    requirement: NGSO downlink limits apply in the 19.7-20.2 GHz band
+    orbitflow_components: [agents/policy_rules.yaml (R9)]
+    kb_rules: [R9_ngso_limits_in_band]
+    implementation_evidence: [results/kb_report.json]
+    status: conceptual
+    not_implemented: Evidence is retrieved and quoted only; the rule status of this document should be checked and it applies to the US only.
+    next_step: Legal review before it informs any profile.

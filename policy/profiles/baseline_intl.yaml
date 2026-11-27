@@ -1,0 +1,64 @@
+# Generic international baseline. Reproduces OrbitFlow's original behaviour exactly
+# (config.yaml demo + agents sections), so all published results correspond to this profile.
+profile_id: baseline-intl
+title: Generic international baseline
+jurisdiction: INTL
+operator: Illustrative LEO operator (fictional)
+deployment_context: Disaster-relief demonstration on one recorded LEO pass (simulation)
+version: 1.0.0
+effective_date: "2026-01-01"
+status: ILLUSTRATIVE
+provenance_note: >-
+  Parameter values are OrbitFlow modelling choices, not taken from any national rule.
+  The 22 W border cap is a hypothetical operating constraint. Rule evidence comes from
+  the knowledge base and is quoted verbatim where found.
+
+operating_constraints:
+  border_power_cap:
+    enabled: true
+    cells: [13, 14, 15, 16]
+    cap_w: 22.0
+    onset_slot: 50
+    source_type: illustrative
+  emergency_exemption: human_approval     # never | human_approval | automatic
+
+safety:
+  max_beam_share: 0.6
+  starve_slots: 40
+
+human_oversight:
+  sustained_shortfall_slots: 5
+  escalate_on_agent_failure: true
+  escalate_on_data_degradation: true
+
+resilience:
+  fail_closed_cap_w: 22.0          # cap applied to border cells if the Policy agent is unavailable
+  decision_budget_ms: 10.0         # one slot; a proposal later than this is treated as a timeout
+  max_bad_telemetry_share: 0.25    # above this share of invalid cells the slot runs in conservative mode
+  state_drift_mbps: 10.0           # demand change between observation and execution reported as drift
+
+governance_rules:
+  - id: G-HUMAN-OVERSIGHT
+    title: Automated decisions stay reviewable by a human
+    enforcement: software           # software | configuration | documented
+    enforced_by: Supervisor human-review queue
+    source_type: research
+    kb_rule: R3_human_oversight
+  - id: G-RECORD-KEEPING
+    title: Every slot decision is logged and traceable
+    enforcement: software
+    enforced_by: audit.AuditRecord per slot
+    source_type: research
+    kb_rule: R3b_record_keeping
+  - id: G-ML-POLICY-NODE
+    title: Model output passes a policy function before reaching the network
+    enforcement: software
+    enforced_by: Policy agent + BAM guard
+    source_type: official
+    kb_rule: R6_ml_policy_before_sink
+  - id: G-SANDBOX
+    title: Models are validated in a sandbox before use
+    enforcement: documented
+    enforced_by: Digital twin (simulation only)
+    source_type: official
+    kb_rule: R7_sandbox_validation

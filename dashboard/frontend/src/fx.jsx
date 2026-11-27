@@ -6,7 +6,7 @@ export function useReveal() {
   useEffect(() => {
     const els = document.querySelectorAll('.kicker, h2, .lede, .insight, .panel, .stats, .pipe, .bigcompare');
     const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' });
-    els.forEach((el) => { el.classList.add('reveal'); io.observe(el); });
+    els.forEach((el) => { if (el.closest('#ops')) return; el.classList.add('reveal'); io.observe(el); });   // the console re-renders its panels, so they are never hidden
     return () => io.disconnect();
   }, []);
 }

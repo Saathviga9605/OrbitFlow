@@ -1,0 +1,78 @@
+# Mapping to the ITU "AI Ready: Analysis Towards a Standardized Readiness Framework" (Report 2.0, 2026),
+# document ai_ready_framework_2025 in the knowledge base. Factor names and their verbatim framework
+# statements come from results/kb_report.json (readiness_mapping), which is checked for verbatim quotes.
+# The framework assesses countries/ecosystems; applying it to one project is OrbitFlow's interpretation.
+# Maturity is OrbitFlow's own scale (below), assessed against evidence in this repository only.
+framework:
+  title: ITU AI Ready - Analysis Towards a Standardized Readiness Framework, Report 2.0
+  doc_id: ai_ready_framework_2025
+  issuer: ITU
+maturity_scale:
+  0: Not addressed
+  1: Documented - described in documentation only
+  2: Implemented in simulation - code exists and runs end-to-end
+  3: Tested in simulation - covered by automated tests or seeded, repeatable studies
+  4: Externally validated - independent data, review or partner trial
+  5: Operational - running in a live network
+factors:
+  - factor: Open data
+    components: [data/raw/, traffic/dataset.py, traffic/splits.py, docs/data_provenance.md]
+    evidence: [docs/data_provenance.md, tests/test_no_leakage.py, tests/test_forecast_leak.py]
+    maturity: 2
+    justification: Three offline datasets are documented and used; splits are leak-tested. Data quality is not independently assessed and OrbitFlow publishes no new dataset.
+    gap: No real operator traffic; demand in training and scenarios is synthetic.
+  - factor: Research
+    components: [scripts/run_experiments.py, scripts/run_studies.py, results/]
+    evidence: [results/multirun.json, results/ppo_summary.json, docs/REPORT.md]
+    maturity: 3
+    justification: Five-seed training, 100 paired test episodes, Holm-corrected statistics and negative results are reproducible from scripts.
+    gap: No external research partner or independent replication.
+  - factor: Deployment
+    components: [Dockerfile.api, docker-compose.yml, dashboard/api.py, results/studies/latency.json]
+    evidence: [results/studies/latency.json, tests/test_system.py]
+    maturity: 2
+    justification: Decision plus checks measured at about 1.4 ms on one CPU core; the container builds and serves the API. Nothing is deployed on satellite hardware.
+    gap: No on-board or ground-segment integration, no E2/xApp packaging.
+  - factor: Standards
+    components: [knowledge/standards_map.yaml, agents/supervisor.py, bam/validator.py]
+    evidence: [knowledge/standards_map.yaml, tests/test_guard.py, tests/test_mappings.py]
+    maturity: 2
+    justification: Y.3172 policy-before-sink is implemented as agents plus guard; standards mapping is machine-readable with gaps. No conformance testing.
+    gap: 3GPP and DVB-S2X documents are not in the corpus; no interoperability test.
+  - factor: Open source
+    components: [LICENSE, CONTRIBUTING.md, README.md]
+    evidence: [LICENSE, CONTRIBUTING.md]
+    maturity: 2
+    justification: MIT-licensed code, pinned configs, seeds and checkpoints; extension points documented in docs/ARCHITECTURE.md.
+    gap: No public release, external contributors or package distribution yet.
+  - factor: Sandbox
+    components: [digital_twin/, scenarios/suite.yaml, scenarios/suite.py]
+    evidence: [tests/test_twin.py, tests/test_link_budget.py, tests/test_scenarios.py, results/scenario_suite.json]
+    maturity: 3
+    justification: The digital twin serves as an ML sandbox; ten seeded scenarios including injected failures run with pre-written expected behaviours.
+    gap: Link-budget values await specialist review; single orbit geometry.
+governance_mechanisms:          # responsible-AI mechanisms with the component that implements them
+  - mechanism: Human oversight
+    implemented_by: Supervisor human-review queue (cap conflicts, sustained shortfall, agent failure, data degradation)
+    enforcement: software
+    evidence: [tests/test_resilience.py, tests/test_policy_profiles.py]
+  - mechanism: Traceability
+    implemented_by: audit.AuditRecord per slot with agent steps, conflicts and citations
+    enforcement: software
+    evidence: [tests/test_agents.py]
+  - mechanism: Capability and permission boundaries
+    implemented_by: agents/registry.yaml; information boundaries in scenarios/engine.py
+    enforcement: partly software (information boundaries, guard), partly documented (permissions list)
+    evidence: [tests/test_events.py, tests/test_registry.py]
+  - mechanism: Failure handling and fallback
+    implemented_by: Supervisor fallbacks (reactive planner, fail-closed cap, protect-all-emergency), telemetry validator
+    enforcement: software
+    evidence: [tests/test_resilience.py]
+  - mechanism: Context-specific policy
+    implemented_by: policy/profiles/*.yaml with validation and conflict detection
+    enforcement: software
+    evidence: [tests/test_policy_profiles.py]
+  - mechanism: Uncertainty handling
+    implemented_by: Causal forecast gate; conservative mode on degraded telemetry
+    enforcement: software
+    evidence: [tests/test_system.py, tests/test_resilience.py]

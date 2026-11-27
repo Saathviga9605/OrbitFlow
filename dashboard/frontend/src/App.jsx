@@ -3,10 +3,11 @@ import Globe from './Globe.jsx';
 import { COLORS, DotCI, HexMap, LineChart, reducedMotion } from './viz.jsx';
 import { Count, DemandStrip, Dial, DocMap, Dumbbell, FlowLine, LabScene, ScrollBar, useApi, useReveal, Waffle } from './fx.jsx';
 import Game from './Game.jsx';
+import Console from './Console.jsx';
 
 const CHAPTERS = [
   ['top', 'The problem'], ['chase', 'Three ways to choose'], ['foresee', 'Seeing demand coming'], ['loop', 'How it decides'],
-  ['mission', 'A flood, second by second'], ['game', 'Your turn: beat the AI'], ['evidence', 'Does it work?'], ['lab', 'Try it yourself'], ['knowledge', 'The rulebook'], ['ledger', 'How we know'],
+  ['mission', 'A flood, second by second'], ['game', 'Your turn: beat the AI'], ['evidence', 'Does it work?'], ['lab', 'Try it yourself'], ['knowledge', 'The rulebook'], ['ops', 'Operations console'], ['ledger', 'How we know'],
 ];
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -326,12 +327,27 @@ function Evidence({ d }) {
       <h2>It meets more deadlines in every stress test. Under heavy load, it trades speed for them.</h2>
       <p className="lede">Every strategy faced the same {d.multirun.meta.episodes_kinds_and_passes} test situations, none used in training. OrbitFlow’s scores are averaged over {d.multirun.meta.training_seeds} separately trained models, so one lucky training run can’t flatter it.</p>
       <div className="panel" style={{ marginTop: 28 }}>
-        <div className="chips" style={{ marginBottom: 8 }}>{SCEN.map(([k, l]) => <button key={k} className={`chip ${sc === k ? 'on' : ''}`} onClick={() => setSc(k)}>{l}</button>)}</div>
-        <div className="chips" style={{ marginBottom: 16 }}>{KPI_OPTS.map(([k, l]) => <button key={k} className={`chip ${kpi === k ? 'on' : ''}`} onClick={() => setKpi(k)}>{l}</button>)}</div>
+        <p className="sub">Choose one test group and one result to compare.</p>
+        <div className="filters">
+          <label className="filter-label">Test group
+            <select className="filter-select" value={sc} onChange={(e) => setSc(e.target.value)}>
+              {SCEN.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </label>
+          <label className="filter-label">What to compare
+            <select className="filter-select" value={kpi} onChange={(e) => setKpi(e.target.value)}>
+              {KPI_OPTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </label>
+        </div>
         <h4>{opt[1]} <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>({opt[2]}, {opt[4] ? 'lower' : 'higher'} is better)</span></h4>
+        <p className="sub">Each point is an average; its line shows the 95% confidence interval.</p>
         <div style={{ marginTop: 10 }}><DotCI rows={rows} format={opt[3]} unit={opt[2]} /></div>
-        {cmp && <p className="note" style={{ margin: '10px 0 0' }}>OrbitFlow vs simple scheduler, same {cmp.n} situations: difference {opt[3](Math.abs(cmp.mean_diff))} (95% CI {cmp.diff_lo?.toFixed(3)} to {cmp.diff_hi?.toFixed(3)}), {opt[4] ? cmp.wins_a_lower : cmp.wins_b_lower} better, {opt[4] ? cmp.wins_b_lower : cmp.wins_a_lower} worse, {cmp.ties} tied. Wilcoxon signed-rank, Holm-corrected p {pv(cmp.p_holm)}; effect size {cmp.effect}.</p>}
+        {cmp && <More label="Show the statistical comparison">
+          <p className="note">OrbitFlow vs simple scheduler, same {cmp.n} situations: difference {opt[3](Math.abs(cmp.mean_diff))} (95% CI {cmp.diff_lo?.toFixed(3)} to {cmp.diff_hi?.toFixed(3)}), {opt[4] ? cmp.wins_a_lower : cmp.wins_b_lower} better, {opt[4] ? cmp.wins_b_lower : cmp.wins_a_lower} worse, {cmp.ties} tied. Wilcoxon signed-rank, Holm-corrected p {pv(cmp.p_holm)}; effect size {cmp.effect}.</p>
+        </More>}
       </div>
+      <More label="Explore stress tests, agent trade-offs, and what each AI component adds">
       <div className="panel" style={{ marginTop: 12 }}>
         <h4>Pushing it harder</h4><p className="sub">Same comparison under tougher conditions. Green line: OrbitFlow better. Orange line: simple scheduler better.</p>
         <div className="grid g2" style={{ marginTop: 8 }}>
@@ -361,6 +377,7 @@ function Evidence({ d }) {
         </tbody></table></div>
         <p className="note" style={{ marginTop: 8 }}>Episodes per condition: {d.multirun.meta.episodes_kinds_and_passes} (scenarios, passes), {d.multirun.meta.episodes_other_conditions} (others). Seeds from {d.multirun.meta.first_seed}.  Full statistics are in results/multirun.json and docs/REPORT.md.</p>
       </div></More>
+      </More>
     </div></section>
   );
 }
@@ -455,8 +472,8 @@ function Lab({ d }) {
           </tbody></table></div>
         </div>
       </div>
-      <LiveRun cap={cap} fade={fade} />
-      <div className="panel" style={{ marginTop: 12 }}>
+      <More label="Run a fresh simulation with custom settings"><LiveRun cap={cap} fade={fade} /></More>
+      <More label="How antenna limits and rain affect the result"><div className="panel" style={{ marginTop: 12 }}>
         <h4>Using the ITU-R SF.358-5 limit as a guide</h4>
         <p className="sub">Regulators limit power reaching the ground, not watts per beam. This turns that limit into a cap for each area and moment, across a range of antenna gains. {d.study_pfd_mask.n_per_setting} runs each.</p>
         <div style={{ marginBottom: 14 }}><LineChart height={220} xLabel="antenna gain, dBi" yLabel="emergency data served, %" format={(v) => `${v.toFixed(0)}%`} yMax={105} series={[{ name: 'Emergency served', color: 'var(--beam)', x: [15, 20, 25, 30], values: ['Gtx=15 dBi', 'Gtx=20 dBi', 'Gtx=25 dBi', 'Gtx=30 dBi'].map((k) => d.study_pfd_mask.settings[k].emergency_served_ratio.mean * 100) }]} /></div>
@@ -464,7 +481,6 @@ function Lab({ d }) {
           {Object.entries(d.study_pfd_mask.settings).map(([n, e]) => <tr key={n}><td>{n === 'no cap' ? 'No limit applied' : n.replace('Gtx=', '')}</td><td className="n">{e.median_cap_w ? `${e.median_cap_w.toFixed(0)} W` : '-'}</td><td className="n">{pct(e.emergency_served_ratio.mean, 0)}</td><td className="n">{e.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{e.pfd_breach_slots.mean.toFixed(0)}</td><td className="n">{e.breach_slots_without_agents ? e.breach_slots_without_agents.mean.toFixed(0) : '-'}</td></tr>)}
         </tbody></table></div>
         <p className="insight" style={{ fontSize: 19 }}>A loose limit barely matters, which is what the grid above shows. A tight one can dominate: at 30 dBi, emergency service falls to {pct(d.study_pfd_mask.settings['Gtx=30 dBi'].emergency_served_ratio.mean, 0)}. Antenna gain decides which world you are in.</p>
-      </div>
       <More label="See why, and how rain and limits combine"><div className="panel">
         <h4>Rain × power limit, {d.study_factorial.n_per_cell} paired runs per cell</h4>
         <div className="scroll"><table><thead><tr><th>Rain fade</th><th>Test limit</th><th className="n">Emergency served</th><th className="n">Slots where limit bites</th></tr></thead><tbody>
@@ -472,7 +488,7 @@ function Lab({ d }) {
         </tbody></table></div>
         <p className="note" style={{ marginTop: 8 }}>The effects compound: at 12 dB and 8 W, the combined loss is {Math.abs(d.study_factorial.interaction_served_ratio.rain12_cap8.mean * 100).toFixed(0)} points beyond the sum of each alone. A 22 W limit rarely hurts because signal quality is capped by interference between beams: going from 25 W to 22 W moves that ceiling only from {d.study_factorial.physics.sinr_ceiling_equal_beams_db.toFixed(1)} to {d.study_factorial.physics.sinr_ceiling_22W_vs_78W_db.toFixed(1)} dB, and capacity grows only with the logarithm of it.</p>
       </div></More>
-    </div></section>
+    </div></More></div></section>
   );
 }
 
@@ -504,7 +520,7 @@ function AskLive({ onCited }) {
     setBusy(false);
   };
   return (
-    <div className="panel" style={{ marginTop: 12 }}><h4>Ask anything {up && <span className="pulse" />}</h4><p className="sub">Type your own question. The answer is searched live and returned as exact quotations, or it says the documents don’t support it.</p>
+    <div className="panel" style={{ marginTop: 12 }}><h4>Ask the document library {up && <span className="pulse" />}</h4><p className="sub">Answers are exact quotations from the source documents. If they don’t support an answer, the system says so.</p>
       <form className="askform" onSubmit={ask}>
         <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} disabled={!up} placeholder={up === false ? 'Start the server to ask live questions' : 'Try: what should an AI audit trail capture?'} aria-label="Your question" />
         <button className="cue" style={{ margin: 0 }} disabled={!up || busy}>{busy ? 'Searching…' : 'Ask'}</button>
@@ -528,27 +544,32 @@ function Knowledge({ d }) {
   return (
     <section className="ch" id="knowledge"><div className="wrap">
       <p className="kicker">Chapter 7 · The rulebook</p>
-      <h2>It reads real policy documents, quotes them exactly, and admits when they don’t say.</h2>
-      <p className="lede">The rulebook is the ITU AI Readiness document repository plus four ITU-R and FCC satellite documents, so it can speak to both how OrbitFlow is structured and how real power limits work.</p>
+      <h2>Ask the document library. See the source behind every supported answer.</h2>
+      <p className="lede">The collection includes the ITU AI Readiness repository and ITU-R and FCC satellite documents. Answers link back to exact passages; unsupported questions are called out.</p>
       <div className="stats" style={{ marginTop: 24 }}>
         <div className="stat"><b><Count to={t.evidence_eligible} /></b><span>documents that can count as evidence; summaries and sample files cannot</span></div>
         <div className="stat"><b><Count to={t.pages} format={(v) => Math.round(v).toLocaleString()} /></b><span>pages searchable, each quote tied to its page</span></div>
         <div className="stat"><b>{k.citation_verification.checked - k.citation_verification.failed}/{k.citation_verification.checked}</b><span>citations found verbatim in their source chunk</span></div>
         <div className="stat"><b>{pct(ev.bm25.section_recall_at_5, 0)}</b><span>of test questions found the right section in the top five results</span></div>
       </div>
-      <div className="panel" style={{ marginTop: 16 }}><h4>The library</h4><DocMap docs={k.documents.filter((x) => x.chunks > 0)} active={cited ?? s.quotes.map((c) => c.doc_id)} /></div>
+      <More label="Browse the source library"><div className="panel" style={{ marginTop: 12 }}><h4>Documents used as sources</h4><DocMap docs={k.documents.filter((x) => x.chunks > 0)} active={cited ?? s.quotes.map((c) => c.doc_id)} /></div></More>
       <AskLive onCited={setCited} />
       <div className="grid g2" style={{ marginTop: 12 }}>
         <div className="panel"><h4>Ask the corpus</h4><p className="sub">Answers are exact quotations, never generated text.</p>
-          <div className="chips" style={{ margin: '8px 0 12px' }}>{k.questions.map((x, i) => <button key={x.query} className={`chip ${q === i ? 'on' : ''}`} onClick={() => { setQ(i); setCited(null); }}>{x.query}</button>)}</div>
+          <label className="filter-label" style={{ margin: '8px 0 12px' }}>Example question
+            <select className="filter-select" value={q} onChange={(e) => { setQ(+e.target.value); setCited(null); }}>
+              {k.questions.map((x, i) => <option key={x.query} value={i}>{x.query}</option>)}
+            </select>
+          </label>
           {s.supported ? s.quotes.map((c) => <Quote key={c.chunk_id} c={c} />) : <p className="insight" style={{ borderColor: 'var(--warning)', fontSize: 18 }}>{s.statement}</p>}
         </div>
-        <div className="panel"><h4>ITU AI Readiness factors</h4><p className="sub">The factor names and first quote are the framework’s. Interpretation and contribution are ours.</p>
+        <More label="See how the project maps to the ITU AI Readiness framework"><div className="panel" style={{ marginTop: 12 }}>
+          <h4>ITU AI Readiness factors</h4><p className="sub">The factor names and first quote are the framework’s. Interpretation and contribution are ours.</p>
           <div className="chips" style={{ margin: '8px 0 12px' }}>{k.readiness_mapping.map((x, i) => <button key={x.factor} className={`chip ${fac === i ? 'on' : ''}`} onClick={() => setFac(i)}>{x.factor}</button>)}</div>
           <p className="note" style={{ margin: 0 }}>Stated in the source</p><Quote c={m.stated_in_framework} /><Quote c={m.supporting_evidence} />
           <p style={{ fontSize: 14, margin: '6px 0' }}><b>Our interpretation:</b> {m.interpretation}</p>
           <p style={{ fontSize: 14, margin: '6px 0' }}><b>OrbitFlow’s contribution:</b> {m.orbitflow_contribution}</p>
-        </div>
+        </div></More>
       </div>
       <More label="See rule evidence, gaps, retrieval tests and all documents">
       <div className="grid g2" style={{ marginTop: 12 }}>
@@ -588,16 +609,16 @@ function Ledger({ d }) {
   ];
   return (
     <section className="ch" id="ledger"><div className="wrap">
-      <p className="kicker">Chapter 8 · How we know</p>
+      <p className="kicker">Chapter 9 · How we know</p>
       <h2>Where every number comes from, and how to check it.</h2>
       <div className="panel" style={{ marginTop: 28 }}><table className="ledger"><tbody>{rows.map(([a, b]) => <tr key={a}><td>{a}</td><td>{b}</td></tr>)}</tbody></table></div>
-      <div className="panel" style={{ marginTop: 12 }}><h4>Reproduce every number</h4>
+      <More label="Show exact commands to reproduce the results"><div className="panel" style={{ marginTop: 12 }}><h4>Reproduce every number</h4>
         <pre style={{ margin: '8px 0 0', font: '13px/1.7 var(--mono)', color: 'var(--ink-2)', overflowX: 'auto' }}>{`pip install -r requirements.txt
 python -m pytest -q tests                 # physics, guard, leakage, sampler and agent claims
 python -m traffic.train_forecaster        # about 6 min on CPU
 python -m bridge.train_ppo                # about 15 min; add --no-forecast for the control
 python scripts/run_eval.py                # about 2 min; writes results/ and the web data`}</pre>
-      </div>
+      </div></More>
     </div></section>
   );
 }
@@ -609,7 +630,7 @@ export default function App({ d }) {
       <ScrollBar />
       <Rail />
       <main>
-        <Hero d={d} /><Chase d={d} /><Foresee d={d} /><Loop d={d} /><Mission d={d} /><Game d={d} /><Evidence d={d} /><Lab d={d} /><Knowledge d={d} /><Ledger d={d} />
+        <Hero d={d} /><Chase d={d} /><Foresee d={d} /><Loop d={d} /><Mission d={d} /><Game d={d} /><Evidence d={d} /><Lab d={d} /><Knowledge d={d} /><Console d={d} /><Ledger d={d} />
         <footer>OrbitFlow · simulation study</footer>
       </main>
     </>

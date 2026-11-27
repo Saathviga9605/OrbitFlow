@@ -1,0 +1,63 @@
+# UAE-ORIENTED DEMONSTRATION PROFILE. NOT a representation of UAE law or TDRA regulation.
+# The knowledge base contains no UAE regulatory document, so no rule here has national evidence.
+profile_id: ae-demo
+title: UAE-oriented demonstration profile
+jurisdiction: AE
+operator: Illustrative LEO operator (fictional)
+deployment_context: Cross-border coverage near a neighbouring jurisdiction (simulation)
+version: 0.2.0
+effective_date: "2026-03-01"
+status: ILLUSTRATIVE
+provenance_note: >-
+  Illustrative only. Values were chosen to show a stricter operator configuration:
+  a lower border cap, no automatic emergency exemption, and faster escalation.
+  The corpus holds no UAE telecommunications regulation; replace these values with
+  verified requirements before any real use.
+
+operating_constraints:
+  border_power_cap:
+    enabled: true
+    cells: [13, 14, 15, 16]
+    cap_w: 16.0
+    onset_slot: 50
+    source_type: illustrative
+  emergency_exemption: never
+
+safety:
+  max_beam_share: 0.55
+  starve_slots: 30
+
+human_oversight:
+  sustained_shortfall_slots: 3
+  escalate_on_agent_failure: true
+  escalate_on_data_degradation: true
+
+resilience:
+  fail_closed_cap_w: 12.0
+  decision_budget_ms: 10.0
+  max_bad_telemetry_share: 0.15
+  state_drift_mbps: 8.0
+
+governance_rules:
+  - id: AE-HUMAN-OVERSIGHT
+    title: Automated decisions stay reviewable by a human
+    enforcement: software
+    enforced_by: Supervisor human-review queue (3-slot trigger)
+    source_type: illustrative
+    kb_rule: R3_human_oversight
+  - id: AE-RECORD-KEEPING
+    title: Every slot decision is logged and traceable
+    enforcement: software
+    enforced_by: audit.AuditRecord per slot
+    source_type: illustrative
+    kb_rule: R3b_record_keeping
+  - id: AE-NO-EXEMPTION
+    title: Border cap binds even for emergency traffic (operator choice in this demo)
+    enforcement: software
+    enforced_by: Supervisor exemption mode "never"
+    source_type: illustrative
+  - id: AE-DATA-LOCALISATION
+    title: Telemetry and audit logs stay in-country
+    enforcement: documented
+    enforced_by: not enforced; OrbitFlow writes local files only
+    source_type: assumption

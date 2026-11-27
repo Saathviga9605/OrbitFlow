@@ -1,0 +1,61 @@
+# INDIA-ORIENTED DEMONSTRATION PROFILE. NOT a representation of Indian law, DoT or TRAI rules.
+# Governance rules cite NITI Aayog documents that are in the knowledge base; operating values are illustrative.
+profile_id: in-demo
+title: India-oriented demonstration profile
+jurisdiction: IN
+operator: Illustrative LEO operator (fictional)
+deployment_context: Disaster-relief coverage with emergency priority (simulation)
+version: 0.2.0
+effective_date: "2026-03-01"
+status: ILLUSTRATIVE
+provenance_note: >-
+  Illustrative only. The automatic emergency exemption is a demonstration choice; the corpus
+  search for an emergency exemption from a power limit found no passage (rule R5).
+  Responsible-AI rules are checked against NITI Aayog documents in the knowledge base.
+
+operating_constraints:
+  border_power_cap:
+    enabled: true
+    cells: [13, 14, 15, 16]
+    cap_w: 22.0
+    onset_slot: 50
+    source_type: illustrative
+  emergency_exemption: automatic
+
+safety:
+  max_beam_share: 0.6
+  starve_slots: 40
+
+human_oversight:
+  sustained_shortfall_slots: 5
+  escalate_on_agent_failure: true
+  escalate_on_data_degradation: false
+
+resilience:
+  fail_closed_cap_w: 22.0
+  decision_budget_ms: 10.0
+  max_bad_telemetry_share: 0.25
+  state_drift_mbps: 10.0
+
+governance_rules:
+  - id: IN-ACCOUNTABILITY
+    title: Responsible-AI principle of accountability (decisions attributable and reviewable)
+    enforcement: software
+    enforced_by: Supervisor human-review queue + per-slot audit record
+    source_type: official
+    evidence:
+      query: "principle of accountability responsible AI"
+      must: ["accountab"]
+      doc_ids: [india_responsible_ai_principles_2021]
+  - id: IN-RECORD-KEEPING
+    title: Every slot decision is logged and traceable
+    enforcement: software
+    enforced_by: audit.AuditRecord per slot
+    source_type: research
+    kb_rule: R3b_record_keeping
+  - id: IN-EMERGENCY-EXEMPTION
+    title: Emergency cells are exempt from the border cap (demonstration choice)
+    enforcement: software
+    enforced_by: Supervisor exemption mode "automatic"
+    source_type: illustrative
+    kb_rule: R5_emergency_exemption

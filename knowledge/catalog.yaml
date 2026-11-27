@@ -1,0 +1,70 @@
+# Catalogue of OrbitFlow's machine-readable knowledge: what each file holds, where it came from,
+# and which component consumes it. tests/test_mappings.py checks every path exists.
+# provenance: official (publisher document), research (derived from literature or measured), synthetic,
+#             illustrative (demo configuration), assumption (modelling choice), developer (written for this project)
+items:
+  - path: rag/knowledge_base/manifest.yaml
+    title: Document manifest (69 ingested documents, checksums, sources)
+    provenance: official
+    format: yaml
+    consumed_by: [rag/ingest.py, rag/retriever.py, scripts/build_kb_report.py]
+  - path: rag/index/chunks.jsonl.gz
+    title: Section-aware chunks with page numbers (BM25 index source)
+    provenance: official
+    format: jsonl
+    consumed_by: [rag/retriever.py -> Policy agent evidence, policy engine evidence, /api/ask]
+  - path: agents/policy_rules.yaml
+    title: Rule definitions with evidence queries and parameter provenance
+    provenance: developer
+    format: yaml
+    consumed_by: [agents/supervisor.py:PolicyAgent, policy/engine.py]
+  - path: policy/profiles/
+    title: Country/operator policy profiles (baseline, UAE-oriented, India-oriented; all illustrative)
+    provenance: illustrative
+    format: yaml
+    consumed_by: [agents/supervisor.py:Supervisor, scenarios/flood_relief.py (via policy/engine.py), scenarios/suite.py]
+  - path: agents/registry.yaml
+    title: Agent and component registry (roles, permissions, fallbacks)
+    provenance: developer
+    format: yaml
+    consumed_by: [agents/supervisor.py:Supervisor, agents/registry.py, /api/governance]
+  - path: scenarios/suite.yaml
+    title: Ten demonstration scenarios with pre-written expected behaviours
+    provenance: synthetic
+    format: yaml
+    consumed_by: [scenarios/suite.py, scripts/run_suite.py, /api/scenarios]
+  - path: knowledge/standards_map.yaml
+    title: Standards alignment with evidence, status and gaps
+    provenance: developer
+    format: yaml
+    consumed_by: [scripts/run_suite.py -> results/governance.json, /api/governance, UI]
+  - path: knowledge/ai_readiness_map.yaml
+    title: ITU AI Ready factor mapping with defined maturity scale
+    provenance: developer
+    format: yaml
+    consumed_by: [scripts/run_suite.py -> results/governance.json, /api/governance, UI]
+  - path: i18n/lexicon.yaml
+    title: Multilingual request lexicon (en, ar, hi, ta)
+    provenance: developer
+    format: yaml
+    consumed_by: [i18n/interpret.py, /api/interpret]
+  - path: i18n/locales/
+    title: UI strings and explanation templates (en, ar, hi, ta)
+    provenance: developer
+    format: json
+    consumed_by: [i18n/explain.py, dashboard UI]
+  - path: results/gaps.json
+    title: Machine-generated gap candidates (rules with no supporting passage)
+    provenance: research
+    format: json
+    consumed_by: [UI (rulebook chapter)]
+  - path: config.yaml
+    title: Simulation, link, guard and training parameters (ASSUMPTION-marked)
+    provenance: assumption
+    format: yaml
+    consumed_by: [every module via utils/config.py]
+limitations:
+  - No Radio Regulations, 3GPP, DVB or O-RAN documents are in the corpus.
+  - No UAE regulatory document is in the corpus; the UAE profile has no national evidence.
+  - Two PDFs failed to parse; no human verification of retrieved passages.
+  - Retrieval finds supporting text; it does not establish compliance.

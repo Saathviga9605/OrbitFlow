@@ -1,0 +1,74 @@
+# Keyword lexicon for multilingual requests (en, ar, hi, ta). Matching is substring-based after
+# normalisation (case-folding, Arabic alef/diacritic folding, Unicode NFC). This is a lexicon, not NLU.
+# Translations were written by the developer and have not been reviewed by native speakers.
+scenarios:            # checked in this order; the first scenario with a match wins
+  S6_agent_failure:
+    en: [agent failure, agent fails, agent crash, agent down, timeout, malformed]
+    ar: [فشل الوكيل, عطل الوكيل, تعطل, مهلة]
+    hi: [एजेंट विफल, एजेंट की विफलता, क्रैश, टाइमआउट]
+    ta: [முகவர் தோல்வி, முகவர் செயலிழப்பு, காலக்கெடு]
+  S10_data_failure:
+    en: [missing data, bad data, data failure, stale, sensor failure, telemetry failure]
+    ar: [بيانات مفقودة, فشل البيانات, بيانات تالفة, بيانات قديمة]
+    hi: [डेटा गायब, डेटा विफलता, खराब डेटा, पुराना डेटा]
+    ta: [தரவு இல்லை, தரவு தோல்வி, பழைய தரவு, தவறான தரவு]
+  S7_conflicting_agents:
+    en: [conflict, disagree]
+    ar: [تعارض, نزاع]
+    hi: [टकराव, संघर्ष, असहमति]
+    ta: [முரண்பாடு, முரண்]
+  S5_uncertain_prediction:
+    en: [uncertain, uncertainty, low confidence, noisy forecast]
+    ar: [عدم اليقين, غير مؤكد, ثقة منخفضة]
+    hi: [अनिश्चित, अनिश्चितता, कम विश्वास]
+    ta: [நிச்சயமற்ற, உறுதியற்ற, குறைந்த நம்பிக்கை]
+  S9_cross_context:
+    en: [compare countries, cross-country, all profiles, every profile]
+    ar: [مقارنة الدول, كل الملفات, جميع الملفات]
+    hi: [देशों की तुलना, सभी प्रोफ़ाइल]
+    ta: [நாடுகளை ஒப்பிடு, அனைத்து சுயவிவரங்கள்]
+  S4_policy_restricted:
+    en: [policy restricted, policy comparison, compare policies, restricted operation]
+    ar: [مقارنة السياسات, تشغيل مقيد]
+    hi: [नीति तुलना, प्रतिबंधित संचालन]
+    ta: [கொள்கை ஒப்பீடு, கட்டுப்படுத்தப்பட்ட இயக்கம்]
+  S3_congestion:
+    en: [congestion, congested, overload, capacity shortage]
+    ar: [ازدحام, اختناق, حمل زائد]
+    hi: [भीड़, जाम, अधिभार, क्षमता की कमी]
+    ta: [நெரிசல், அதிக சுமை]
+  S2_surge:
+    en: [surge, spike, sudden increase]
+    ar: [طفرة, ارتفاع مفاجئ, زيادة مفاجئة]
+    hi: [उछाल, अचानक वृद्धि]
+    ta: [திடீர் அதிகரிப்பு, எழுச்சி]
+  custom_flood:
+    en: [flood, disaster]
+    ar: [فيضان, فيضانا, كارثة]
+    hi: [बाढ़, आपदा]
+    ta: [வெள்ள, பேரிடர்]
+  S1_normal:
+    en: [normal, calm, regular traffic]
+    ar: [عادي, طبيعي, هادئ]
+    hi: [सामान्य, शांत]
+    ta: [சாதாரண, இயல்பான, அமைதியான]
+profiles:
+  ae-demo:
+    en: [uae, emirates, emirati]
+    ar: [الإمارات, الامارات, اماراتي]
+    hi: [यूएई, संयुक्त अरब अमीरात, अमीरात]
+    ta: [ஐக்கிய அரபு, அமீரக, அமீரகம்]
+  in-demo:
+    en: [india, indian]
+    ar: [الهند, هندي]
+    hi: [भारत, भारतीय, इंडिया]
+    ta: [இந்திய, இந்தியா]
+  baseline-intl:
+    en: [baseline, international, generic]
+    ar: [دولي, أساسي]
+    hi: [अंतरराष्ट्रीय, बुनियादी]
+    ta: [சர்வதேச, அடிப்படை]
+units:
+  watt: [w, watt, watts, واط, وات, वाट, வாட்]
+  db: [db, decibel, ديسيبل, डीबी, டெசிபல்]
+  seed: [seed, بذرة, सीड, விதை]

@@ -1,0 +1,131 @@
+# Agent and component registry. Read by agents/registry.py; the Supervisor uses `enabled`,
+# `fallback` and `timeout_ms`. Only entries with kind: agent take part in deliberation; the
+# others are ordinary deterministic or ML components and are listed so every role has one owner.
+- id: network
+  kind: agent
+  name: Network agent
+  implementation: bridge_ppo            # replaceable: bridge_ppo | heuristic_predictive | reactive_greedy
+  technique: Permutation-equivariant actor-critic trained with PPO (BRIDGE)
+  version: bridge_ppo.pt (seed 3 of rg)
+  enabled: true
+  required: true
+  inputs: [lagged telemetry, gated demand forecast, queues, ephemeris, signalling ages]
+  outputs: [beam set, per-beam power, beam priority]
+  allowed_actions: [propose beams and power]
+  prohibited_actions: [execute an action, override the guard, read policy or emergency notices]
+  consumes_knowledge: []
+  failure_modes: [exception, malformed output (shape or non-finite), timeout beyond decision budget]
+  fallback: reactive_greedy
+  timeout_ms: 10.0
+- id: policy
+  kind: agent
+  name: Policy agent
+  implementation: rule_retrieval
+  technique: Deterministic rule checks; evidence retrieved once at start-up (BM25, verbatim quotes)
+  version: agents/policy_rules.yaml
+  enabled: true
+  required: false
+  inputs: [proposal, policy notices, active policy profile, knowledge base]
+  outputs: [verdicts with evidence status and citations, power-cap array]
+  allowed_actions: [return PASS/FAIL verdicts, set per-cell power caps]
+  prohibited_actions: [change beam selection, see emergency declarations]
+  consumes_knowledge: [agents/policy_rules.yaml, rag/index, policy/profiles]
+  failure_modes: [exception, unavailable]
+  fallback: fail_closed_cap
+  timeout_ms: 10.0
+- id: safety
+  kind: agent
+  name: Safety agent
+  implementation: rules
+  technique: Deterministic checks on emergency service, power concentration and starvation
+  version: agents/supervisor.py:SafetyAgent
+  enabled: true
+  required: false
+  inputs: [proposal, lagged telemetry, emergency declarations]
+  outputs: [findings, cells that must be lit]
+  allowed_actions: [require cells to be lit, raise warnings]
+  prohibited_actions: [set power caps, see policy notices]
+  consumes_knowledge: [policy/profiles (safety thresholds)]
+  failure_modes: [exception, unavailable]
+  fallback: protect_all_emergency_cells
+  timeout_ms: 10.0
+- id: supervisor
+  kind: agent
+  name: Supervisor (coordinator / mediator)
+  implementation: rules
+  technique: Fixed precedence - hard limits > operating constraints > safety > optimisation; conflict log; escalation
+  version: agents/supervisor.py:Supervisor
+  enabled: true
+  required: true
+  inputs: [all agent outputs, all events, data-quality report, profile]
+  outputs: [final constraints, conflicts, human-review items, audit trace]
+  allowed_actions: [choose fallbacks, apply exemptions defined by the profile, escalate to a human]
+  prohibited_actions: [exceed hard limits, invent an exemption the profile does not grant]
+  consumes_knowledge: [policy/profiles, agents/registry.yaml]
+  failure_modes: [none handled - a Supervisor exception stops the run]
+  fallback: null
+  timeout_ms: null
+- id: forecaster
+  kind: component
+  name: Traffic forecaster
+  implementation: residual_gru
+  technique: Residual GRU over persistence, 3-slot horizon, causal uncertainty gate
+  version: traffic_predictor.pt
+  enabled: true
+  required: false
+  inputs: [observed demand history]
+  outputs: [3-slot demand forecast per cell]
+  allowed_actions: [publish a forecast]
+  prohibited_actions: [see future demand (tests/test_forecast_leak.py)]
+  consumes_knowledge: []
+  failure_modes: [high recent error -> gate falls back to persistence]
+  fallback: persistence
+  timeout_ms: null
+- id: data_validator
+  kind: component
+  name: Telemetry validator
+  implementation: rules
+  technique: Finite/non-negative/stale checks, last-good imputation, conservative mode
+  version: agents/supervisor.py:Supervisor._validate_obs
+  enabled: true
+  required: true
+  inputs: [lagged telemetry]
+  outputs: [cleaned observation, data-quality report]
+  allowed_actions: [impute last good value, disable forecast for bad cells]
+  prohibited_actions: [use ground-truth demand]
+  consumes_knowledge: [policy/profiles (resilience thresholds)]
+  failure_modes: [none]
+  fallback: null
+  timeout_ms: null
+- id: guard
+  kind: component
+  name: BAM guard
+  implementation: bam_guard
+  technique: Deterministic validation and repair of beam count, power budget, floors, signalling deadlines, caps
+  version: bam/validator.py
+  enabled: true
+  required: true
+  inputs: [proposal, constraints]
+  outputs: [executable action, checks, repair notes]
+  allowed_actions: [repair or reject an action]
+  prohibited_actions: [be disabled]
+  consumes_knowledge: [config.yaml scenario and timing_guard]
+  failure_modes: [infeasible constraints -> InfeasibleConstraintsError]
+  fallback: null
+  timeout_ms: null
+- id: explainer
+  kind: component
+  name: Decision explainer
+  implementation: templates
+  technique: Deterministic localised templates over measured results (en, ar, hi, ta)
+  version: i18n/locales
+  enabled: true
+  required: false
+  inputs: [scenario result]
+  outputs: [localised decision summary]
+  allowed_actions: [describe measured results]
+  prohibited_actions: [state numbers not present in the result]
+  consumes_knowledge: [i18n/locales]
+  failure_modes: [missing translation -> English fallback]
+  fallback: english
+  timeout_ms: null

@@ -79,6 +79,122 @@ def ask(q: str):
     return {"query": a.query, "supported": a.supported, "statement": a.statement, "quotes": a.quotes}
 
 
+# ------------------------------------------------------------ operations layer: scenarios, policy, agents, languages
+def _rt():
+    from scenarios.suite import runtime
+    return runtime(kb=_load()["kb"])
+
+
+@app.get("/api/scenarios")
+def scenarios():
+    from scenarios.suite import load_suite
+    return [{k: s.get(k) for k in ("id", "title", "description", "expected", "simulated", "limitations", "seed", "profiles", "faults")} for s in load_suite()]
+
+
+@app.post("/api/scenarios/{sid}/run")
+def run_scenario_api(sid: str, seed: int | None = None):
+    """Execute one suite scenario through the full pipeline (2-7 s). Returns checks, KPIs, traces and explanations."""
+    from scenarios.suite import run_scenario
+    if seed is not None and not 0 <= seed <= 100000:
+        raise HTTPException(422, "seed must be in [0, 100000]")
+    try:
+        return JSONResponse(run_scenario(sid, seed=seed, rt=_rt()))
+    except KeyError as e:
+        raise HTTPException(404, str(e)) from e
+
+
+@app.get("/api/policy/profiles")
+def profiles():
+    from policy.engine import list_profiles, load_profile, summary
+    return [summary(load_profile(p)) for p in list_profiles()]
+
+
+@app.get("/api/policy/profiles/{pid}")
+def profile(pid: str):
+    from policy.engine import load_profile, validate
+    try:
+        p = load_profile(pid)
+    except KeyError as e:
+        raise HTTPException(404, str(e)) from e
+    return {"profile": p, "validation": validate(p, _load()["cfg"], _load()["kb"])}
+
+
+@app.post("/api/policy/validate")
+def validate_profile(body: dict):
+    """Validate a custom profile (JSON body with the same fields as policy/profiles/*.yaml)."""
+    from policy.engine import validate
+    return validate(body, _load()["cfg"], _load()["kb"])
+
+
+@app.post("/api/policy/run")
+def policy_run(profile: str = "baseline-intl", cap_w: float | None = None, exemption: str | None = None,
+               fade_db: float | None = None, seed: int = 42):
+    """Flood scenario under a profile, optionally customised. Same traffic and model; only the policy changes."""
+    from policy.engine import EXEMPTION_MODES
+    from scenarios.suite import run_custom
+    if exemption is not None and exemption not in EXEMPTION_MODES:
+        raise HTTPException(422, f"exemption must be one of {EXEMPTION_MODES}")
+    if (cap_w is not None and not 2.0 <= cap_w <= 100.0) or (fade_db is not None and not 0.0 <= fade_db <= 20.0) or not 0 <= seed <= 100000:
+        raise HTTPException(422, "cap_w in [2, 100], fade_db in [0, 20], seed in [0, 100000]")
+    try:
+        r = run_custom(_rt(), profile, cap_w, fade_db, seed, exemption, with_baselines=True)
+    except KeyError as e:
+        raise HTTPException(404, str(e)) from e
+    if "error" in r:
+        raise HTTPException(422, r)
+    from i18n.explain import explain
+    r["explanation"] = {lang: explain(r, lang) for lang in ("en", "ar", "hi", "ta")}
+    return JSONResponse(r)
+
+
+@app.post("/api/interpret")
+def interpret_api(text: str, run: bool = True, lang: str | None = None):
+    """Multilingual request -> structured intent -> (optionally) a real run, explained in the request's language."""
+    from i18n.explain import SUPPORTED, explain
+    from i18n.interpret import interpret
+    from scenarios.suite import run_custom, run_scenario
+    try:
+        it = interpret(text)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    out_lang = lang if lang in SUPPORTED else it["language"]
+    resp = {"interpreted": it, "language": out_lang}
+    if run and it["understood"]:
+        p = it["params"]
+        if it["scenario_id"] == "custom_flood":
+            cap = p.get("cap_w")
+            if cap is not None and not 2.0 <= cap <= 100.0:
+                raise HTTPException(422, "cap_w must be in [2, 100]")
+            r = run_custom(_rt(), it["profile_id"] or "baseline-intl", cap, p.get("fade_db"), p.get("seed", 42), with_baselines=True)
+        else:
+            r = run_scenario(it["scenario_id"], seed=p.get("seed"), profile_id=it["profile_id"], rt=_rt())
+        r["explanation"] = {out_lang: explain(r, out_lang)}
+        resp["result"] = r
+    return JSONResponse(resp)
+
+
+@app.get("/api/agents")
+def agents():
+    from agents.registry import load_registry
+    return load_registry()
+
+
+@app.get("/api/governance")
+def governance():
+    if "gov" not in _state:
+        from knowledge.governance import build
+        _state["gov"] = build(_load()["cfg"], _load()["kb"])
+    return JSONResponse(json.loads(json.dumps(_state["gov"], default=str)))
+
+
+@app.get("/api/i18n/{lang}")
+def i18n(lang: str):
+    from i18n.explain import SUPPORTED, locale
+    if lang not in SUPPORTED:
+        raise HTTPException(404, f"supported languages: {SUPPORTED}")
+    return locale(lang)
+
+
 _dist = os.path.join(ROOT, "dashboard", "frontend", "dist")
 if os.path.isdir(_dist):
     app.mount("/", StaticFiles(directory=_dist, html=True), name="ui")

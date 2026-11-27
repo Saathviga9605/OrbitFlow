@@ -35,6 +35,7 @@ class AuditRecord:
     decision: str = "PENDING"       # APPROVED | REPAIRED | REJECTED
     execution_status: str = "NOT_EXECUTED"
     outcome: dict = field(default_factory=dict)           # KPIs measured after execution
+    conflicts: list = field(default_factory=list)         # detected disagreements and how the Supervisor resolved them
     trace: list = field(default_factory=list)             # list[TraceStep] as dicts
     timestamp: str = field(default_factory=now_iso)
 

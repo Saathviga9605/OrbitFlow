@@ -2,7 +2,7 @@
 
 **Learned, safety-checked beam hopping for a LEO satellite, with every decision audited.**
 
-[![Tests](https://img.shields.io/badge/tests-106%20passing-2ea44f)](#testing)
+[![Tests](https://img.shields.io/badge/tests-166%20passing-2ea44f)](#testing)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776ab)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-CPU-ee4c2c)](https://pytorch.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb)](https://react.dev/)
@@ -117,6 +117,7 @@ The "Ask anything" and "Run it live" features need the API. They switch off, and
 | Does it work? | Multi-run results, stress conditions and ablations |
 | Try it yourself | What-if grid over 30 precomputed runs, plus new live simulations |
 | The rulebook | Ask the documents in your own words and get exact quotations |
+| **Operations console** | Ten executed scenarios (surge, congestion, agent failure, conflicts, bad data, …), agent registry, policy profiles, standards and AI-readiness maps, validation. In English, Arabic (RTL), Hindi and Tamil |
 | How we know | Where each kind of number comes from |
 
 | | |
@@ -148,6 +149,17 @@ flowchart LR
 
 Priority when rules conflict: hard limits, then operating constraints, then safety, then optimisation.
 
+### Operations layer
+
+On top of that core, OrbitFlow adds the following. Details are in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+
+- **Coordination and resilience:** the Supervisor contains Network-agent crashes, malformed output and timeouts with a deterministic fallback. It fails closed when the Policy agent is down and protects every emergency cell when the Safety agent is. It validates telemetry (NaN, negative or stale values, with conservative mode), types every conflict, and escalates to a human.
+- **Agent registry** (`agents/registry.yaml`): roles, permissions, failure modes and fallbacks. The Network agent is replaceable and the Policy and Safety agents can be disabled.
+- **Policy profiles** (`policy/profiles/`): baseline, UAE-oriented and India-oriented, all marked **illustrative**. They are validated, versioned and checked for conflicts. Changing the profile changes the permitted action without touching the model.
+- **Multilingual:** requests in English, Arabic, Hindi or Tamil are parsed by a lexicon (not an LLM) into one language-independent intent, and explanations come from localised templates filled only with measured numbers.
+- **Scenario suite** (`scenarios/suite.yaml`): ten seeded scenarios with expectations written before the runs; 35/35 checks observed.
+- **Standards and readiness maps** (`knowledge/`): machine-readable, with evidence and gaps. No compliance is claimed.
+
 ## API
 
 Interactive docs are at <http://localhost:8000/docs> while the server runs.
@@ -158,6 +170,10 @@ Interactive docs are at <http://localhost:8000/docs> while the server runs.
 | `POST` | `/api/simulate?cap_w=22&fade_db=6&seed=42&agents=true` | Run the flood scenario through the full pipeline |
 | `POST` | `/api/ask?q=...` | Grounded answer from the knowledge base, as quotations only |
 | `GET` | `/api/results/{name}` | Any result file, such as `multirun` or `kb_report` |
+| `POST` | `/api/scenarios/{id}/run` | Run a suite scenario (S1–S10) |
+| `POST` | `/api/policy/run?profile=ae-demo&cap_w=16` | Flood under a (customised) policy profile |
+| `POST` | `/api/interpret?text=...` | Multilingual request → intent → run → localised explanation |
+| `GET` | `/api/agents`, `/api/governance`, `/api/policy/profiles` | Registry, standards/readiness/knowledge bundle, profiles |
 
 ```bash
 curl -X POST "http://localhost:8000/api/ask?q=What%20is%20an%20ML%20sandbox%3F"
@@ -191,6 +207,7 @@ done
 python scripts/run_experiments.py --tag rg --gate    # multi-run matrix
 python scripts/run_studies.py --tag rg               # emergency, factorial, flux density, latency, stress, sensitivity
 python scripts/run_eval.py                           # replay and what-if grid; copies data to the UI
+python scripts/run_suite.py                          # ten demonstration scenarios + governance bundle (about 35 s)
 
 # 5. Rebuild the UI
 cd dashboard/frontend && npx vite build
@@ -221,11 +238,14 @@ python -m pytest -q tests
 ## Project layout
 
 ```
-agents/         Network, Policy, Safety, Supervisor; policy_rules.yaml
+agents/         Network, Policy, Safety, Supervisor; policy_rules.yaml; registry.yaml
 audit/          Per-slot JSONL records
 bam/            Guard: hard limits and repair
 bridge/         BRIDGE policy, PPO and behaviour cloning, baselines
-dashboard/      FastAPI server and React story UI
+dashboard/      FastAPI server and React story UI (incl. Operations console)
+i18n/           Lexicon interpreter, localised explanations, locales (en, ar, hi, ta)
+knowledge/      Standards map, AI-readiness map, knowledge catalogue
+policy/         Policy engine and country/operator profiles
 data/raw/       Offline NTN datasets
 digital_twin/   Queues, SINR, KPIs, explicit link budget
 docs/           Report, demo script, parameter sheet, provenance
@@ -260,6 +280,7 @@ If you change `link`, rerun the experiments and studies.
 | Document | Contents |
 |---|---|
 | [docs/REPORT.md](docs/REPORT.md) | Full results, statistics, blocker register and readiness checklist |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Coordination, failure handling, registry, policy profiles, multilingual, scenarios, standards and readiness, extending |
 | [docs/demo_script.md](docs/demo_script.md) | Three-minute demo and likely questions |
 | [docs/link_budget_parameters.md](docs/link_budget_parameters.md) | Every radio parameter, its source and status |
 | [docs/data_provenance.md](docs/data_provenance.md) | Datasets, model inputs and splits |

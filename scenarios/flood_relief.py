@@ -73,11 +73,13 @@ def build(base_trace: Trace | None = None, config: dict | None = None, seed: int
               f"Flood declared: cells {em} carry emergency-priority traffic.", {"stage": "T3", "cells": em}),
         Event("channel_fade", 45, "fade", ["all"], f"Rain fade of {d['fade_db']:.0f} dB on cells {em}.",
               {"stage": "T4", "cells": em, "fade_db": float(d["fade_db"])}),
-        Event("border_power_cap", 50, "policy", ["policy", "supervisor"],
+        Event("border_power_cap", int(d.get("cap_slot", 50)), "policy", ["policy", "supervisor"],
               f"HYPOTHETICAL operating constraint (not a real law): beams on border cells {d['border_cells']} capped at {d['border_cap_w']:.0f} W.",
               {"stage": "T5", "cells": [int(c) for c in d["border_cells"]], "cap_w": float(d["border_cap_w"]),
                "hypothetical": True}),
         Event("recovery_start", end, "state", ["all"], "Emergency demand receding.", {"stage": "T6"}),
         Event("normal_restored", end + 16, "state", ["all"], "Network back to normal operation.", {"stage": "T7"}),
     ]
+    if not d.get("cap_enabled", True):          # a policy profile may switch the operating constraint off
+        events = [e for e in events if e.kind != "policy"]
     return trace, EventFeed(events)
