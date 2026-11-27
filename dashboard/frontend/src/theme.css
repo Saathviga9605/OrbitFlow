@@ -348,3 +348,39 @@ section.ch { padding: 112px clamp(20px, 5vw, 72px); scroll-margin-top: 58px; }
   section.ch { padding: 72px 16px; }
 }
 .scene-canvas { -webkit-mask-image: radial-gradient(120% 95% at 55% 45%, #000 62%, transparent 100%); mask-image: radial-gradient(120% 95% at 55% 45%, #000 62%, transparent 100%); }
+
+/* ===== Page-wide languages ===== */
+:root:lang(ar) { --sans: 'Noto Sans Arabic', 'IBM Plex Sans', system-ui, sans-serif; --serif: 'Noto Sans Arabic', Georgia, serif; }
+:root:lang(hi) { --sans: 'Noto Sans Devanagari', 'IBM Plex Sans', system-ui, sans-serif; --serif: 'Noto Sans Devanagari', Georgia, serif; }
+:root:lang(ta) { --sans: 'Noto Sans Tamil', 'IBM Plex Sans', system-ui, sans-serif; --serif: 'Noto Sans Tamil', Georgia, serif; }
+:root:lang(ar) h1, :root:lang(hi) h1, :root:lang(ta) h1 { letter-spacing: 0; line-height: 1.25; font-weight: 600; }
+:root:lang(ar) h2, :root:lang(hi) h2, :root:lang(ta) h2 { letter-spacing: 0; line-height: 1.35; font-weight: 600; }
+:root:lang(ta) h1 { font-size: clamp(34px, 4.2vw, 62px); }
+:root:lang(ta) h2 { font-size: clamp(24px, 2.7vw, 38px); }
+:root:lang(ar) .kicker, :root:lang(hi) .kicker, :root:lang(ta) .kicker { letter-spacing: .02em; text-transform: none; font-family: var(--sans); font-size: 13px; }
+.langswitch { display: flex; gap: 2px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; }
+.langswitch button { background: transparent; border: 0; color: var(--ink-3); font-size: 13px; padding: 4px 9px; border-radius: 4px; white-space: nowrap; }
+.langswitch button:hover { color: var(--ink); }
+.langswitch button.on { background: var(--raised); color: var(--ink); }
+.langswitch button:lang(ar) { font-family: 'Noto Sans Arabic', sans-serif; }
+.langswitch button:lang(hi) { font-family: 'Noto Sans Devanagari', sans-serif; }
+.langswitch button:lang(ta) { font-family: 'Noto Sans Tamil', sans-serif; }
+.langnote { margin: 0; padding: 8px clamp(16px, 4vw, 48px); font-size: 13px; color: var(--ink-3); background: var(--surface); border-bottom: 1px solid var(--line); }
+/* Charts, maps and timelines read left to right in every language */
+svg, .timeline, .heat, input[type="range"], .strip, .dials, .waffle { direction: ltr; }
+[dir="rtl"] .insight { border-left: 0; border-right: 3px solid var(--beam); padding: 4px 16px 4px 0; }
+[dir="rtl"] .quote, [dir="rtl"] .agent .ev { border-left: 0; border-right: 2px solid var(--warning); padding-left: 0; padding-right: 9px; }
+[dir="rtl"] .flow-detail { border-left: 0; border-right: 1px solid var(--line); padding: 4px 22px 4px 0; }
+[dir="rtl"] .quote[dir="ltr"] { border-right: 0; border-left: 2px solid var(--warning); padding-right: 0; padding-left: 9px; }
+[dir="rtl"] .hero-stats dd span { display: inline-block; }
+@media (max-width: 1040px) { [dir="rtl"] .flow-detail { border-right: 0; padding: 18px 0 0; } }
+@media (max-width: 860px) { .langswitch button { padding: 4px 6px; font-size: 12px; } .navlinks { display: none; } }
+:root:lang(ar) { --mono: 'IBM Plex Mono', 'Noto Sans Arabic', ui-monospace, monospace; }
+:root:lang(hi) { --mono: 'IBM Plex Mono', 'Noto Sans Devanagari', ui-monospace, monospace; }
+:root:lang(ta) { --mono: 'IBM Plex Mono', 'Noto Sans Tamil', ui-monospace, monospace; }
+:root:lang(ta) h1, :root:lang(ta) h2, :root:lang(hi) h1 { overflow-wrap: anywhere; }
+@media (max-width: 700px) { :root:lang(ta) h1 { font-size: 30px; } :root:lang(ta) .hero-cta .cue { font-size: 14px; } }
+.panel svg, .flow-svg { max-width: 100%; }
+.ledger { table-layout: fixed; }
+.ledger td { overflow-wrap: anywhere; }
+:root:lang(ta) td, :root:lang(ta) th, :root:lang(hi) td, :root:lang(hi) th { overflow-wrap: anywhere; }

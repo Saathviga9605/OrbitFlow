@@ -2,7 +2,7 @@
 
 **Learned, safety-checked beam hopping for a LEO satellite, with every decision audited.**
 
-[![Tests](https://img.shields.io/badge/tests-166%20passing-2ea44f)](#testing)
+[![Tests](https://img.shields.io/badge/tests-168%20passing-2ea44f)](#testing)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776ab)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-CPU-ee4c2c)](https://pytorch.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb)](https://react.dev/)
@@ -157,7 +157,7 @@ On top of that core, OrbitFlow adds the following. Details are in [docs/OPERATIO
 - **Coordination and resilience:** the Supervisor contains Network-agent crashes, malformed output and timeouts with a deterministic fallback. It fails closed when the Policy agent is down and protects every emergency cell when the Safety agent is. It validates telemetry (NaN, negative or stale values, with conservative mode), types every conflict, and escalates to a human.
 - **Agent registry** (`agents/registry.yaml`): roles, permissions, failure modes and fallbacks. The Network agent is replaceable and the Policy and Safety agents can be disabled.
 - **Policy profiles** (`policy/profiles/`): baseline, UAE-oriented and India-oriented, all marked **illustrative**. They are validated, versioned and checked for conflicts. Changing the profile changes the permitted action without touching the model.
-- **Multilingual:** requests in English, Arabic, Hindi or Tamil are parsed by a lexicon (not an LLM) into one language-independent intent, and explanations come from localised templates filled only with measured numbers.
+- **Multilingual:** the entire app is available in English, Arabic (right-to-left), Hindi and Tamil from one switch in the top bar. Requests in any of the four are parsed by a lexicon (not an LLM) into one language-independent intent, and explanations come from localised templates filled only with measured numbers. System-produced text such as agent rationales and document quotations stays in English by design.
 - **Scenario suite** (`scenarios/suite.yaml`): ten seeded scenarios with expectations written before the runs; 35/35 checks observed.
 - **Standards and readiness maps** (`knowledge/`): machine-readable, with evidence and gaps. No compliance is claimed.
 

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { landDots, toVec } from './Globe.jsx';
 import { reducedMotion } from './viz.jsx';
+import { useI18n } from './i18n.jsx';
 
 // The hero tells one story in four acts, using beams BRIDGE really chose in the flood-relief replay:
 // calm beams -> demand starts to rise on the event cell -> the beam hops there -> the guard checks it.
@@ -15,6 +16,7 @@ const ACT_S = 3.6;
 const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
 
 export default function HeroScene({ replay }) {
+  const { t } = useI18n();
   const ref = useRef(null);
   const chip = useRef(null);
   const [act, setAct] = useState(0);
@@ -161,15 +163,15 @@ export default function HeroScene({ replay }) {
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); ro.disconnect(); io.disconnect(); renderer.dispose(); };
   }, [replay]);
-  const chipText = [null, 'demand rising · forecast sees it', 'beam moves here', '✓ limits checked'][act];
+  const chipText = act ? t(`chip.${act}`) : null;
   return (
     <div className="scene">
-      <canvas ref={ref} className="scene-canvas" aria-label="Animation: a satellite moves a beam to a cell whose demand is rising, then the guard checks the decision" role="img" />
+      <canvas ref={ref} className="scene-canvas" aria-label={t('hero.anim')} role="img" />
       <div ref={chip} className={`scene-chip act${act}`} aria-hidden="true">{chipText}</div>
       <ol className="acts">
-        {ACTS.map(([t, s], i) => (
-          <li key={t} className={i === act ? 'on' : i < act ? 'done' : ''}>
-            <button onClick={() => jump.current?.(i)}><span className="mono">{String(i + 1).padStart(2, '0')}</span> {t}<small>{s}</small></button>
+        {ACTS.map((_, i) => (
+          <li key={i} className={i === act ? 'on' : i < act ? 'done' : ''}>
+            <button onClick={() => jump.current?.(i)}><span className="mono">{String(i + 1).padStart(2, '0')}</span> {t(`act.${i}`)}<small>{t(`act.${i}.sub`)}</small></button>
           </li>
         ))}
       </ol>

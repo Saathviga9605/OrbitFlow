@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { reducedMotion, useWidth } from './viz.jsx';
+import { useI18n } from './i18n.jsx';
 
 /** Adds .in to every revealable element once it scrolls into view. */
 export function useReveal() {
@@ -126,7 +127,8 @@ export function Dial({ value, max, label, display, color = 'var(--beam)' }) {
 export function DocMap({ docs, active = [] }) {
   const [h, setH] = useState(null);
   const groups = [...new Set(docs.map((d) => d.category))];
-  const NAME = { AI_Strategies: 'AI strategies and policy', AI_Use_Cases: 'Standards and use cases', Regulatory_Supplement: 'Satellite regulation' };
+  const { t } = useI18n();
+  const NAME = { AI_Strategies: t('doc.cat.strat'), AI_Use_Cases: t('doc.cat.std'), Regulatory_Supplement: t('doc.cat.reg') };
   return (
     <div className="docmap">
       {groups.map((g) => (
@@ -134,7 +136,7 @@ export function DocMap({ docs, active = [] }) {
           {docs.filter((d) => d.category === g).map((d, i) => { const s = 8 + Math.sqrt(d.pages) * 1.5; return <i key={d.doc_id} className={active.length ? (active.includes(d.doc_id) ? 'hit' : 'dim') : ''} style={{ width: s, height: s, animationDelay: `${i * 18}ms` }} onPointerEnter={() => setH(d)} onPointerLeave={() => setH(null)} />; })}
         </div></div>
       ))}
-      <p className="note" style={{ minHeight: 22, margin: '10px 0 0' }}>{h ? `${h.title} · ${h.pages} pages` : 'Hover a dot. Bigger means more pages.'}</p>
+      <p className="note" style={{ minHeight: 22, margin: '10px 0 0' }}>{h ? `${h.title} · ${h.pages} ${t('tbl.pages')}` : t('doc.hover')}</p>
     </div>
   );
 }

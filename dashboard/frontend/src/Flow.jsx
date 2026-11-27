@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { reducedMotion, useWidth } from './viz.jsx';
+import { useI18n } from './i18n.jsx';
 
 // Interactive flowchart of the decision loop. Roles and permissions come from agents/registry.yaml
 // (results/governance.json); latencies from results/studies/latency.json.
@@ -28,6 +29,7 @@ const EDGES = [
 const KIND = { agent: 'var(--beam)', component: 'var(--bridge)', data: 'var(--ink-3)' };
 
 export default function Flow({ d }) {
+  const { t } = useI18n();
   const [box, w] = useWidth();
   const vertical = w < 640;
   const [sel, setSel] = useState('network');
@@ -48,12 +50,14 @@ export default function Flow({ d }) {
     ? `M${P.twin.x + nw / 2},${P.twin.y} C${W - 6},${P.twin.y} ${W - 6},${P.telemetry.y} ${P.telemetry.x + nw / 2},${P.telemetry.y}`
     : `M${P.twin.x},${P.twin.y + nh / 2} C${P.twin.x},${H + 40} ${P.telemetry.x},${H + 40} ${P.telemetry.x},${P.telemetry.y + nh / 2}`;
   const still = reducedMotion();
+  // squeeze a label into the node only when its estimated width would overflow (long Tamil/Hindi words)
+  const fit = (txt, size, perChar) => (txt.length * perChar > nw - 20 ? { textLength: nw - 20, lengthAdjust: 'spacingAndGlyphs' } : {});
   return (
     <div className="flow" ref={box}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="flow-svg" role="group" aria-label="Decision loop flowchart; select a step">
+      <svg dir="ltr" viewBox={`0 0 ${W} ${H}`} className="flow-svg" role="group" aria-label={t('flow.aria')}>
         <defs><marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="currentColor" /></marker></defs>
         {!vertical && <path d={loop} className="edge loop" markerEnd="url(#arr)" />}
-        {!vertical && <text x={(P.telemetry.x + P.twin.x) / 2} y={H - 12} className="edge-label">next slot · every 10 ms</text>}
+        {!vertical && <text x={(P.telemetry.x + P.twin.x) / 2} y={H - 12} className="edge-label">{t('flow.next')}</text>}
         {EDGES.map(([a, b, dash]) => {
           const [s, e] = anchor(a, b); const on = sel === a || sel === b;
           return <line key={a + b} x1={s.x} y1={s.y} x2={e.x} y2={e.y} className={`edge ${on ? 'on' : ''} ${dash ? 'dash' : ''}`} markerEnd="url(#arr)" />;
@@ -62,30 +66,30 @@ export default function Flow({ d }) {
           <circle r="5" className="packet"><animateMotion dur="5s" repeatCount="indefinite" path={main} /></circle>
           {!vertical && <circle r="4" className="packet ret"><animateMotion dur="5s" begin="2.5s" repeatCount="indefinite" path={loop} /></circle>}
         </>}
-        {NODES.map(([id, label, tech, , , kind]) => {
+        {NODES.map(([id, , , , , kind]) => {
           const p = P[id];
           return (
             <g key={id} className={`node ${sel === id ? 'on' : ''} k-${kind}`} transform={`translate(${p.x - nw / 2},${p.y - nh / 2})`} onClick={() => setSel(id)}
               tabIndex={0} role="button" aria-pressed={sel === id} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setSel(id)}>
               <rect width={nw} height={nh} rx="6" />
               <rect width="3" height={nh} rx="1.5" fill={KIND[kind]} />
-              <text x="13" y="24" className="n-label">{label}</text>
-              <text x="13" y="42" className="n-tech">{tech}</text>
+              <text x="13" y="24" className="n-label" {...fit(t(`node.${id}`), 15, 8.4)}>{t(`node.${id}`)}</text>
+              <text x="13" y="42" className="n-tech" {...fit(t(`node.${id}.tech`), 11.5, 7)}>{t(`node.${id}.tech`)}</text>
             </g>
           );
         })}
       </svg>
       <aside className="flow-detail" aria-live="polite">
-        <p className="kicker" style={{ color: KIND[node[5]] }}>{node[5] === 'agent' ? 'Agent' : node[5] === 'component' ? 'Component' : 'Data and execution'}</p>
-        <h3>{node[1]}</h3>
-        <p>{node[8]}</p>
-        {lat && <p className="flow-lat"><b className="mono">{lat.mean.toFixed(2)} ms</b> mean · {lat.p99.toFixed(2)} ms p99</p>}
+        <p className="kicker" style={{ color: KIND[node[5]] }}>{t(`flow.kind.${node[5]}`)}</p>
+        <h3>{t(`node.${node[0]}`)}</h3>
+        <p>{t(`node.${node[0]}.role`)}</p>
+        {lat && <p className="flow-lat"><b className="mono">{lat.mean.toFixed(2)} ms</b> {t('flow.mean')} · {lat.p99.toFixed(2)} ms p99</p>}
         {reg && <dl>
-          <dt>Can</dt><dd>{reg.allowed_actions.join(' · ')}</dd>
-          <dt>Cannot</dt><dd>{reg.prohibited_actions.join(' · ')}</dd>
-          {reg.fallback && <><dt>If it fails</dt><dd className="mono">{reg.fallback}</dd></>}
+          <dt>{t('flow.can')}</dt><dd lang="en">{reg.allowed_actions.join(' · ')}</dd>
+          <dt>{t('flow.cannot')}</dt><dd lang="en">{reg.prohibited_actions.join(' · ')}</dd>
+          {reg.fallback && <><dt>{t('flow.fails')}</dt><dd className="mono">{reg.fallback}</dd></>}
         </dl>}
-        <code>{node[9]}</code>
+        <code dir="ltr">{node[9]}</code>
       </aside>
     </div>
   );

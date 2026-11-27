@@ -7,6 +7,12 @@ import '@fontsource/ibm-plex-sans/500.css';
 import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/noto-sans-arabic/400.css';
+import '@fontsource/noto-sans-arabic/600.css';
+import '@fontsource/noto-sans-devanagari/400.css';
+import '@fontsource/noto-sans-devanagari/600.css';
+import '@fontsource/noto-sans-tamil/400.css';
+import '@fontsource/noto-sans-tamil/600.css';
 import './theme.css';
 import App from './App.jsx';
 
@@ -16,7 +22,7 @@ function Root() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   useEffect(() => {
-    Promise.all(FILES.map((f) => fetch(`data/${f}.json`).then((r) => { if (!r.ok) throw new Error(f); return r.text(); }).then((t) => JSON.parse(t.replace(/\bNaN\b/g, 'null')))))
+    Promise.all(FILES.map((f) => fetch(`data/${f}.json`).then((r) => { if (!r.ok) throw new Error(f); return r.text(); }).then((t) => JSON.parse(t.replace(/([:[,]\s*)NaN(?=\s*[,\]}])/g, '$1null')))))
       .then((all) => setData(Object.fromEntries(FILES.map((f, i) => [f, all[i]]))))
       .catch((e) => setErr(String(e.message)));
   }, []);

@@ -87,3 +87,26 @@ def test_explanations_contain_only_measured_numbers():
         assert "{" not in text and "1.8" in text and "15" in text and "95.7" in text
         assert any("1" in ln and "2" in ln for ln in lines)                       # 1 of 2 checks
     assert explain(r, "xx") == explain(r, "en")                                    # unknown language falls back to English
+
+
+def test_every_ui_key_used_in_the_frontend_exists():
+    """Static t('...') keys in the React source must exist in the English app strings (others fall back to the raw key)."""
+    from i18n.app_strings_en import EN
+    src = os.path.join(os.path.dirname(LOC), "..", "dashboard", "frontend", "src")
+    used = set()
+    for f in os.listdir(src):
+        if f.endswith(".jsx"):
+            text = open(os.path.join(src, f), encoding="utf8").read()
+            used |= set(re.findall(r"\bt(?:r)?\('([\w.:+\-]+)'", text))
+    ui_keys = set(locale("en")["ui"]) | set(locale("en")["terms"])
+    missing = sorted(k for k in used if k not in EN and k not in ui_keys)
+    assert not missing, missing
+
+
+def test_app_strings_cover_all_languages():
+    from i18n.build_locales import check
+    from i18n.app_strings_ar import AR
+    from i18n.app_strings_hi import HI
+    from i18n.app_strings_ta import TA
+    for lang, table in (("ar", AR), ("hi", HI), ("ta", TA)):
+        assert check(lang, table) == []

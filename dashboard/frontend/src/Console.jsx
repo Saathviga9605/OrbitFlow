@@ -1,21 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useApi } from './fx.jsx';
+import { useI18n } from './i18n.jsx';
 
 // Operations console. Everything shown comes from results/scenario_suite.json and results/governance.json
 // (written by scripts/run_suite.py) or from a live API run. Nothing here is typed in by hand.
 
-const LANGS = [['en', 'English'], ['ar', 'العربية'], ['hi', 'हिन्दी'], ['ta', 'தமிழ்']];
 const TABS = ['scenarios', 'agents', 'policies', 'standards', 'validation'];
 const DECISION_COLOR = { APPROVED: 'var(--line-strong)', REPAIRED: 'var(--bridge)', FALLBACK: 'var(--critical)' };
 const STATUS_TAG = { implemented_in_simulation: 'good', partial: 'warning', conceptual: '', proposed: '', not_implemented: 'critical', not_applicable: '' };
 const pct = (v) => (v == null ? '–' : `${(v * 100).toFixed(1)}%`);
 const num = (v, d = 1) => (v == null ? '–' : Number(v).toFixed(d));
-
-function useLang() {
-  const [lang, setLang] = useState(() => { try { return localStorage.getItem('of-lang') || 'en'; } catch { return 'en'; } });
-  useEffect(() => { try { localStorage.setItem('of-lang', lang); } catch { /* storage unavailable */ } }, [lang]);
-  return [lang, setLang];
-}
 
 function Tag({ ok, children, kind }) {
   return <span className={`tag ${kind ?? (ok ? 'good' : 'critical')}`}>{children}</span>;
@@ -282,18 +276,12 @@ function Validation({ suite, gov, T, scen }) {
 }
 
 export default function Console({ d }) {
-  const [lang, setLang] = useLang();
+  const { lang, loc, ui: T, term: tr, scen } = useI18n();     // the page-wide language (selector in the top nav)
   const [tab, setTab] = useState('scenarios');
-  const loc = d[`i18n_${lang}`] || d.i18n_en;
-  const T = useMemo(() => (k) => loc.ui[k] ?? d.i18n_en.ui[k] ?? k, [loc, d]);
-  const tr = useMemo(() => (k) => loc.terms[k] ?? d.i18n_en.terms[k] ?? k, [loc, d]);
-  const scen = useMemo(() => (id, fb) => loc.scenarios[id] ?? fb, [loc]);
-  const dir = loc._meta.dir;
   return (
-    <section className="ch console" id="ops" dir={dir} lang={lang}><div className="wrap">
+    <section className="ch console" id="ops"><div className="wrap">
       <div className="ophead">
         <p className="kicker">{T('kicker')}</p>
-        <div className="chips" role="group" aria-label={T('language')}>{LANGS.map(([k, n]) => <button key={k} lang={k} className={`chip ${k === lang ? 'on' : ''}`} onClick={() => setLang(k)} aria-pressed={k === lang}>{n}</button>)}</div>
       </div>
       <h2>{T('title')}</h2>
       <p className="lede">{T('lede')}</p>
