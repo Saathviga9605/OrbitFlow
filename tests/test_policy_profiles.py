@@ -76,7 +76,7 @@ def test_same_traffic_different_profile_changes_the_permitted_action(three):
     assert ae["coordination"]["exemption_mode"] == "never"
     assert "cap_conflict" not in ae["coordination"]["human_review_by_kind"]
     assert "cap_conflict" in b["coordination"]["human_review_by_kind"]
-    lower = [r.final["power_w"].get(c, 0) for r in ae["records"][50:61] for c in (13, 14, 15, 16)]
+    lower = [r.final["power_w"].get(c, 0) for r in ae["records"][50:61] for c in load_profile("ae-demo")["operating_constraints"]["border_power_cap"]["cells"]]
     assert max(lower) <= 16.0 + 1e-6
     for r in (b, ae):
         assert r["kpis"]["cap_violation_slots"] == 0

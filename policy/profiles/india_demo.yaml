@@ -16,7 +16,7 @@ provenance_note: >-
 operating_constraints:
   border_power_cap:
     enabled: true
-    cells: [13, 14, 15, 16]
+    cells: [22, 23, 24, 31, 32, 33]
     cap_w: 22.0
     onset_slot: 50
     source_type: illustrative
@@ -35,7 +35,7 @@ resilience:
   fail_closed_cap_w: 22.0
   decision_budget_ms: 10.0
   max_bad_telemetry_share: 0.25
-  state_drift_mbps: 10.0
+  state_drift_mbps: 45.0
 
 governance_rules:
   - id: IN-ACCOUNTABILITY

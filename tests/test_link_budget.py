@@ -7,7 +7,7 @@ import pytest
 
 from digital_twin.channel import LinkModel
 from digital_twin.link_budget import (fspl_db, link_margin_db, noise_dbw, rx_power_dbw, shannon_mbps, sinr_limit_db, snr_db)
-from utils.config import REAL_TRACE, load_config
+from utils.config import REAL_TRACE, SIONNA_TRACE, load_config
 
 
 def test_fspl_reference_value():
@@ -31,10 +31,13 @@ def test_rx_power_units_and_rain_reduces_power_one_for_one():
     assert rx_power_dbw(100.0, 50.0, 170.0, rain_db=6.0) == pytest.approx(rx_power_dbw(100.0, 50.0, 170.0) - 6.0)
 
 
-def test_dataset_fspl_implies_20_ghz():
-    d = pd.read_csv(REAL_TRACE)
-    calc = d.slant_range_km.map(lambda r: fspl_db(r, 20.0))
-    assert (calc - d.fspl_db).abs().max() < 0.05
+def test_dataset_path_loss_is_fspl_at_20_ghz_plus_fixed_terms():
+    """Sionna export: LOS path loss = FSPL(20 GHz) + 1.5 dB; NLOS adds a flat 18 dB; gain = -path loss."""
+    d = pd.read_csv(SIONNA_TRACE)
+    excess = d.path_loss_db - d.slant_range_km.map(lambda r: fspl_db(r, 20.0))
+    assert (excess[d.los_visibility_flag == 1] - 1.5).abs().max() < 0.05
+    assert (excess[d.los_visibility_flag == 0] - 18.0).abs().max() < 0.05
+    assert np.allclose(10 * np.log10(d.channel_gain_magnitude), -d.path_loss_db, atol=0.05)
 
 
 def test_twin_sinr_equals_explicit_budget_without_interference():
@@ -68,12 +71,15 @@ def test_rain_fade_lowers_sinr_only_when_noise_matters():
     assert (link.sinr(p, faded, lit) < link.sinr(p, weak, lit)).all()
 
 
-def test_boundaries_capacity_zero_below_threshold_and_without_los():
+def test_boundaries_capacity_zero_below_threshold_and_los_rule_is_configurable():
     cfg = load_config()
-    link = LinkModel(cfg)
     s = np.array([10 ** (cfg["link"]["sinr_min_db"] / 10) * 0.9, 10.0, 10.0])
-    cap = link.capacity_mbps(s, np.array([1, 1, 0]), 0.0, 0.0)
+    cfg["link"]["require_los"] = True
+    cap = LinkModel(cfg).capacity_mbps(s, np.array([1, 1, 0]), 0.0, 0.0)
     assert cap[0] == 0 and cap[1] > 0 and cap[2] == 0
+    cfg["link"]["require_los"] = False                      # SINR alone decides (58-cell default)
+    cap = LinkModel(cfg).capacity_mbps(s, np.array([1, 1, 0]), 0.0, 0.0)
+    assert cap[0] == 0 and cap[1] > 0 and cap[2] == cap[1]
     assert shannon_mbps(0.0, 20e6) == pytest.approx(20.0)
     assert link_margin_db(10.0, -6.0) == 16.0
 
@@ -90,3 +96,26 @@ def test_pfd_reference_and_cap_round_trip():
     cap = pfd_power_cap_w(60.0, 25.0, 650.0, 20.0)
     assert pfd_db_per_mhz(cap, 25.0, 650.0, 20.0) == pytest.approx(sf358_pfd_limit_db(60.0))
     assert pfd_power_cap_w(60.0, 28.0, 650.0, 20.0) == pytest.approx(cap / 10 ** 0.3)
+
+
+def test_distance_isolation_matrix():
+    from digital_twin.channel import isolation_matrix
+    coords = [{"x": 0.0, "y": 0.0}, {"x": 2078.46, "y": 0.0}, {"x": 4156.92, "y": 0.0}, {"x": 40000.0, "y": 0.0}]
+    eps = isolation_matrix(coords, 20.0, 5.0, 40.0)
+    db = lambda v: -10 * np.log10(v)                       # noqa: E731
+    assert np.all(np.diag(eps) == 0) and np.allclose(eps, eps.T)
+    assert db(eps[0, 1]) == pytest.approx(20.0) and db(eps[0, 2]) == pytest.approx(25.0) and db(eps[0, 3]) == pytest.approx(40.0)
+
+
+def test_58_cell_twin_uses_distance_isolation_and_far_beams_barely_interfere():
+    cfg = load_config()
+    link = LinkModel(cfg)
+    assert link.eps_mat is not None and link.eps_mat.shape == (58, 58)
+    gain = np.full(58, 1e-6)                                # noise negligible
+    lit = np.zeros(58, bool)
+    lit[[0, 1]] = True                                      # adjacent pair
+    near = link.sinr(np.full(58, 25.0), gain, lit)[0]
+    lit = np.zeros(58, bool)
+    lit[[0, 26]] = True                                     # region 1 centre vs far corner of region 2
+    far = link.sinr(np.full(58, 25.0), gain, lit)[0]
+    assert 10 * np.log10(near) == pytest.approx(20.0, abs=0.01) and far > near * 50

@@ -83,7 +83,7 @@ def test_real_trace_marked_in_test():
     """If real_trace_in_test=True, manifest should reflect it."""
     manifest = create_splits(real_trace_in_test=True)
     assert manifest.test_set_uses_real, "Real trace should be marked for test set"
-    assert manifest.real_trace_path == "data/raw/open_ntn_l2_output.csv"
+    assert manifest.real_trace_path == "data/raw/open_ntn_traffic_dataset.csv"
     
     manifest2 = create_splits(real_trace_in_test=False)
     assert not manifest2.test_set_uses_real, "Real trace should not be marked"

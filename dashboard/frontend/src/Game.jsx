@@ -13,7 +13,8 @@ export default function Game({ d }) {
   const aiFinal = useMemo(() => score(ai, p), [ai, p]);
   const [phase, setPhase] = useState('ready');
   const [speed, setSpeed] = useState(400);
-  const [picked, setPicked] = useState([2, 5, 9, 13]);
+  // start with the known hotspots and the flood cells, up to the beam count
+  const [picked, setPicked] = useState(() => [...new Set([...(r.meta.background_hot || []), r.meta.event_cell, ...r.meta.emergency_cells])].slice(0, p.k));
   const [, force] = useState(0);
   const sim = useRef(newState(p));
   const pickedRef = useRef(picked);
@@ -25,7 +26,7 @@ export default function Game({ d }) {
     const id = setInterval(() => {
       const s = sim.current; const cells = pickedRef.current;
       if (s.t >= p.rate.length) { setPhase('done'); return; }
-      const lit = new Array(19).fill(false);
+      const lit = new Array(p.rate[0].length).fill(false);
       cells.forEach((c) => { lit[c] = true; });
       step(s, p, lit, playerPower(cells, s.t, p));
       force((v) => v + 1);
@@ -56,7 +57,7 @@ export default function Game({ d }) {
     <section className="ch" id="game"><div className="wrap">
       <p className="kicker">{tr('game.kicker')}</p>
       <h2>{tr('game.h2')}</h2>
-      <p className="lede">{tr('game.lede', { n: slowBy })}</p>
+      <p className="lede">{tr('game.lede', { n: slowBy, k: p.k })}</p>
       <div className="game panel" style={{ marginTop: 28 }}>
         <div>
           <HexMap cells={r.cells} lit={picked} power={power} load={load} loadMax={900} emergency={emergency} border={r.meta.border_cells} capActive={t >= p.cap_slot} rainCells={t >= 45 && t < p.emergency_to ? p.emergency_cells : []} beams onSelect={toggle} />
@@ -80,7 +81,7 @@ export default function Game({ d }) {
             <table style={{ marginTop: 12 }}><thead><tr><th /><th className="n">{tr('game.you')}</th><th className="n">OrbitFlow</th></tr></thead><tbody>
               {rows.map(([l, a, b, f, low]) => { const win = low ? a < b : a > b; return <tr key={l}><td>{l}</td><td className="n" style={{ color: win ? 'var(--beam)' : undefined }}>{f(a)}</td><td className="n" style={{ color: win ? undefined : 'var(--beam)' }}>{f(b)}</td></tr>; })}
             </tbody></table>
-            <p className="note">{tr('game.note')}</p>
+            <p className="note">{tr('game.note', { ms: d.study_latency.critical_path_total.mean.toFixed(1) })}</p>
             <button className="cue" onClick={start}>{tr('game.again')}</button>
           </div>}
         </div>

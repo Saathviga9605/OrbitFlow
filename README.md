@@ -2,17 +2,19 @@
 
 **Learned, safety-checked beam hopping for a LEO satellite, with every decision audited.**
 
-[![Tests](https://img.shields.io/badge/tests-168%20passing-2ea44f)](#testing)
+[![Tests](https://img.shields.io/badge/tests-171%20passing-2ea44f)](#testing)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776ab)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-CPU-ee4c2c)](https://pytorch.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb)](https://react.dev/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
-A satellite can light only 4 of its 19 ground cells in each 10 ms slot, on a 100 W budget. During a disaster, the people who most need a link compete with everyone else under the footprint.
+A satellite can light only 12 of its 58 ground cells in each 10 ms slot, on a 300 W budget, over three regional clusters covering about 163 km². During a disaster, the people who most need a link compete with everyone else under the footprint.
 
 OrbitFlow forecasts demand, chooses beams with a reinforcement-learned policy, and checks each decision against hard limits and operating constraints before it runs. Every slot is written to an audit log, and rule evidence is quoted word for word from real ITU and FCC documents.
 
 > OrbitFlow is a research simulation built on offline datasets. It does not connect to a satellite or run in a live network.
+
+> **Version 3** targets the revised 58-cell dataset (12 beams, 300 W). The 19-cell, 4-beam setup and its results are archived in `data/legacy_19cell/`, `models/legacy_19cell/` and `results/legacy_19cell/`; see [docs/REPORT.md](docs/REPORT.md) for both.
 
 ![OrbitFlow story interface](docs/assets/hero.png)
 
@@ -34,32 +36,38 @@ OrbitFlow forecasts demand, chooses beams with a reinforcement-learned policy, a
 
 Measured on 100 paired test episodes, averaged over 5 independently trained models. None of these episodes were used in training or model selection.
 
-| Recorded pass | Late time-critical data | Mean delay | Throughput | Beam switches per slot |
-|---|---:|---:|---:|---:|
-| Fixed rotation | 1.95% | 98.0 ms | 117.4 Mbps | 4.00 |
-| Reactive greedy | 19.64% | 16.1 ms | 169.4 Mbps | 1.69 |
-| Hand-written rule | 0.76% | 30.8 ms | 166.4 Mbps | 3.80 |
-| Behaviour clone | 0.76% | 32.3 ms | 167.1 Mbps | 3.80 |
-| BRIDGE, no forecast | 0.46% | 18.4 ms | 169.2 Mbps | 3.67 |
-| **BRIDGE** | **0.57%** | **15.9 ms** | **169.6 Mbps** | **3.44** |
+**Read this first.** In the 58-cell pass, cells have line of sight in only 36% of cell-slots, and a cell without it cannot be decoded by any beam. About 97% of late time-critical data comes from those moments, so every competent scheduler sits near 12–13% total lateness. The first column counts only late data that a beam *could* have delivered; that is where scheduling choices show.
 
-BRIDGE beat Reactive on late data in 100 of 100 paired episodes (Wilcoxon signed-rank, Holm-corrected p < 0.001, rank-biserial r = −1.0).
+| Recorded pass | Late data a beam could have served | All late time-critical data | Mean delay | Throughput | Beam switches per slot |
+|---|---:|---:|---:|---:|---:|
+| Fixed rotation | 36.27% | 38.0% | 128.6 ms | 830 Mbps | 11.54 |
+| Reactive greedy | 1.35% | 12.7% | 81.8 ms | 1256 Mbps | 7.20 |
+| Hand-written rule | **1.07%** | 12.5% | 83.1 ms | 1246 Mbps | 7.28 |
+| Behaviour clone | 1.19% | 12.5% | 82.4 ms | 1267 Mbps | 7.16 |
+| BRIDGE, no forecast | 1.96% | 13.1% | 87.6 ms | 1136 Mbps | 7.45 |
+| **BRIDGE** | 1.20% | 12.5% | 83.4 ms | 1233 Mbps | 7.34 |
+
+BRIDGE beat Reactive on serviceable late data in 92 of 100 paired episodes (Wilcoxon signed-rank, Holm-corrected p < 0.001, rank-biserial r = −0.97). **It is not the best scheduler on this pass:** the hand-written predictive rule is lower, and BRIDGE ends close to the behaviour clone it was initialised from.
+
+Across all 20 test conditions, BRIDGE is lower than Reactive on serviceable late data in 14, tied in 2 (50% traffic, pass shifted +20 slots) and worse in 4 (random bursts, 125% and 150% traffic, channel −6 dB). Its mean delay is higher than Reactive's in every condition, by 1.3–14 ms.
 
 | Other measures | Result |
 |---|---|
-| Second dataset (OpenNTN demand, Sionna-derived channel) | Late data 13.7% → 2.0% against Reactive |
-| Flood scenario, 30 runs | Breaches of a test power limit: 22.8 slots → 0 with agents; emergency data served 92.7% → 92.8% |
-| Emergency deadlines in that flood scenario | None missed |
-| Forecast error at gradual demand surges | 71% lower than repeating the last value |
-| Decision plus safety checks | 2.14 ms mean, 3.46 ms p99, on one CPU core of the evaluation laptop (1.43 ms on the original 16-core desktop) |
+| Second demand column (`pass:arrivals`, ~2× the requested rate) | Serviceable late data 10.87% → 8.59% against Reactive |
+| Flood scenario, 30 runs | Breaches of a test power limit: 27.1 slots (Reactive), 23.0 (BRIDGE alone) → **0** with agents |
+| Emergency data served in that flood | 29.2% Reactive, 25.6% BRIDGE alone, 22.0% OrbitFlow. The baselines serve more partly by breaking the limit; emergency cells are often out of line of sight |
+| Forecast error at gradual demand surges | 76% lower than repeating the last value |
+| Decision plus safety checks | 2.03 ms mean, 2.67 ms p99, 7.4 ms max over 1,000 decisions on one CPU core |
+| Scenario suite | 10 of 10 scenarios, 35 of 35 checks |
 | Knowledge base | 69 documents, 4,105 pages, 46 of 46 checked citations verbatim |
 
 ### Trade-offs
 
-- **Scarce capacity:** BRIDGE still misses fewer deadlines, but its average delay is worse than Reactive's (36.1 vs 25.6 ms at 150% traffic).
-- **Beam switching:** it switches about twice as often as Reactive, and the simulator doesn't charge for switching.
-- **Agent cost:** in the flood, agents add about 0.65 ms of mean delay (18.1 vs 17.5 ms) in exchange for zero limit breaches and slightly more emergency data served (92.8% vs 92.7%). A guard bug that had inflated this cost to about 2 ms was found and fixed; see [docs/OPERATIONS.md §12](docs/OPERATIONS.md).
-- **Forecasting:** it barely helps on abrupt demand jumps (2%), and its delay benefit isn't fully explained.
+- **The scheduling problem got easier per beam.** With 12 beams for 58 cells, covering the six hotspots and whichever cells have line of sight already captures most of the value, so simple rules come close.
+- **Delay:** BRIDGE puts time-critical data first, so mean delay is 1.3–14 ms higher than Reactive's.
+- **Forecasting:** the GRU helps at gradual ramps but is worse than repeating the last value on random bursts and on the recorded pass, where a gradient-boosted model is best. BRIDGE without the forecast is still clearly worse on the recorded pass (1.96% vs 1.20%).
+- **Generalisation:** all training uses one pass geometry; shifting the pass by 20 slots removes BRIDGE's advantage.
+- **Agent cost:** the agents give up some emergency throughput in exchange for zero limit breaches.
 
 The full statistics are in [docs/REPORT.md](docs/REPORT.md).
 

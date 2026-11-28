@@ -1,0 +1,361 @@
+{
+ "note": "Baselines only. served = served/arrived; late = RT SLA violation share.",
+ "rows": [
+  {
+   "bandwidth_mhz": 40.0,
+   "require_los": false,
+   "snr_db_los_median": 11.993987367668844,
+   "snr_db_nlos_median": -7.11601263233117,
+   "nlos_decodable_share": 0.3098250336473755,
+   "pass.reactive": {
+    "served_ratio": 0.4479,
+    "rt_sla_violation": 0.1331,
+    "mean_delay_ms": 98.4142,
+    "throughput_mbps": 893.0385,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 8.8751
+   },
+   "pass.static": {
+    "served_ratio": 0.3045,
+    "rt_sla_violation": 0.3498,
+    "mean_delay_ms": 142.8898,
+    "throughput_mbps": 607.0858,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 4.7072
+   },
+   "flood.reactive": {
+    "served_ratio": 0.4489,
+    "rt_sla_violation": 0.1688,
+    "mean_delay_ms": 133.2813,
+    "throughput_mbps": 905.2417,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 9.0203
+   },
+   "flood.static": {
+    "served_ratio": 0.3001,
+    "rt_sla_violation": 0.3862,
+    "mean_delay_ms": 178.4466,
+    "throughput_mbps": 605.1916,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 4.7426
+   },
+   "normal.reactive": {
+    "served_ratio": 0.7266,
+    "rt_sla_violation": 0.1319,
+    "mean_delay_ms": 87.1887,
+    "throughput_mbps": 1024.0786,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 9.78
+   },
+   "normal.static": {
+    "served_ratio": 0.4315,
+    "rt_sla_violation": 0.3959,
+    "mean_delay_ms": 188.8645,
+    "throughput_mbps": 608.0913,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 4.9008
+   },
+   "event_surge.reactive": {
+    "served_ratio": 0.8555,
+    "rt_sla_violation": 0.1322,
+    "mean_delay_ms": 75.6229,
+    "throughput_mbps": 903.7273,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 9.442
+   },
+   "event_surge.static": {
+    "served_ratio": 0.5778,
+    "rt_sla_violation": 0.3334,
+    "mean_delay_ms": 167.9973,
+    "throughput_mbps": 610.2984,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 4.7586
+   }
+  },
+  {
+   "bandwidth_mhz": 60.0,
+   "require_los": false,
+   "snr_db_los_median": 10.233074777112032,
+   "snr_db_nlos_median": -8.876925222887984,
+   "nlos_decodable_share": 0.006998654104979811,
+   "pass.reactive": {
+    "served_ratio": 0.5559,
+    "rt_sla_violation": 0.1302,
+    "mean_delay_ms": 86.7026,
+    "throughput_mbps": 1108.3835,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 8.0608
+   },
+   "pass.static": {
+    "served_ratio": 0.3706,
+    "rt_sla_violation": 0.3857,
+    "mean_delay_ms": 135.1377,
+    "throughput_mbps": 739.0644,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 8.3908
+   },
+   "flood.reactive": {
+    "served_ratio": 0.5644,
+    "rt_sla_violation": 0.1522,
+    "mean_delay_ms": 118.5101,
+    "throughput_mbps": 1138.247,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 7.9219
+   },
+   "flood.static": {
+    "served_ratio": 0.3655,
+    "rt_sla_violation": 0.4183,
+    "mean_delay_ms": 170.3498,
+    "throughput_mbps": 737.1437,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 8.3474
+   },
+   "normal.reactive": {
+    "served_ratio": 0.9078,
+    "rt_sla_violation": 0.1334,
+    "mean_delay_ms": 57.0168,
+    "throughput_mbps": 1279.3946,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 8.9877
+   },
+   "normal.static": {
+    "served_ratio": 0.5525,
+    "rt_sla_violation": 0.3912,
+    "mean_delay_ms": 173.2615,
+    "throughput_mbps": 778.6262,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 7.3663
+   },
+   "event_surge.reactive": {
+    "served_ratio": 0.9554,
+    "rt_sla_violation": 0.1326,
+    "mean_delay_ms": 63.5723,
+    "throughput_mbps": 1009.1677,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 8.5032
+   },
+   "event_surge.static": {
+    "served_ratio": 0.708,
+    "rt_sla_violation": 0.3659,
+    "mean_delay_ms": 151.197,
+    "throughput_mbps": 747.8381,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 7.4167
+   }
+  },
+  {
+   "bandwidth_mhz": 80.0,
+   "require_los": false,
+   "snr_db_los_median": 8.983687411029033,
+   "snr_db_nlos_median": -10.126312588970983,
+   "nlos_decodable_share": 0.0,
+   "pass.reactive": {
+    "served_ratio": 0.6317,
+    "rt_sla_violation": 0.1252,
+    "mean_delay_ms": 81.4774,
+    "throughput_mbps": 1259.6727,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 6.9941
+   },
+   "pass.static": {
+    "served_ratio": 0.4161,
+    "rt_sla_violation": 0.3821,
+    "mean_delay_ms": 128.5897,
+    "throughput_mbps": 829.618,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 7.5183
+   },
+   "flood.reactive": {
+    "served_ratio": 0.6504,
+    "rt_sla_violation": 0.1467,
+    "mean_delay_ms": 111.0999,
+    "throughput_mbps": 1311.5882,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 6.8718
+   },
+   "flood.static": {
+    "served_ratio": 0.4113,
+    "rt_sla_violation": 0.4128,
+    "mean_delay_ms": 163.3314,
+    "throughput_mbps": 829.5086,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 7.4725
+   },
+   "normal.reactive": {
+    "served_ratio": 0.9558,
+    "rt_sla_violation": 0.1326,
+    "mean_delay_ms": 49.8307,
+    "throughput_mbps": 1347.0531,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 7.9709
+   },
+   "normal.static": {
+    "served_ratio": 0.6582,
+    "rt_sla_violation": 0.3753,
+    "mean_delay_ms": 157.8614,
+    "throughput_mbps": 927.6741,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 7.4122
+   },
+   "event_surge.reactive": {
+    "served_ratio": 0.9674,
+    "rt_sla_violation": 0.1331,
+    "mean_delay_ms": 59.3529,
+    "throughput_mbps": 1021.9283,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 7.6159
+   },
+   "event_surge.static": {
+    "served_ratio": 0.7811,
+    "rt_sla_violation": 0.3695,
+    "mean_delay_ms": 138.0833,
+    "throughput_mbps": 825.0469,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 7.4044
+   }
+  },
+  {
+   "bandwidth_mhz": 100.0,
+   "require_los": false,
+   "snr_db_los_median": 8.014587280948467,
+   "snr_db_nlos_median": -11.095412719051547,
+   "nlos_decodable_share": 0.0,
+   "pass.reactive": {
+    "served_ratio": 0.6908,
+    "rt_sla_violation": 0.1238,
+    "mean_delay_ms": 78.2019,
+    "throughput_mbps": 1377.5067,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 6.1729
+   },
+   "pass.static": {
+    "served_ratio": 0.4385,
+    "rt_sla_violation": 0.381,
+    "mean_delay_ms": 124.3763,
+    "throughput_mbps": 874.2926,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 6.7491
+   },
+   "flood.reactive": {
+    "served_ratio": 0.7177,
+    "rt_sla_violation": 0.1452,
+    "mean_delay_ms": 105.382,
+    "throughput_mbps": 1447.3579,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 6.0538
+   },
+   "flood.static": {
+    "served_ratio": 0.4357,
+    "rt_sla_violation": 0.411,
+    "mean_delay_ms": 158.7564,
+    "throughput_mbps": 878.6313,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 6.7019
+   },
+   "normal.reactive": {
+    "served_ratio": 0.9614,
+    "rt_sla_violation": 0.1324,
+    "mean_delay_ms": 48.361,
+    "throughput_mbps": 1354.9463,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 7.1478
+   },
+   "normal.static": {
+    "served_ratio": 0.7424,
+    "rt_sla_violation": 0.37,
+    "mean_delay_ms": 145.3507,
+    "throughput_mbps": 1046.2875,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 6.7015
+   },
+   "event_surge.reactive": {
+    "served_ratio": 0.9671,
+    "rt_sla_violation": 0.1331,
+    "mean_delay_ms": 56.621,
+    "throughput_mbps": 1021.6061,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 6.8046
+   },
+   "event_surge.static": {
+    "served_ratio": 0.8157,
+    "rt_sla_violation": 0.3691,
+    "mean_delay_ms": 129.6875,
+    "throughput_mbps": 861.5902,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 6.7548
+   }
+  },
+  {
+   "bandwidth_mhz": 120.0,
+   "require_los": false,
+   "snr_db_los_median": 7.222774820472219,
+   "snr_db_nlos_median": -11.887225179527796,
+   "nlos_decodable_share": 0.0,
+   "pass.reactive": {
+    "served_ratio": 0.7393,
+    "rt_sla_violation": 0.1247,
+    "mean_delay_ms": 75.2586,
+    "throughput_mbps": 1474.2722,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 5.5054
+   },
+   "pass.static": {
+    "served_ratio": 0.4501,
+    "rt_sla_violation": 0.3809,
+    "mean_delay_ms": 121.6895,
+    "throughput_mbps": 897.493,
+    "demand_mbps": 1994.022,
+    "mean_sinr_db": 6.0965
+   },
+   "flood.reactive": {
+    "served_ratio": 0.7731,
+    "rt_sla_violation": 0.1422,
+    "mean_delay_ms": 99.9836,
+    "throughput_mbps": 1559.1718,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 5.3749
+   },
+   "flood.static": {
+    "served_ratio": 0.4494,
+    "rt_sla_violation": 0.4098,
+    "mean_delay_ms": 155.7578,
+    "throughput_mbps": 906.247,
+    "demand_mbps": 2016.6687,
+    "mean_sinr_db": 6.0483
+   },
+   "normal.reactive": {
+    "served_ratio": 0.9623,
+    "rt_sla_violation": 0.1324,
+    "mean_delay_ms": 47.7296,
+    "throughput_mbps": 1356.2695,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 6.4168
+   },
+   "normal.static": {
+    "served_ratio": 0.8017,
+    "rt_sla_violation": 0.3657,
+    "mean_delay_ms": 135.9826,
+    "throughput_mbps": 1129.8617,
+    "demand_mbps": 1409.3365,
+    "mean_sinr_db": 6.0495
+   },
+   "event_surge.reactive": {
+    "served_ratio": 0.967,
+    "rt_sla_violation": 0.1328,
+    "mean_delay_ms": 54.6677,
+    "throughput_mbps": 1021.4193,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 6.1459
+   },
+   "event_surge.static": {
+    "served_ratio": 0.834,
+    "rt_sla_violation": 0.3693,
+    "mean_delay_ms": 124.1137,
+    "throughput_mbps": 880.9247,
+    "demand_mbps": 1056.3144,
+    "mean_sinr_db": 6.1324
+   }
+  }
+ ],
+ "demand_share_on_los_cells": 0.5941246886945079
+}

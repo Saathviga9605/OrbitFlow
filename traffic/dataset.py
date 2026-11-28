@@ -86,28 +86,44 @@ def load_trace(path: str) -> Trace:
     )
 
 
-def load_openntn_sionna(root: str) -> Trace:
-    """Second offline trace: demand and flags from open_ntn_l2_output.csv, gain and geometry from sionna_physics_output.csv.
-
-    Both are simulator exports. Nothing here runs Sionna or OpenNTN live.
+def load_pass_arrivals(root: str) -> Trace:
+    """Second view of the recorded pass: demand from the per-class arrival-rate columns (RT + NRT) instead of
+    requested_rate_mbps. The two columns disagree in the export (arrivals are about 2x the requested rate),
+    so this is a heavier-load condition on the same geometry, not an independent pass.
     """
     import os
-    o = pd.read_csv(os.path.join(root, "data", "raw", "open_ntn_l2_output.csv")).sort_values(["slot_id", "cell_id"])
-    p = pd.read_csv(os.path.join(root, "data", "raw", "sionna_physics_output.csv")).sort_values(["slot_id", "cell_id"])
-    piv = lambda d, c: d.pivot(index="slot_id", columns="cell_id", values=c).to_numpy(dtype=float)
-    first = o[o.slot_id == o.slot_id.min()]
-    T, N = piv(o, "requested_rate_mbps").shape
-    flag = lambda c: o.groupby("slot_id")[c].first().to_numpy(dtype=float)
-    return Trace(rate=piv(o, "requested_rate_mbps"), gain=piv(p, "channel_gain_magnitude"), los=piv(p, "los_visibility_flag"), elev=piv(p, "elevation_angle_deg"),
-                 ssb=flag("ssb_active_flag"), sib=flag("sib_active_flag"), prach=flag("prach_window_flag"), hot=piv(o, "is_hotspot"),
-                 logged_mask=np.zeros((T, N)), logged_power=np.zeros((T, N)), q0_rt_kb=first.queue_length_rt_kb.to_numpy(dtype=float),
-                 q0_nrt_kb=first.queue_length_nrt_kb.to_numpy(dtype=float), emergency=np.zeros((T, N)), forecast=None, events=[], slot_ms=10.0,
-                 source="open_ntn_l2_output.csv + sionna_physics_output.csv")
+    path = os.path.join(root, "data", "raw", "open_ntn_traffic_dataset.csv")
+    tr = load_trace(path)
+    df = pd.read_csv(path).sort_values(["slot_id", "cell_id"])
+    arr = (df.arrival_rate_rt_kbps + df.arrival_rate_nrt_kbps) / 1000.0
+    tr.rate = df.assign(a=arr).pivot(index="slot_id", columns="cell_id", values="a").to_numpy(dtype=float)
+    tr.source = "open_ntn_traffic_dataset.csv (arrival-rate demand)"
+    return tr
+
+
+def check_channel_consistency(root: str) -> dict:
+    """The traffic export and the Sionna channel export must describe the same pass (tests/test_system.py)."""
+    import os
+    t = pd.read_csv(os.path.join(root, "data", "raw", "open_ntn_traffic_dataset.csv"))
+    c = pd.read_csv(os.path.join(root, "data", "raw", "sionna_channel_dataset.csv"))
+    m = t.merge(c, on=["slot_id", "cell_id"], suffixes=("", "_s"))
+    return {"rows": len(m), "gain_equal": bool(np.allclose(m.channel_gain_magnitude, m.channel_gain_magnitude_s)),
+            "los_equal": bool((m.los_visibility_flag == m.los_visibility_flag_s).all()),
+            "coords_equal": bool(np.allclose(m.cell_x_m, m.cell_global_x_m) and np.allclose(m.cell_y_m, m.cell_global_y_m))}
+
+
+def load_cell_coords(root: str | None = None) -> list[dict]:
+    """Cell centres in metres (global frame) and the region each cell belongs to, from the Sionna export."""
+    import os
+    root = root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    c = pd.read_csv(os.path.join(root, "data", "raw", "sionna_channel_dataset.csv"))
+    c = c[c.slot_id == c.slot_id.min()].sort_values("cell_id")
+    return [{"x": float(x), "y": float(y), "region": int(r)} for x, y, r in zip(c.cell_global_x_m, c.cell_global_y_m, c.region_id)]
 
 
 def load_slant_km(path: str | None = None) -> np.ndarray:
     """(T, N) slant range from the dataset, for flux-density calculations."""
     import os
-    path = path or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw", "dynamic_ntn_dataset.csv")
+    path = path or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw", "open_ntn_traffic_dataset.csv")
     df = pd.read_csv(path)
     return df.pivot(index="slot_id", columns="cell_id", values="slant_range_km").to_numpy(dtype=float)

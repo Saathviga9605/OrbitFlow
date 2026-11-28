@@ -22,6 +22,7 @@ from utils.config import REAL_TRACE, load_config  # noqa: E402
 from utils.stats import effect_label, holm, paired, summary  # noqa: E402
 
 OUT = os.path.join(ROOT, "results", "studies")
+NOCAP = 300.0          # cap equal to the whole power budget = no operating constraint
 _G: dict = {}
 
 
@@ -98,7 +99,7 @@ def emergency(ex, n):
 
 def factorial(ex, n):
     """Rain x cap. Interaction = (rain+cap - rain) - (cap - clear), on paired seeds."""
-    rains, caps = (0.0, 6.0, 12.0), (100.0, 22.0, 8.0)
+    rains, caps = (0.0, 6.0, 12.0), (NOCAP, 22.0, 8.0)
     keys = ["emergency_served_ratio", "emergency_capacity_mbps", "mean_delay_ms", "rt_sla_violation", "emergency_rt_miss_window", "cap_binding_share", "proposal_max_border_w", "max_proposed_w", "mean_sinr_db", "cap_violation_slots"]
     raw = {}
     for r in rains:
@@ -110,11 +111,11 @@ def factorial(ex, n):
     inter = {}
     for r in (6.0, 12.0):
         for c in (22.0, 8.0):
-            d = [(raw[(r, c)][i][K] - raw[(r, 100.0)][i][K]) - (raw[(0.0, c)][i][K] - raw[(0.0, 100.0)][i][K]) for i in range(n)]
+            d = [(raw[(r, c)][i][K] - raw[(r, NOCAP)][i][K]) - (raw[(0.0, c)][i][K] - raw[(0.0, NOCAP)][i][K]) for i in range(n)]
             inter[f"rain{r:.0f}_cap{c:.0f}"] = {**summary(d), **{k: v for k, v in paired(d, np.zeros(n)).items() if k in ("p", "rank_biserial", "test")}}
     from digital_twin.link_budget import sinr_limit_db
-    out = {"n_per_cell": n, "cells": cells, "main_effects": {"rain 6 dB alone": effect((6.0, 100.0), (0.0, 100.0)), "rain 12 dB alone": effect((12.0, 100.0), (0.0, 100.0)),
-                                                              "cap 22 W alone": effect((0.0, 22.0), (0.0, 100.0)), "cap 8 W alone": effect((0.0, 8.0), (0.0, 100.0))},
+    out = {"n_per_cell": n, "cells": cells, "main_effects": {"rain 6 dB alone": effect((6.0, NOCAP), (0.0, NOCAP)), "rain 12 dB alone": effect((12.0, NOCAP), (0.0, NOCAP)),
+                                                              "cap 22 W alone": effect((0.0, 22.0), (0.0, NOCAP)), "cap 8 W alone": effect((0.0, 8.0), (0.0, NOCAP))},
            "interaction_served_ratio": inter, "labels": {"cap": "Hypothetical operating constraint. No rule in the corpus sets this number."},
            "physics": {"sinr_ceiling_equal_beams_db": sinr_limit_db(25, 75, _G_cfg()["link"]["interference_isolation_db"]),
                        "sinr_ceiling_22W_vs_78W_db": sinr_limit_db(22, 78, _G_cfg()["link"]["interference_isolation_db"]),
@@ -137,7 +138,7 @@ def _pfd_task(args):
     from traffic.forecaster import prepare_forecast
     seed, gtx, on = args
     cfg = _G["cfg"]
-    tr, feed = build(_G["base"], {"border_cap_w": 100.0}, seed)
+    tr, feed = build(_G["base"], {"border_cap_w": NOCAP}, seed)
     tr.forecast = prepare_forecast(_G["fc"], tr, cfg)
     if gtx is not None:
         km = load_slant_km()
@@ -205,7 +206,7 @@ def latency(n):
 
 
 def stress():
-    """CONTROLLED stress test: the 50 W proposals are injected by this script, BRIDGE did not produce them."""
+    """CONTROLLED stress test: the half-budget proposals are injected by this script, BRIDGE did not produce them."""
     _init(_TAG)
     from agents.supervisor import Supervisor
     from bam.validator import BamGuard, Constraints, GuardState
@@ -216,14 +217,21 @@ def stress():
     from traffic.forecaster import prepare_forecast
     cfg = _G["cfg"]
 
+    N, K, P = cfg["scenario"]["n_cells"], cfg["scenario"]["k_beams"], cfg["scenario"]["p_max_w"]
+    ev = int(cfg["demo"]["event_cell"])
+    spike = P / 2                                   # half the budget on one beam (50 W of 100 W in the 19-cell study)
+    others = [c for c in range(N) if c != ev][: K - 1]
+    inj_cells = [ev] + others
+    inj_watts = [spike] + [round((P - spike) / (K - 1), 3)] * (K - 1)
+
     class Injected(Policy):
-        name = "Injected 50 W proposal"
+        name = f"Injected {spike:g} W proposal"
 
         def act(self, obs):
-            lit = np.zeros(19, bool)
-            lit[[13, 2, 5, 9]] = True
-            p = np.zeros(19)
-            p[[13, 2, 5, 9]] = [50.0, 20.0, 15.0, 15.0]
+            lit = np.zeros(N, bool)
+            lit[inj_cells] = True
+            p = np.zeros(N)
+            p[inj_cells] = inj_watts
             return Action(lit, p, priority=obs["rate_obs"])
 
     tr, feed = build(_G["base"], None, 42)
@@ -232,26 +240,26 @@ def stress():
     rec = r["records"][52].to_dict()
     cases = []
     g = BamGuard(cfg)
-    st = GuardState.fresh(19)
-    cap = np.full(19, np.inf)
+    st = GuardState.fresh(N)
+    cap = np.full(N, np.inf)
     cap[cfg["demo"]["border_cells"]] = cfg["demo"]["border_cap_w"]
 
     def case(name, lit_cells, watts, constraints=None):
-        lit = np.zeros(19, bool)
+        lit = np.zeros(N, bool)
         lit[lit_cells] = True
-        p = np.zeros(19)
+        p = np.zeros(N)
         p[lit_cells] = watts
         before = g.check(lit, p, st, 1.0, 0.0)
-        res = g.repair(lit, p, st, 1.0, 0.0, priority=np.arange(19, dtype=float), constraints=constraints)
+        res = g.repair(lit, p, st, 1.0, 0.0, priority=np.arange(N, dtype=float), constraints=constraints)
         cases.append({"case": name, "proposed": {int(c): float(w) for c, w in zip(lit_cells, watts)}, "failed_checks": [k for k, v in before.items() if v["status"] == "FAIL"],
                       "final": {int(c): round(float(res.power[c]), 2) for c in np.where(res.lit)[0]}, "notes": res.notes, "total_w": round(float(res.power.sum()), 2), "final_ok": res.ok,
                       "cap_respected": bool((res.power <= cap + 1e-6).all()) if constraints else None})
-    case("50 W on a capped border cell", [13, 2, 5, 9], [50, 20, 15, 15], Constraints(power_cap=cap))
-    case("200 W total, over the 100 W budget", [1, 2, 3, 4], [50, 50, 50, 50])
-    case("6 beams when only 4 are allowed", [1, 2, 3, 4, 5, 6], [15, 15, 15, 15, 15, 15])
-    case("0.5 W beam under the 2 W floor", [1, 2, 3, 4], [0.5, 33, 33, 33])
+    case(f"{spike:g} W on a capped border cell", inj_cells, inj_watts, Constraints(power_cap=cap))
+    case(f"{2 * P:g} W total, over the {P:g} W budget", list(range(K)), [2 * P / K] * K)
+    case(f"{K + 2} beams when only {K} are allowed", list(range(K + 2)), [P / (K + 2)] * (K + 2))
+    case("0.5 W beam under the 2 W floor", list(range(K)), [0.5] + [round((P - 0.5) / (K - 1), 3)] * (K - 1))
 
-    # Would BRIDGE ever propose 50 W on its own? Look across many episodes and kinds.
+    # Would BRIDGE ever propose half the budget on one beam on its own? Look across many episodes and kinds.
     from traffic.generator import make_trace
     shares = []
     for ck in _G["ckpts"]:
@@ -268,11 +276,11 @@ def stress():
                 o = tw.obs()
     shares = np.array(shares)
     out = {"label": "CONTROLLED CONSTRAINT STRESS TEST. Proposals are injected by scripts/run_studies.py. Not produced by BRIDGE; not part of the flood-relief replay.",
-           "flood_injection": {"slot": 52, "applicable_cap_w": cfg["demo"]["border_cap_w"], "cap_status": "hypothetical operating constraint", "proposed": rec["proposed"], "constraints": rec["constraints"],
+           "flood_injection": {"slot": 52, "cell": ev, "spike_w": spike, "applicable_cap_w": cfg["demo"]["border_cap_w"], "cap_status": "hypothetical operating constraint", "proposed": rec["proposed"], "constraints": rec["constraints"],
                                "policy_findings": [{k: f[k] for k in ("rule_id", "status", "evidence_status", "detail")} for f in rec["policy_findings"]], "final": rec["final"], "repairs": rec["repairs"], "decision": rec["decision"]},
            "run_summary": {"cap_violation_slots": r["kpis"]["cap_violation_slots"], "human_reviews": r["kpis"]["human_reviews"], "first_review": r["human_review"][0] if r["human_review"] else None},
            "guard_cases": cases,
-           "natural_bridge_power": {"episodes": len(_G["ckpts"]) * 40, "decisions": len(shares), "max_w": float(shares.max()), "p99_w": float(np.percentile(shares, 99)), "median_max_beam_w": float(np.median(shares)), "share_over_50w": float((shares >= 50).mean()), "share_over_22w": float((shares > 22).mean()),
+           "natural_bridge_power": {"episodes": len(_G["ckpts"]) * 40, "decisions": len(shares), "max_w": float(shares.max()), "p99_w": float(np.percentile(shares, 99)), "median_max_beam_w": float(np.median(shares)), "spike_w": spike, "share_over_spike": float((shares >= spike).mean()), "share_over_50w": float((shares >= 50).mean()), "share_over_22w": float((shares > 22).mean()),
                                     "explanation": "Capacity grows with the log of SINR and interference sets a ceiling, so concentrating power gains little and costs other beams. Large shares are rare but do occur."}}
     json.dump(out, open(os.path.join(OUT, "stress_test.json"), "w"), indent=1)
     print(out["natural_bridge_power"], cases[0], out["run_summary"], flush=True)
@@ -290,7 +298,7 @@ def _sens_task(args):
     t = make_trace(kind, _G["base"], seed)
     t.forecast = prepare_forecast(_G["fc"], t, cfg)
     keys = ("mean_sinr_db", "throughput_mbps", "served_ratio", "mean_delay_ms", "rt_sla_violation", "packet_loss", "beam_switches_per_slot", "energy_j")
-    a = run_episode(t, cfg, ReactiveGreedy(19, 4, 100.0))
+    a = run_episode(t, cfg, ReactiveGreedy(cfg["scenario"]["n_cells"], cfg["scenario"]["k_beams"], cfg["scenario"]["p_max_w"]))
     b = run_episode(t, cfg, BridgePolicy(cfg, _G["ckpts"][seed % len(_G["ckpts"])]))
     return {"reactive": {k: a[k] for k in keys}, "bridge": {k: b[k] for k in keys}}
 
@@ -328,7 +336,8 @@ def bc_diagnostics():
     guard = BamGuard(cfg)
     rows = {}
     for kind in ("normal", "block", "event_surge", "bursty", "mixed"):
-        sel, power_share, valid, overlap, hot_hit, n = np.zeros(19), [], [], [], [], 0
+        K = cfg["scenario"]["k_beams"]
+        sel, power_share, valid, overlap, hot_hit, n = np.zeros(cfg["scenario"]["n_cells"]), [], [], [], [], 0
         for i in range(30):
             t = make_trace(kind, _G["base"], 80000 + i)
             t.forecast = prepare_forecast(_G["fc"], t, cfg)
@@ -340,16 +349,16 @@ def bc_diagnostics():
                 valid.append(all(c["status"] == "PASS" for c in chk.values()))
                 sel += a.lit
                 power_share.append(float(a.power.max() / a.power.sum()))
-                top = set(np.argsort(-t.rate[o["t"]])[:4].tolist())
-                hot_hit.append(len(top & set(np.where(a.lit)[0].tolist())) / 4)
+                top = set(np.argsort(-t.rate[o["t"]])[:K].tolist())
+                hot_hit.append(len(top & set(np.where(a.lit)[0].tolist())) / K)
                 if bc:
-                    overlap.append(len(set(np.where(bc.act(o).lit)[0].tolist()) & set(np.where(a.lit)[0].tolist())) / 4)
+                    overlap.append(len(set(np.where(bc.act(o).lit)[0].tolist()) & set(np.where(a.lit)[0].tolist())) / K)
                 n += 1
                 res = guard.repair(a.lit, a.power, o["guard"], o["ssb"], o["sib"], priority=a.priority)
                 tw.step(res.lit, res.power)
                 o = tw.obs()
-        rows[kind] = {"decisions": n, "valid_share": float(np.mean(valid)), "cell_selection_share_min": float(sel.min() / sel.sum() * 4), "cell_selection_share_max": float(sel.max() / sel.sum() * 4),
-                      "max_beam_power_share_mean": float(np.mean(power_share)), "hottest4_coverage": float(np.mean(hot_hit)), "bc_teacher_beam_overlap": float(np.mean(overlap)) if overlap else None}
+        rows[kind] = {"decisions": n, "valid_share": float(np.mean(valid)), "cell_selection_share_min": float(sel.min() / sel.sum() * K), "cell_selection_share_max": float(sel.max() / sel.sum() * K),
+                      "max_beam_power_share_mean": float(np.mean(power_share)), "hottestK_coverage": float(np.mean(hot_hit)), "hottest4_coverage": float(np.mean(hot_hit)), "bc_teacher_beam_overlap": float(np.mean(overlap)) if overlap else None}
         print(kind, rows[kind], flush=True)
     json.dump({"teacher": "HeuristicPredictive, the hand-written rule the clone imitates", "kinds": rows}, open(os.path.join(OUT, "bc_diagnostics.json"), "w"), indent=1)
 

@@ -179,3 +179,12 @@ Honest notes from the suite:
 - **The Safety agent's need-based emergency forcing.** Sweeping its trigger (0.2–0.6 of the delay budget) trades about 0.5 ms of mean delay against about 2 points of emergency service. The default (0.3) keeps emergency RT violations at 0 with the best service among compliant variants.
 
 **Fairer comparisons in the suite.** Baselines now face the same injected telemetry and network faults as OrbitFlow (previously only OrbitFlow was faulted in S6/S10). A compliant baseline "BRIDGE + guard, cap enforced" is added. Among controllers that respect the cap, OrbitFlow serves the most emergency traffic.
+
+## 13. Changes for the 58-cell dataset (v3)
+
+- **Cell set is data-driven.** Cell count, coordinates and regions come from `sionna_channel_dataset.csv` (`traffic/dataset.py:load_cell_coords`). Nothing in the agents assumes 19 cells or 4 beams.
+- **Profiles.** Border cells are now `[22, 23, 24, 31, 32, 33]` (where regions 2 and 3 meet), the flood cells are 23 and 24, and the 22 W border cap is unchanged. With 300 W across 12 beams, the equal share is 25 W, so the cap binds at the same relative level as before.
+- **Demand thresholds scaled ×4.5** to match the new demand level: forecast alert floor 45 Mbps, uncertainty gate 22.5 Mbps, state-drift reporting 45 Mbps (36 Mbps in the stricter UAE-style profile).
+- **S9 cross-context check.** It now compares network KPIs only. The stricter profile (55% per-beam share limit) reviews more decisions in normal traffic (10 vs 7) while executing identical actions. That is intended, and the count is reported as `normal_deliberations_by_profile`.
+- **Stress test.** The injected spike is half the budget (150 W) on flood cell 23; it executes at 22 W with a human review.
+- **Serviceable lateness.** The twin now reports `rt_sla_violation_servable` and `rt_late_unavoidable_share`. The hero, problem and results views lead with them, because most lateness at 36% line of sight is physically unavoidable.

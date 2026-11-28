@@ -4,47 +4,52 @@
   "normal": {
    "decisions": 3000,
    "valid_share": 1.0,
-   "cell_selection_share_min": 0.20366666666666666,
-   "cell_selection_share_max": 0.224,
-   "max_beam_power_share_mean": 0.27651793100505334,
-   "hottest4_coverage": 0.20875,
-   "bc_teacher_beam_overlap": 0.9569166666666666
+   "cell_selection_share_min": 0.10433333333333333,
+   "cell_selection_share_max": 0.5526666666666666,
+   "max_beam_power_share_mean": 0.27114293892266605,
+   "hottestK_coverage": 0.2131111111111111,
+   "hottest4_coverage": 0.2131111111111111,
+   "bc_teacher_beam_overlap": 0.909611111111111
   },
   "block": {
    "decisions": 3000,
    "valid_share": 1.0,
-   "cell_selection_share_min": 0.18766666666666668,
-   "cell_selection_share_max": 0.24233333333333335,
-   "max_beam_power_share_mean": 0.30113469061096193,
-   "hottest4_coverage": 0.42825,
-   "bc_teacher_beam_overlap": 0.9490833333333333
+   "cell_selection_share_min": 0.10166666666666668,
+   "cell_selection_share_max": 0.541,
+   "max_beam_power_share_mean": 0.31385881848802216,
+   "hottestK_coverage": 0.26225,
+   "hottest4_coverage": 0.26225,
+   "bc_teacher_beam_overlap": 0.9155833333333333
   },
   "event_surge": {
    "decisions": 3000,
    "valid_share": 1.0,
-   "cell_selection_share_min": 0.19033333333333333,
-   "cell_selection_share_max": 0.244,
-   "max_beam_power_share_mean": 0.3093735531148826,
-   "hottest4_coverage": 0.28791666666666665,
-   "bc_teacher_beam_overlap": 0.889
+   "cell_selection_share_min": 0.10099999999999999,
+   "cell_selection_share_max": 0.5496666666666667,
+   "max_beam_power_share_mean": 0.28672491773821607,
+   "hottestK_coverage": 0.2301111111111111,
+   "hottest4_coverage": 0.2301111111111111,
+   "bc_teacher_beam_overlap": 0.9150277777777777
   },
   "bursty": {
    "decisions": 3000,
    "valid_share": 1.0,
-   "cell_selection_share_min": 0.2,
-   "cell_selection_share_max": 0.22666666666666666,
-   "max_beam_power_share_mean": 0.319173710834343,
-   "hottest4_coverage": 0.24991666666666668,
-   "bc_teacher_beam_overlap": 0.8316666666666667
+   "cell_selection_share_min": 0.09633333333333333,
+   "cell_selection_share_max": 0.5566666666666666,
+   "max_beam_power_share_mean": 0.30249581750956644,
+   "hottestK_coverage": 0.20322222222222225,
+   "hottest4_coverage": 0.20322222222222225,
+   "bc_teacher_beam_overlap": 0.8733333333333333
   },
   "mixed": {
    "decisions": 3000,
    "valid_share": 1.0,
-   "cell_selection_share_min": 0.176,
-   "cell_selection_share_max": 0.24666666666666667,
-   "max_beam_power_share_mean": 0.3171213017939283,
-   "hottest4_coverage": 0.35341666666666666,
-   "bc_teacher_beam_overlap": 0.9025833333333333
+   "cell_selection_share_min": 0.09633333333333333,
+   "cell_selection_share_max": 0.5573333333333332,
+   "max_beam_power_share_mean": 0.3228504914058773,
+   "hottestK_coverage": 0.2477222222222222,
+   "hottest4_coverage": 0.2477222222222222,
+   "bc_teacher_beam_overlap": 0.9153611111111112
   }
  }
 }

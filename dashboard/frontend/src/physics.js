@@ -11,6 +11,9 @@ export function step(s, p, lit, power) {
   const N = lit.length;
   const rate = p.rate[t]; const gain = p.gain_db[t].map((g) => 10 ** (g / 10));
   const total = power.reduce((a, b, i) => a + (lit[i] ? b : 0), 0);
+  const pw = power.map((w, i) => (lit[i] ? w : 0));
+  // interference: distance-aware leakage matrix when exported (58-cell model), else uniform leakage
+  const leak = (c) => (p.eps_mat ? p.eps_mat[c].reduce((a, e, j) => a + e * pw[j], 0) : p.eps * (total - pw[c]));
   const overhead = 1 - p.ssb_overhead * p.ssb[t] - p.sib_overhead * p.sib[t];
   const arrived = []; const served = []; const dropped = []; const cap = [];
   for (let c = 0; c < N; c++) {
@@ -18,8 +21,8 @@ export function step(s, p, lit, power) {
     s.qRt[c] += arr * p.rt_share;
     s.qNrt[c] += arr * (1 - p.rt_share);
     const own = lit[c] ? power[c] : 0;
-    const sinr = lit[c] ? (own * gain[c] * p.gain_lin) / (p.noise_w + p.eps * p.gain_lin * gain[c] * (total - own)) : 0;
-    const mbps = sinr >= p.sinr_min && p.los[t][c] > 0 ? (p.bw_hz * Math.log2(1 + sinr) * overhead) / 1e6 : 0;
+    const sinr = lit[c] ? (own * gain[c] * p.gain_lin) / (p.noise_w + p.gain_lin * gain[c] * leak(c)) : 0;
+    const mbps = sinr >= p.sinr_min && (!p.require_los || p.los[t][c] > 0) ? (p.bw_hz * Math.log2(1 + sinr) * overhead) / 1e6 : 0;
     const capKb = mbps * p.slot_ms;
     const srvRt = Math.min(s.qRt[c], capKb);
     const srvNrt = Math.min(s.qNrt[c], capKb - srvRt);

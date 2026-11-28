@@ -22,6 +22,7 @@ from digital_twin.environment import NTNTwin, summarise
 from rag.retriever import KnowledgeBase, answer
 
 RULES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policy_rules.yaml")
+RATE_REF = 181.0    # hotspot level of the dataset (traffic/generator.py HOT); rationale wording only
 
 
 class NetworkAgent:
@@ -37,7 +38,7 @@ class NetworkAgent:
         if obs.get("forecast") is not None:
             growth = obs["forecast"][:, 2] - obs["rate_obs"]
             c = int(np.argmax(growth))
-            if growth[c] > 3:
+            if growth[c] > 0.075 * RATE_REF:
                 parts.append(f"forecast sees cell {c} rising {growth[c]:.1f} Mbps within 3 slots")
         rt = obs["q_rt"]
         worst = int(np.argmax(rt))
@@ -224,7 +225,7 @@ class Supervisor:
         self.fail_closed_cap = float(rs.get("fail_closed_cap_w", cfg["demo"]["border_cap_w"]))
         self.budget_ms = float(rs.get("decision_budget_ms", cfg["scenario"]["slot_ms"]))
         self.max_bad_share = float(rs.get("max_bad_telemetry_share", 0.25))
-        self.drift_mbps = float(rs.get("state_drift_mbps", 10.0))
+        self.drift_mbps = float(rs.get("state_drift_mbps", 45.0))
 
     # ------------------------------------------------------------ coordination helpers
     def _validate_obs(self, obs, t):
@@ -356,7 +357,7 @@ class Supervisor:
                 f, cur = obs["forecast"][:, 2], np.maximum(obs["rate_obs"], 1.0)
                 ratio = f / cur
                 # 10 Mbps floor: a doubling of a cold cell's 2 Mbps is noise, not a surge
-                hit = np.where((ratio >= self.cfg["agents"]["forecast_alert_ratio"]) & (f > 10.0))[0]
+                hit = np.where((ratio >= self.cfg["agents"]["forecast_alert_ratio"]) & (f > self.cfg["agents"].get("forecast_alert_floor_mbps", 45.0)))[0]
                 if len(hit):
                     alerted = True
                     c = int(hit[np.argmax(f[hit])])

@@ -59,8 +59,8 @@ def result(name: str):
 @app.post("/api/simulate")
 def simulate(cap_w: float = 22.0, fade_db: float = 6.0, seed: int = 42, agents: bool = True):
     """Run flood-relief through forecaster, BRIDGE, agents, guard and twin. Takes about a second."""
-    if not 2.0 <= cap_w <= 100.0 or not 0.0 <= fade_db <= 20.0:
-        raise HTTPException(422, "cap_w must be in [2, 100] and fade_db in [0, 20]")
+    if not 2.0 <= cap_w <= 300.0 or not 0.0 <= fade_db <= 20.0:
+        raise HTTPException(422, "cap_w must be in [2, 300] and fade_db in [0, 20]")
     s = _load()
     trace, feed = build(s["base"], {"border_cap_w": cap_w, "fade_db": fade_db}, seed)
     trace.forecast = prepare_forecast(s["forecaster"], trace, s["cfg"])
@@ -134,8 +134,8 @@ def policy_run(profile: str = "baseline-intl", cap_w: float | None = None, exemp
     from scenarios.suite import run_custom
     if exemption is not None and exemption not in EXEMPTION_MODES:
         raise HTTPException(422, f"exemption must be one of {EXEMPTION_MODES}")
-    if (cap_w is not None and not 2.0 <= cap_w <= 100.0) or (fade_db is not None and not 0.0 <= fade_db <= 20.0) or not 0 <= seed <= 100000:
-        raise HTTPException(422, "cap_w in [2, 100], fade_db in [0, 20], seed in [0, 100000]")
+    if (cap_w is not None and not 2.0 <= cap_w <= 300.0) or (fade_db is not None and not 0.0 <= fade_db <= 20.0) or not 0 <= seed <= 100000:
+        raise HTTPException(422, "cap_w in [2, 300], fade_db in [0, 20], seed in [0, 100000]")
     try:
         r = run_custom(_rt(), profile, cap_w, fade_db, seed, exemption, with_baselines=True)
     except KeyError as e:
@@ -163,8 +163,8 @@ def interpret_api(text: str, run: bool = True, lang: str | None = None):
         p = it["params"]
         if it["scenario_id"] == "custom_flood":
             cap = p.get("cap_w")
-            if cap is not None and not 2.0 <= cap <= 100.0:
-                raise HTTPException(422, "cap_w must be in [2, 100]")
+            if cap is not None and not 2.0 <= cap <= 300.0:
+                raise HTTPException(422, "cap_w must be in [2, 300]")
             r = run_custom(_rt(), it["profile_id"] or "baseline-intl", cap, p.get("fade_db"), p.get("seed", 42), with_baselines=True)
         else:
             r = run_scenario(it["scenario_id"], seed=p.get("seed"), profile_id=it["profile_id"], rt=_rt())

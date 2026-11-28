@@ -14,10 +14,14 @@ class GreedyHigh(Policy):
     """Always pushes high power at the event cell, so the cap conflict must trigger."""
 
     def act(self, obs):
-        lit = np.zeros(19, bool)
-        lit[[13, 14, 2, 5]] = True
-        p = np.zeros(19)
-        p[[13, 14, 2, 5]] = [55, 25, 10, 10]
+        cfg = load_config()
+        n, k = cfg["scenario"]["n_cells"], cfg["scenario"]["k_beams"]
+        em = cfg["demo"]["emergency_cells"]                       # both emergency cells are border (capped) cells
+        cells = em + [c for c in range(n) if c not in em][: k - len(em)]
+        lit = np.zeros(n, bool)
+        lit[cells] = True
+        p = np.zeros(n)
+        p[cells] = [165.0, 75.0] + [6.0] * (k - 2)                # 55% and 25% of the budget, as in the 19-cell test
         return Action(lit, p, priority=obs["rate_obs"])
 
 

@@ -2,31 +2,49 @@
  "label": "CONTROLLED CONSTRAINT STRESS TEST. Proposals are injected by scripts/run_studies.py. Not produced by BRIDGE; not part of the flood-relief replay.",
  "flood_injection": {
   "slot": 52,
+  "cell": 23,
+  "spike_w": 150.0,
   "applicable_cap_w": 22.0,
   "cap_status": "hypothetical operating constraint",
   "proposed": {
    "beams": [
+    0,
+    1,
     2,
+    3,
+    4,
     5,
+    6,
+    7,
+    8,
     9,
-    13
+    10,
+    23
    ],
    "power_w": {
-    "2": 20.0,
-    "5": 15.0,
-    "9": 15.0,
-    "13": 50.0
+    "0": 13.64,
+    "1": 13.64,
+    "2": 13.64,
+    "3": 13.64,
+    "4": 13.64,
+    "5": 13.64,
+    "6": 13.64,
+    "7": 13.64,
+    "8": 13.64,
+    "9": 13.64,
+    "10": 13.64,
+    "23": 150.0
    },
-   "p_total_w": 100.0
+   "p_total_w": 300.0
   },
   "constraints": {
    "beam_count": {
     "status": "PASS",
-    "detail": "4 lit, K=4"
+    "detail": "12 lit, K=12"
    },
    "power_budget": {
     "status": "PASS",
-    "detail": "sum=100.0 W, Pmax=100 W"
+    "detail": "sum=300.0 W, Pmax=300 W"
    },
    "power_floor": {
     "status": "PASS",
@@ -38,15 +56,15 @@
    },
    "dynamic_power_cap": {
     "status": "FAIL",
-    "detail": "cells [13] exceed dynamic power caps"
+    "detail": "cells [23] exceed dynamic power caps"
    },
    "dynamic_min_power": {
     "status": "PASS",
     "detail": "within dynamic minimum powers"
    },
    "forced_lit": {
-    "status": "PASS",
-    "detail": "all required cells lit"
+    "status": "FAIL",
+    "detail": "required cells [24] are dark"
    },
    "forbidden_lit": {
     "status": "PASS",
@@ -58,139 +76,218 @@
     "rule_id": "R1_border_power_cap",
     "status": "FAIL",
     "evidence_status": "FOUND",
-    "detail": "cells [13] exceed 22 W"
+    "detail": "cells [23] exceed 22 W"
    }
   ],
   "final": {
    "beams": [
+    0,
+    1,
     2,
+    3,
+    4,
     5,
+    6,
+    8,
     9,
-    13
+    10,
+    23,
+    24
    ],
    "power_w": {
-    "2": 29.33,
-    "5": 24.33,
-    "9": 24.33,
-    "13": 22.0
+    "0": 25.6,
+    "1": 25.6,
+    "2": 25.6,
+    "3": 25.6,
+    "4": 25.6,
+    "5": 25.6,
+    "6": 25.6,
+    "8": 25.6,
+    "9": 25.6,
+    "10": 25.6,
+    "23": 22.0,
+    "24": 22.0
    },
-   "p_total_w": 100.0
+   "p_total_w": 300.0
   },
-  "repairs": [],
+  "repairs": [
+   "dropped cell 7 (lowest priority) to respect K",
+   "forced cells [24] on for timing or dynamic constraints"
+  ],
   "decision": "REPAIRED"
  },
  "run_summary": {
   "cap_violation_slots": 0,
-  "human_reviews": 11,
+  "human_reviews": 13,
   "first_review": {
-   "kind": "cap_conflict",
-   "slot": 50,
+   "kind": "sustained_shortfall",
+   "slot": 40,
    "cells": [
-    13
+    23,
+    24
    ],
-   "dark_after_repair": [],
-   "demand_mbps": 40.4,
-   "capacity_mbps": 53.9,
-   "capacity_lost_mbps": 22.3,
-   "shortfall_mbps": 0.0,
-   "proposed_w": {
-    "13": 50.0
-   },
-   "final_w": {
-    "13": 22.0
-   },
-   "reason": "Operating constraint conflicts with emergency service and no exemption passage was found in the corpus."
+   "demand_mbps": 252.2,
+   "capacity_mbps": 0.0,
+   "capacity_lost_mbps": 0.0,
+   "shortfall_mbps": 252.2,
+   "proposed_w": {},
+   "final_w": {},
+   "reason": "Emergency capacity has been below demand for 5 slots."
   }
  },
  "guard_cases": [
   {
-   "case": "50 W on a capped border cell",
+   "case": "150 W on a capped border cell",
    "proposed": {
-    "13": 50.0,
-    "2": 20.0,
-    "5": 15.0,
-    "9": 15.0
+    "23": 150.0,
+    "0": 13.636,
+    "1": 13.636,
+    "2": 13.636,
+    "3": 13.636,
+    "4": 13.636,
+    "5": 13.636,
+    "6": 13.636,
+    "7": 13.636,
+    "8": 13.636,
+    "9": 13.636,
+    "10": 13.636
    },
    "failed_checks": [],
    "final": {
-    "2": 29.33,
-    "5": 24.33,
-    "9": 24.33,
-    "13": 22.0
+    "0": 25.27,
+    "1": 25.27,
+    "2": 25.27,
+    "3": 25.27,
+    "4": 25.27,
+    "5": 25.27,
+    "6": 25.27,
+    "7": 25.27,
+    "8": 25.27,
+    "9": 25.27,
+    "10": 25.27,
+    "23": 22.0
    },
    "notes": [],
-   "total_w": 100.0,
+   "total_w": 300.0,
    "final_ok": true,
    "cap_respected": true
   },
   {
-   "case": "200 W total, over the 100 W budget",
+   "case": "600 W total, over the 300 W budget",
    "proposed": {
+    "0": 50.0,
     "1": 50.0,
     "2": 50.0,
     "3": 50.0,
-    "4": 50.0
+    "4": 50.0,
+    "5": 50.0,
+    "6": 50.0,
+    "7": 50.0,
+    "8": 50.0,
+    "9": 50.0,
+    "10": 50.0,
+    "11": 50.0
    },
    "failed_checks": [
     "power_budget"
    ],
    "final": {
+    "0": 25.0,
     "1": 25.0,
     "2": 25.0,
     "3": 25.0,
-    "4": 25.0
+    "4": 25.0,
+    "5": 25.0,
+    "6": 25.0,
+    "7": 25.0,
+    "8": 25.0,
+    "9": 25.0,
+    "10": 25.0,
+    "11": 25.0
    },
    "notes": [],
-   "total_w": 100.0,
+   "total_w": 300.0,
    "final_ok": true,
    "cap_respected": null
   },
   {
-   "case": "6 beams when only 4 are allowed",
+   "case": "14 beams when only 12 are allowed",
    "proposed": {
-    "1": 15.0,
-    "2": 15.0,
-    "3": 15.0,
-    "4": 15.0,
-    "5": 15.0,
-    "6": 15.0
+    "0": 21.428571428571427,
+    "1": 21.428571428571427,
+    "2": 21.428571428571427,
+    "3": 21.428571428571427,
+    "4": 21.428571428571427,
+    "5": 21.428571428571427,
+    "6": 21.428571428571427,
+    "7": 21.428571428571427,
+    "8": 21.428571428571427,
+    "9": 21.428571428571427,
+    "10": 21.428571428571427,
+    "11": 21.428571428571427,
+    "12": 21.428571428571427,
+    "13": 21.428571428571427
    },
    "failed_checks": [
     "beam_count"
    ],
    "final": {
-    "3": 15.0,
-    "4": 15.0,
-    "5": 15.0,
-    "6": 15.0
+    "2": 21.43,
+    "3": 21.43,
+    "4": 21.43,
+    "5": 21.43,
+    "6": 21.43,
+    "7": 21.43,
+    "8": 21.43,
+    "9": 21.43,
+    "10": 21.43,
+    "11": 21.43,
+    "12": 21.43,
+    "13": 21.43
    },
    "notes": [
-    "dropped cell 1 (lowest priority) to respect K",
-    "dropped cell 2 (lowest priority) to respect K"
+    "dropped cell 0 (lowest priority) to respect K",
+    "dropped cell 1 (lowest priority) to respect K"
    ],
-   "total_w": 60.0,
+   "total_w": 257.14,
    "final_ok": true,
    "cap_respected": null
   },
   {
    "case": "0.5 W beam under the 2 W floor",
    "proposed": {
-    "1": 0.5,
-    "2": 33.0,
-    "3": 33.0,
-    "4": 33.0
+    "0": 0.5,
+    "1": 27.227,
+    "2": 27.227,
+    "3": 27.227,
+    "4": 27.227,
+    "5": 27.227,
+    "6": 27.227,
+    "7": 27.227,
+    "8": 27.227,
+    "9": 27.227,
+    "10": 27.227,
+    "11": 27.227
    },
    "failed_checks": [
     "power_floor"
    ],
    "final": {
-    "1": 2.0,
-    "2": 32.5,
-    "3": 32.5,
-    "4": 32.5
+    "0": 2.0,
+    "1": 27.09,
+    "2": 27.09,
+    "3": 27.09,
+    "4": 27.09,
+    "5": 27.09,
+    "6": 27.09,
+    "7": 27.09,
+    "8": 27.09,
+    "9": 27.09,
+    "10": 27.09,
+    "11": 27.09
    },
    "notes": [],
-   "total_w": 99.5,
+   "total_w": 300.0,
    "final_ok": true,
    "cap_respected": null
   }
@@ -198,10 +295,12 @@
  "natural_bridge_power": {
   "episodes": 200,
   "decisions": 20000,
-  "max_w": 84.49569518303757,
-  "p99_w": 40.74819422043624,
-  "median_max_beam_w": 27.582077956503078,
-  "share_over_50w": 0.00285,
+  "max_w": 249.980370327355,
+  "p99_w": 231.49817961908755,
+  "median_max_beam_w": 52.72599297666679,
+  "spike_w": 150.0,
+  "share_over_spike": 0.10585,
+  "share_over_50w": 0.52425,
   "share_over_22w": 1.0,
   "explanation": "Capacity grows with the log of SINR and interference sets a ceiling, so concentrating power gains little and costs other beams. Large shares are rare but do occur."
  }

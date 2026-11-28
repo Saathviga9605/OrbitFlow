@@ -8,7 +8,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-RATE_SCALE = 40.0
+RATE_SCALE = 200.0          # ~ hotspot level (181 Mbps) in the 58-cell dataset; was 40 for the 19-cell trace
+DIFF_SCALE = 45.0           # slot-to-slot change scale; was 10 (scaled with the hotspot level, x4.5)
 N_INPUT = 6
 
 
@@ -24,8 +25,8 @@ def window_features(rate: np.ndarray, window: int) -> np.ndarray:
     total = win.sum(axis=1, keepdims=True) / (N * RATE_SCALE)
     rising = (diff > 0).mean(axis=1, keepdims=True)
     return np.stack([
-        win / RATE_SCALE, diff / 10.0,
-        np.broadcast_to(mean / RATE_SCALE, win.shape), np.broadcast_to(std / 10.0, win.shape),
+        win / RATE_SCALE, diff / DIFF_SCALE,
+        np.broadcast_to(mean / RATE_SCALE, win.shape), np.broadcast_to(std / DIFF_SCALE, win.shape),
         np.broadcast_to(total, win.shape), np.broadcast_to(rising, win.shape),
     ], axis=-1).astype(np.float32)
 
@@ -75,7 +76,7 @@ def persistence_trace(trace, lag: int = 1, horizon: int = 3) -> np.ndarray:
     return np.repeat(last[..., None], horizon, axis=-1)
 
 
-def gate_forecast(trace, forecast: np.ndarray, lag: int = 1, window: int = 5, limit_mbps: float = 5.0) -> np.ndarray:
+def gate_forecast(trace, forecast: np.ndarray, lag: int = 1, window: int = 5, limit_mbps: float = 22.5) -> np.ndarray:
     """Causal uncertainty gate: a cell whose recent forecast error is large falls back to repeat-last.
 
     The error at slot t only compares earlier forecasts with demand already observed by t-lag.
@@ -96,4 +97,4 @@ def gate_forecast(trace, forecast: np.ndarray, lag: int = 1, window: int = 5, li
 
 def prepare_forecast(fc: "Forecaster", trace, cfg: dict) -> np.ndarray:
     f = fc.predict_trace(trace, 1)
-    return gate_forecast(trace, f, 1) if cfg["predictor"].get("gate") else f
+    return gate_forecast(trace, f, 1, limit_mbps=cfg["predictor"].get("gate_limit_mbps", 22.5)) if cfg["predictor"].get("gate") else f

@@ -288,16 +288,18 @@
    "effective_date": "2026-03-01",
    "status": "ILLUSTRATIVE",
    "provenance_note": "Illustrative only. Values were chosen to show a stricter operator configuration: a lower border cap, no automatic emergency exemption, and faster escalation. The corpus holds no UAE telecommunications regulation; replace these values with verified requirements before any real use.",
-   "fingerprint": "ed7f0dafa661",
+   "fingerprint": "16d6ef0bbe67",
    "file": "policy/profiles/uae_demo.yaml",
    "operating_constraints": {
     "border_power_cap": {
      "enabled": true,
      "cells": [
-      13,
-      14,
-      15,
-      16
+      22,
+      23,
+      24,
+      31,
+      32,
+      33
      ],
      "cap_w": 16.0,
      "onset_slot": 50,
@@ -318,7 +320,7 @@
     "fail_closed_cap_w": 12.0,
     "decision_budget_ms": 10.0,
     "max_bad_telemetry_share": 0.15,
-    "state_drift_mbps": 8.0
+    "state_drift_mbps": 36.0
    },
    "governance_rules": [
     {
@@ -364,8 +366,8 @@
        "safety.emergency_priority"
       ],
       "cells": [
-       13,
-       14
+       23,
+       24
       ],
       "resolution": "cap binds; reduced emergency capacity is logged as a conflict and not escalated"
      }
@@ -452,16 +454,18 @@
    "effective_date": "2026-01-01",
    "status": "ILLUSTRATIVE",
    "provenance_note": "Parameter values are OrbitFlow modelling choices, not taken from any national rule. The 22 W border cap is a hypothetical operating constraint. Rule evidence comes from the knowledge base and is quoted verbatim where found.",
-   "fingerprint": "1918022628c6",
+   "fingerprint": "7ab6bc652bac",
    "file": "policy/profiles/baseline_intl.yaml",
    "operating_constraints": {
     "border_power_cap": {
      "enabled": true,
      "cells": [
-      13,
-      14,
-      15,
-      16
+      22,
+      23,
+      24,
+      31,
+      32,
+      33
      ],
      "cap_w": 22.0,
      "onset_slot": 50,
@@ -482,7 +486,7 @@
     "fail_closed_cap_w": 22.0,
     "decision_budget_ms": 10.0,
     "max_bad_telemetry_share": 0.25,
-    "state_drift_mbps": 10.0
+    "state_drift_mbps": 45.0
    },
    "governance_rules": [
     {
@@ -530,8 +534,8 @@
        "safety.emergency_priority"
       ],
       "cells": [
-       13,
-       14
+       23,
+       24
       ],
       "resolution": "cap binds; every slot it reduces an emergency beam is sent for human review"
      }
@@ -646,16 +650,18 @@
    "effective_date": "2026-03-01",
    "status": "ILLUSTRATIVE",
    "provenance_note": "Illustrative only. The automatic emergency exemption is a demonstration choice; the corpus search for an emergency exemption from a power limit found no passage (rule R5). Responsible-AI rules are checked against NITI Aayog documents in the knowledge base.",
-   "fingerprint": "f19af3923952",
+   "fingerprint": "3cce48f082dd",
    "file": "policy/profiles/india_demo.yaml",
    "operating_constraints": {
     "border_power_cap": {
      "enabled": true,
      "cells": [
-      13,
-      14,
-      15,
-      16
+      22,
+      23,
+      24,
+      31,
+      32,
+      33
      ],
      "cap_w": 22.0,
      "onset_slot": 50,
@@ -676,7 +682,7 @@
     "fail_closed_cap_w": 22.0,
     "decision_budget_ms": 10.0,
     "max_bad_telemetry_share": 0.25,
-    "state_drift_mbps": 10.0
+    "state_drift_mbps": 45.0
    },
    "governance_rules": [
     {
@@ -726,8 +732,8 @@
        "safety.emergency_priority"
       ],
       "cells": [
-       13,
-       14
+       23,
+       24
       ],
       "resolution": "emergency cells are exempt from the cap; each exempted slot is logged"
      }
@@ -979,7 +985,7 @@
     "implementation_evidence": [
      "docs/data_provenance.md",
      "tests/test_channel.py",
-     "results/multirun.json (pass:openntn_sionna)"
+     "results/multirun.json (pass:arrivals)"
     ],
     "status": "partial",
     "not_implemented": "Channel models are not run live; the second test trace is an offline OpenNTN/Sionna output. 3GPP documents are not in the corpus.",
@@ -987,7 +993,7 @@
     "evidence_present": {
      "docs/data_provenance.md": true,
      "tests/test_channel.py": true,
-     "results/multirun.json (pass:openntn_sionna)": true
+     "results/multirun.json (pass:arrivals)": true
     }
    },
    {
@@ -1871,12 +1877,12 @@
   },
   {
    "file": "tests/test_i18n.py",
-   "tests": 7,
+   "tests": 9,
    "about": "Multilingual input and output: locale completeness, language detection, digit handling, explanations."
   },
   {
    "file": "tests/test_link_budget.py",
-   "tests": 11,
+   "tests": 13,
    "about": "Link-budget equations checked against hand-calculable references, the dataset, and the twin."
   },
   {
@@ -1916,7 +1922,7 @@
   },
   {
    "file": "tests/test_system.py",
-   "tests": 22,
+   "tests": 23,
    "about": "Forecasting, BRIDGE, simulation, agent and API behaviour."
   },
   {

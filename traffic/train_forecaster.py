@@ -125,7 +125,7 @@ def main(fast=False):
     jump = cfg["predictor"]["jump_mbps"]
     groups = {k: [t for t in test if t.meta["kind"] == k] for k in mf.scenario_kinds}
     groups["real_trace"] = [base]
-    out = {"split": {"train": len(train), "val": len(val), "test": len(test)}, "training": log, "scenarios": {}}
+    out = {"split": {"train": len(train), "val": len(val), "test": len(test)}, "jump_mbps": jump, "training": log, "scenarios": {}}
     for name, ts in groups.items():
         row = {"persistence": score([persistence_trace(t, LAG) for t in ts], ts, jump),
                "gbm": score([gbm_trace(gbm, t, fc.window, fc.horizon) for t in ts], ts, jump),

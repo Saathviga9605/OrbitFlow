@@ -22,13 +22,13 @@ sys.path.insert(0, ROOT)
 from utils.config import REAL_TRACE, load_config  # noqa: E402
 from utils.stats import effect_label, holm, paired, summary  # noqa: E402
 
-KPIS = ["throughput_mbps", "served_ratio", "packet_loss", "mean_delay_ms", "p95_delay_ms", "rt_sla_violation", "jain_fairness",
+KPIS = ["throughput_mbps", "served_ratio", "packet_loss", "mean_delay_ms", "p95_delay_ms", "rt_sla_violation", "rt_sla_violation_servable", "rt_late_unavoidable_share", "jain_fairness",
         "mean_sinr_db", "beam_switches_per_slot", "energy_j", "guard_violation_slots", "guard_repairs"]
 SPECS = {
     # name: (base, n_multiplier, perturbation)
     **{f"kind:{k}": dict(kind=k) for k in ("normal", "block", "event_surge", "bursty", "mixed")},
-    "pass:dynamic_ntn": dict(pass_="dynamic"),
-    "pass:openntn_sionna": dict(pass_="openntn"),
+    "pass:recorded": dict(pass_="dynamic"),
+    "pass:arrivals": dict(pass_="arrivals"),
     **{f"intensity:{s}": dict(pass_="dynamic", scale=s) for s in (0.5, 0.75, 1.25, 1.5)},
     **{f"channel:{c:+d}dB": dict(pass_="dynamic", channel=c) for c in (-6, -3, 3)},
     **{f"outage:{o}": dict(pass_="dynamic", outage=o) for o in (0.1, 0.25)},
@@ -42,24 +42,24 @@ def _init(tag, gate):
     import torch
     from bridge.baselines import ReactiveGreedy, StaticRoundRobin
     from bridge.policy import BridgePolicy, HeuristicPredictive
-    from traffic.dataset import load_openntn_sionna, load_trace
+    from traffic.dataset import load_pass_arrivals, load_trace
     from traffic.forecaster import Forecaster
     torch.set_num_threads(1)
     cfg = load_config()
     cfg["predictor"]["gate"] = gate
     m = os.path.join(ROOT, "models", "exp")
-    pols = {"Static round-robin": StaticRoundRobin(19, 4, 100.0), "Reactive greedy": ReactiveGreedy(19, 4, 100.0), "Heuristic-predictive": HeuristicPredictive(cfg)}
+    pols = {"Static round-robin": StaticRoundRobin(cfg["scenario"]["n_cells"], cfg["scenario"]["k_beams"], cfg["scenario"]["p_max_w"]), "Reactive greedy": ReactiveGreedy(cfg["scenario"]["n_cells"], cfg["scenario"]["k_beams"], cfg["scenario"]["p_max_w"]), "Heuristic-predictive": HeuristicPredictive(cfg)}
     groups = {"BC": sorted(glob.glob(os.path.join(m, f"bridge_bc_{tag}_s*.pt"))),
               "BRIDGE": sorted(glob.glob(os.path.join(m, f"bridge_ppo_{tag}_s*.pt"))),
               "BRIDGE no-forecast": sorted(glob.glob(os.path.join(m, f"bridge_ppo_{tag}nf_s*.pt")))}
-    _W.update(cfg=cfg, pols=pols, base=load_trace(REAL_TRACE), alt=load_openntn_sionna(ROOT), fc=Forecaster.load(cfg, os.path.join(ROOT, "models", "traffic_predictor.pt")),
+    _W.update(cfg=cfg, pols=pols, base=load_trace(REAL_TRACE), alt=load_pass_arrivals(ROOT), fc=Forecaster.load(cfg, os.path.join(ROOT, "models", "traffic_predictor.pt")),
               seeded={g: [BridgePolicy(cfg, f, use_forecast=g != "BRIDGE no-forecast", name=g) for f in fs] for g, fs in groups.items()})
 
 
 def build_trace(spec: dict, seed: int):
     from traffic.generator import make_trace
     rng = np.random.default_rng(seed)
-    base = _W["alt"] if spec.get("pass_") == "openntn" else _W["base"]
+    base = _W["alt"] if spec.get("pass_") == "arrivals" else _W["base"]
     if "kind" in spec:
         t = make_trace(spec["kind"], _W["base"], seed)
     else:
@@ -117,7 +117,7 @@ def main(n=100, tag="final", workers=14, gate=False):
     for name, rows in results.items():
         pols = list(rows[0])
         cond = {"policies": {p: {k: summary([r[p][k] for r in rows]) for k in KPIS} for p in pols}, "vs_reactive": {}, "vs_bridge_nf": {}, "vs_bc": {}}
-        for k in ("rt_sla_violation", "mean_delay_ms", "p95_delay_ms", "throughput_mbps", "packet_loss", "beam_switches_per_slot"):
+        for k in ("rt_sla_violation", "rt_sla_violation_servable", "mean_delay_ms", "p95_delay_ms", "throughput_mbps", "served_ratio", "packet_loss", "beam_switches_per_slot"):
             cmp = {p: paired([r[p][k] for r in rows], [r["Reactive greedy"][k] for r in rows]) for p in pols if p != "Reactive greedy"}
             adj = holm({p: c["p"] for p, c in cmp.items()})
             for p, c in cmp.items():
@@ -135,8 +135,10 @@ def main(n=100, tag="final", workers=14, gate=False):
             cond["nf_across_training_seeds"] = {"rt_miss": np.mean(s["rt"], axis=0).round(5).tolist(), "delay_ms": np.mean(s["delay"], axis=0).round(3).tolist()}
         out["conditions"][name] = cond
         p = cond["policies"]
-        print(name, {x: (round(p[x]["rt_sla_violation"]["mean"], 4), round(p[x]["mean_delay_ms"]["mean"], 1)) for x in p}, flush=True)
-    json.dump(out, open(os.path.join(ROOT, "results", "multirun.json"), "w"), indent=1)
+        print(name, {x: (round(p[x]["rt_sla_violation_servable"]["mean"], 4), round(p[x]["rt_sla_violation"]["mean"], 4), round(p[x]["mean_delay_ms"]["mean"], 1)) for x in p}, flush=True)
+    with open(os.path.join(ROOT, "results", "multirun.json"), "w") as f:
+        json.dump(out, f, indent=1, default=lambda o: o.item() if hasattr(o, "item") else (o.tolist() if hasattr(o, "tolist") else str(o)))
+    print("saved multirun.json", flush=True)
 
 
 if __name__ == "__main__":

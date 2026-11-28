@@ -125,16 +125,15 @@ def game_physics(trace, cfg):
     link, q = LinkModel(cfg), cfg["queues"]
     return {"rate": np.round(trace.rate, 3).tolist(), "gain_db": np.round(10 * np.log10(trace.gain), 3).tolist(), "los": trace.los.astype(int).tolist(),
             "ssb": trace.ssb.tolist(), "sib": trace.sib.tolist(), "slot_ms": trace.slot_ms, "gain_lin": link.gain_lin, "noise_w": link.noise_w, "eps": link.eps,
+            "eps_mat": np.round(link.eps_mat, 8).tolist() if link.eps_mat is not None else None, "require_los": link.require_los,
             "sinr_min": link.sinr_min, "ssb_overhead": link.ssb_oh, "sib_overhead": link.sib_oh, "bw_hz": link.bw_hz, "rt_share": q["rt_share"], "buffer_rt": q["buffer_rt_kb"],
             "buffer_nrt": q["buffer_nrt_kb"], "rt_budget": q["rt_delay_budget_ms"], "init_backlog_ms": q["init_backlog_ms"], "k": cfg["scenario"]["k_beams"], "pmax": cfg["scenario"]["p_max_w"],
             "border_cells": trace.meta["border_cells"], "cap_w": trace.meta["border_cap_w"], "cap_slot": 50, "emergency_cells": trace.meta["emergency_cells"], "emergency_from": 28, "emergency_to": 61}
 
 
 def cell_coords():
-    import pandas as pd
-    df = pd.read_csv(os.path.join(ROOT, "data", "raw", "sionna_physics_output.csv"))
-    df = df[df.slot_id == df.slot_id.min()].sort_values("cell_id")
-    return [{"x": float(x), "y": float(y)} for x, y in zip(df.cell_x_m, df.cell_y_m)]
+    from traffic.dataset import load_cell_coords
+    return load_cell_coords(ROOT)
 
 
 def main(fast=False):
@@ -205,7 +204,7 @@ def main(fast=False):
     print({n: {k: round(v[k]["mean"], 3) for k in mc_keys} for n, v in mc["controllers"].items()}, flush=True)
 
     # What-if grid: real runs of the pipeline, looked up by the sliders
-    caps = [12.0, 16.0, 22.0, 30.0, 40.0, 100.0]
+    caps = [12.0, 16.0, 22.0, 30.0, 40.0, 300.0]          # 300 W = the whole budget, i.e. no cap
     fades = [0.0, 3.0, 6.0, 9.0, 12.0]
     cells = []
     ec = cfg["demo"]["event_cell"]

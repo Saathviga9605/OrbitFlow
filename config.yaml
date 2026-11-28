@@ -4,19 +4,25 @@
 seed: 7
 
 scenario:
-  n_cells: 19            # from dataset
-  slot_ms: 10            # from dataset (timestamp_ms step)
-  k_beams: 4             # dataset logs exactly 4 active beams per slot
-  p_max_w: 100.0         # dataset: per-slot power sums to 100 W
+  n_cells: 58            # from dataset: three regions of 19, 19 and 20 cells (~2.08 km cell pitch)
+  slot_ms: 10            # dataset has no timestamp; 10 ms slots as in the 19-cell trace
+  k_beams: 12            # dataset logs exactly 12 active beams per slot
+  p_max_w: 300.0         # project specification. NOTE: the dataset's logged allocation sums to 100 W
+                         #   (12 equal beams x 8.33 W); 300 W keeps 25 W per beam, as in the 19-cell setup
   p_min_w: 2.0           # ASSUMPTION: floor per lit beam (dataset min is ~2 W)
   obs_lag_slots: 1       # ASSUMPTION: telemetry reaches the controller 1 slot late (E2 report delay)
 
-link:                    # ASSUMPTION: calibrated so a lit mid-pass beam sees ~12-15 dB.
-  bandwidth_mhz: 20.0    #   Replace with the ECE link budget (EIRP, G/T, bandwidth).
+link:                    # ASSUMPTION: calibrated to the 58-cell dataset's demand scale (see docs/link_budget_parameters.md).
+  bandwidth_mhz: 80.0    #   ASSUMPTION (results/link_calibration.json): LOS beam ~9 dB SNR at 25 W, NLOS below -6 dB
+                         #   (blocked, as the dataset's own SINR column records); was 20 MHz for the 19-cell trace.
   noise_figure_db: 7.0
   temperature_k: 290.0
   antenna_gain_db: 53.0  # combined Tx+Rx gain applied on top of dataset channel_gain_magnitude
-  interference_isolation_db: 20.0   # leakage of other lit beams into a cell
+  interference_isolation_db: 20.0   # leakage from an ADJACENT lit beam into a cell
+  isolation_model: distance          # uniform | distance (see digital_twin/channel.py)
+  isolation_per_ring_db: 5.0         # ASSUMPTION: extra sidelobe isolation per further hex ring
+  isolation_floor_db: 40.0           # ASSUMPTION: maximum isolation between distant beams
+  require_los: false                 # SINR decides; the dataset provides Sionna NLOS gains (~19 dB below LOS)
   sinr_min_db: -6.0      # below this the link is not decodable
   ssb_overhead: 0.05     # capacity share lost in an SSB slot
   sib_overhead: 0.05     # extra capacity share lost in a SIB slot
@@ -24,9 +30,9 @@ link:                    # ASSUMPTION: calibrated so a lit mid-pass beam sees ~1
 queues:
   init_backlog_ms: 20    # warm start. The dataset's own queues are a flat ~125 ms backlog on EVERY
                          # cell (queue = 36 kb x requested Mbps), so they are not used as initial state.
-  rt_share: 0.285        # from dataset: queue_rt / (queue_rt + queue_nrt)
-  buffer_rt_kb: 1600     # ~ dataset max RT queue
-  buffer_nrt_kb: 4000    # ~ dataset max NRT queue
+  rt_share: 0.298        # from dataset: arrival_rate_rt / (arrival_rate_rt + arrival_rate_nrt)
+  buffer_rt_kb: 18000    # ~ dataset max RT queue (17,649 kb)
+  buffer_nrt_kb: 45000   # same 2.5x NRT:RT ratio as the 19-cell setup
   rt_delay_budget_ms: 100     # dataset caps hol_delay_rt at 100 ms
   nrt_delay_budget_ms: 1000   # dataset caps hol_delay_nrt at 1000 ms
 
@@ -55,9 +61,10 @@ predictor:
   epochs: 30
   batch: 512
   lr: 0.001
-  jump_mbps: 5.0        # a target this far from the last observation counts as a "jump"
+  jump_mbps: 22.5       # a target this far from the last observation counts as a "jump" (5 Mbps x4.5 demand scale)
   jump_weight: 5.0
   gate: true            # uncertainty gate selected on validation, see docs/REPORT.md
+  gate_limit_mbps: 22.5 # recent error above this falls back to repeat-last (5 Mbps x4.5 demand scale)
 
 bridge:
   batch_episodes: 32
@@ -79,10 +86,10 @@ bridge:
   kind_weights: {event_surge: 0.30, mixed: 0.25, block: 0.20, bursty: 0.15, normal: 0.10}
 
 demo:                    # Flood-relief storyline. Cells, notice and cap are SIMULATED placeholders.
-  event_cell: 13
-  background_hot: [2, 5, 9]   # 3 steady hotspots + the surge = the real trace's 3-4 hot cells
-  emergency_cells: [13, 14]
-  border_cells: [13, 14, 15, 16]
+  event_cell: 23              # region 2, on its western edge next to region 1
+  background_hot: [0, 1, 2, 3, 4, 5]   # the dataset's six hotspots (region 1 centre)
+  emergency_cells: [23, 24]
+  border_cells: [22, 23, 24, 31, 32, 33]   # region-2 cells adjacent to region 1 (another jurisdiction in the story)
   border_cap_w: 22.0
   fade_db: 6.0
 
@@ -91,6 +98,7 @@ agents:
   max_beam_share: 0.6
   min_jain: 0.8
   forecast_alert_ratio: 2.0
+  forecast_alert_floor_mbps: 45.0   # a forecast below this is never an alert (10 Mbps x4.5 demand scale)
 
 rag:
   chunk_words: 180

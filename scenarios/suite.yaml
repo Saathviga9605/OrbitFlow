@@ -6,7 +6,7 @@
   title: Normal traffic operation
   base: {kind: synthetic, traffic: normal}
   seed: 101
-  description: Balanced demand on all 19 cells, no events, baseline profile.
+  description: Balanced demand on all 58 cells, no events, baseline profile.
   simulated: [synthetic demand (traffic generator, kind normal), channel from the recorded pass with 1 dB jitter]
   expected: Forecast, BRIDGE proposal, agent review and guard run every slot; no fallback, no conflict escalation.
   checks:
@@ -19,7 +19,7 @@
   title: Sudden traffic surge
   base: {kind: synthetic, traffic: event_surge}
   seed: 202
-  description: Two or three cells ramp up to hotspot demand and decay (synthetic event surge).
+  description: Several cells ramp up to hotspot demand and decay (synthetic event surge).
   simulated: [synthetic surge demand, recorded-pass channel]
   expected: The forecaster anticipates the ramps better than repeating the last value; BRIDGE serves the hot cells.
   checks:
@@ -61,8 +61,8 @@
   title: Uncertain prediction
   base: {kind: flood}
   seed: 505
-  forecast_noise: {slots: [20, 60], cells: [12, 13, 14], sigma_mbps: 15.0}
-  description: The forecaster's output on three cells is corrupted with 15 Mbps noise for 40 slots.
+  forecast_noise: {slots: [20, 60], cells: [22, 23, 24], sigma_mbps: 67.5}
+  description: The forecaster's output on three cells is corrupted with 67.5 Mbps noise (about a third of a hotspot) for 40 slots.
   simulated: [flood demand script, injected forecast noise]
   expected: The causal uncertainty gate detects the large recent error and falls back to repeat-last on those cells.
   checks:
@@ -131,7 +131,7 @@
   profiles: [baseline-intl, ae-demo, in-demo]
   description: Two traffic contexts under three profiles, with the same forecaster and BRIDGE checkpoint.
   simulated: [synthetic normal demand, flood storyline, illustrative profiles]
-  expected: Policy only changes behaviour where it applies - identical results in normal traffic, different results in the flood.
+  expected: Policy only changes behaviour where it applies - identical network results in normal traffic (a stricter profile may still review more decisions), different results in the flood.
   checks:
     - {metric: matrix.model_checksums_identical, op: "==", value: true}
     - {metric: matrix.normal_identical_across_profiles, op: "==", value: true}
@@ -144,11 +144,11 @@
   seed: 42
   faults:
     telemetry:
-      - {mode: nan, slots: [30, 37], cells: [13, 14]}
-      - {mode: stale, slots: [60, 70], cells: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}
+      - {mode: nan, slots: [30, 37], cells: [23, 24]}
+      - {mode: stale, slots: [60, 70], cells: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}
       - {mode: negative, slots: [80, 86], cells: [2]}
   reference: no_faults
-  description: Missing reports on the emergency cells, a frozen feed on 10 cells, and an invalid negative value.
+  description: Missing reports on the emergency cells, a frozen feed on 20 of 58 cells, and an invalid negative value.
   simulated: [flood storyline, injected telemetry faults]
   expected: Invalid and stale cells are detected and imputed; heavy degradation switches to conservative mode and is escalated.
   checks:

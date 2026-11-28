@@ -17,7 +17,7 @@ provenance_note: >-
 operating_constraints:
   border_power_cap:
     enabled: true
-    cells: [13, 14, 15, 16]
+    cells: [22, 23, 24, 31, 32, 33]
     cap_w: 16.0
     onset_slot: 50
     source_type: illustrative
@@ -36,7 +36,7 @@ resilience:
   fail_closed_cap_w: 12.0
   decision_budget_ms: 10.0
   max_bad_telemetry_share: 0.15
-  state_drift_mbps: 8.0
+  state_drift_mbps: 36.0
 
 governance_rules:
   - id: AE-HUMAN-OVERSIGHT

@@ -57,7 +57,7 @@ export function Waffle({ late, label, color }) {
       <div className="waffle" role="img" aria-label={`${label}: about ${n} of 100 late`}>
         {Array.from({ length: 100 }, (_, i) => <i key={i} className={i >= 100 - n ? 'late' : ''} style={{ transitionDelay: `${i * 9}ms`, '--c': color }} />)}
       </div>
-      <div className="waffle-num"><b><Count to={late * 100} format={(v) => `${v.toFixed(1)}%`} /></b><span>{label}</span></div>
+      <div className="waffle-num"><b><Count to={late * 100} format={(v) => `${v.toFixed(2)}%`} /></b><span>{label}</span></div>
     </div>
   );
 }
@@ -95,12 +95,14 @@ export function Dumbbell({ rows, unit, format, aName, bName, aColor, bColor, low
 
 /** Live demand strip: one bar per cell, a tick for the forecast, glow when a beam is on it. */
 export function DemandStrip({ demand, forecast, lit, emergency, max = 45 }) {
+  // square-root scale so background cells stay visible next to hotspots; ticks clamped inside the bar
+  const h = (v) => Math.min(96, Math.sqrt(Math.max(0, v) / max) * 100);
   return (
     <div className="strip" role="img" aria-label="Demand per area">
       {demand.map((d, i) => (
         <div key={i} className={`bar ${lit.includes(i) ? 'on' : ''} ${emergency.includes(i) ? 'em' : ''}`} title={`Area ${i}: ${d.toFixed(1)} Mbps now, ${forecast[i].toFixed(1)} forecast`}>
-          <i style={{ height: `${Math.min(100, (d / max) * 100)}%` }} />
-          <u style={{ bottom: `${Math.min(100, (forecast[i] / max) * 100)}%` }} />
+          <i style={{ height: `${h(d)}%` }} />
+          <u style={{ bottom: `${h(forecast[i])}%` }} />
           <span>{i}</span>
         </div>
       ))}

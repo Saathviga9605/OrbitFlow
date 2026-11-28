@@ -1,3 +1,5 @@
+> **Archived (19-cell dataset, v2).** For the current 58-cell dataset see [data_provenance.md](data_provenance.md).
+
 # What the NTN dataset actually contains (for the whole team)
 
 Source: `dynamic_ntn_dataset.csv` — 1 satellite, 19 cells, 100 slots x 10 ms (a 1-second pass).

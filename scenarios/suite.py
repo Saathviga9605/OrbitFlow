@@ -260,9 +260,12 @@ def _matrix(rt, s: dict, seed: int) -> dict:
             res[ctx][pid] = {"kpis": kpis_of(r), "exempted_slots": r["coordination"]["exempted_slots"],
                              "conflicts_by_type": r["coordination"]["conflicts_by_type"],
                              "human_review_by_kind": r["coordination"]["human_review_by_kind"]}
-    same = lambda ctx: len({repr(v["kpis"]) for v in res[ctx].values()}) == 1          # noqa: E731
+    # network outcomes only; audit activity (deliberations) legitimately varies with profile strictness and is reported separately
+    net = lambda v: {k: x for k, x in v["kpis"].items() if k != "deliberations"}          # noqa: E731
+    same = lambda ctx: len({repr(net(v)) for v in res[ctx].values()}) == 1          # noqa: E731
     return {"matrix": {"results": res, "model_checksums_identical": len(shas) == 1, "model_param_sha": sorted(shas),
-                       "normal_identical_across_profiles": same("normal"), "flood_differs_across_profiles": not same("flood")}}
+                       "normal_identical_across_profiles": same("normal"), "flood_differs_across_profiles": not same("flood"),
+                       "normal_deliberations_by_profile": {p: v["kpis"]["deliberations"] for p, v in res["normal"].items()}}}
 
 
 def run_custom(rt, profile_id="baseline-intl", cap_w=None, fade_db=None, seed=42, exemption=None, scale=None, with_baselines=False) -> dict:

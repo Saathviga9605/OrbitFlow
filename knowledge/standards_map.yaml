@@ -111,7 +111,7 @@ entries:
     requirement: NTN channel characteristics (path loss, shadowing, elevation dependence)
     orbitflow_components: [data/raw/sionna_physics_output.csv, traffic/dataset.py (load_openntn_sionna), digital_twin/channel.py]
     kb_rules: []
-    implementation_evidence: [docs/data_provenance.md, tests/test_channel.py, results/multirun.json (pass:openntn_sionna)]
+    implementation_evidence: [docs/data_provenance.md, tests/test_channel.py, results/multirun.json (pass:arrivals)]
     status: partial
     not_implemented: Channel models are not run live; the second test trace is an offline OpenNTN/Sionna output. 3GPP documents are not in the corpus.
     next_step: Generate traces from the TR 38.811 models directly for several elevations and orbits.

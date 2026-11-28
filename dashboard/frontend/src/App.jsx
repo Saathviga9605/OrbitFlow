@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import HeroScene from './Hero.jsx';
 import Flow from './Flow.jsx';
 import { COLORS, DotCI, HexMap, LineChart, reducedMotion } from './viz.jsx';
@@ -50,7 +50,7 @@ function useClock(T, { speed = 110, start = 0, auto = false } = {}) {
 function Hero({ d }) {
   const { t } = useI18n();
   const r = d.flood_replay;
-  const real = d.multirun.conditions['pass:dynamic_ntn'].policies;
+  const real = d.multirun.conditions['pass:recorded'].policies;
   return (
     <header className="hero" id="top">
       <div className="hero-copy">
@@ -59,7 +59,7 @@ function Hero({ d }) {
         <p className="lede">{t('hero.lede')}</p>
         <div className="hero-cta"><a className="cue" href="#loop">{t('hero.cta1')}</a><a className="cue ghost" href="#ops">{t('hero.cta2')}</a></div>
         <dl className="hero-stats">
-          <div><dt>{t('hero.stat1')}</dt><dd dir="ltr"><Count to={real['Reactive greedy'].rt_sla_violation.mean * 100} format={(v) => `${v.toFixed(1)}%`} /> <span>→</span> <Count to={real.BRIDGE.rt_sla_violation.mean * 100} format={(v) => `${v.toFixed(1)}%`} /></dd></div>
+          <div><dt>{t('hero.stat1')}</dt><dd dir="ltr"><Count to={real['Reactive greedy'].rt_sla_violation_servable.mean * 100} format={(v) => `${v.toFixed(2)}%`} /> <span>→</span> <Count to={real.BRIDGE.rt_sla_violation_servable.mean * 100} format={(v) => `${v.toFixed(2)}%`} /></dd></div>
           <div><dt>{t('hero.stat2')}</dt><dd dir="ltr"><Count to={d.study_latency.critical_path_total.mean} format={(v) => `${v.toFixed(1)} ms`} /></dd></div>
           <div><dt>{t('hero.stat3')}</dt><dd dir="ltr"><Count to={d.flood_mc.controllers['BRIDGE alone'].cap_violation_slots.mean} /> <span>→</span> {d.flood_mc.controllers.OrbitFlow.cap_violation_slots.mean.toFixed(0)}</dd></div>
         </dl>
@@ -88,7 +88,7 @@ function Chase({ d }) {
   const SHOW = { 'Static round-robin': t('ctrl.static'), 'Reactive greedy': t('ctrl.reactive'), 'BRIDGE alone': t('ctrl.bridge') };
   const s = clock.t;
   const qt = (n) => r.runs[n].series.q_rt[s].map((q, i) => q + r.runs[n].series.q_nrt[s][i]);
-  const real = d.multirun.conditions['pass:dynamic_ntn'].policies;
+  const real = d.multirun.conditions['pass:recorded'].policies;
   return (
     <section className="ch" id="chase"><div className="wrap">
       <p className="kicker">{t('chase.kicker')}</p>
@@ -97,8 +97,8 @@ function Chase({ d }) {
       <div className="bigcompare">
         <p className="note" style={{ margin: 0 }}>{t('chase.per100')}</p>
         <div className="waffles">
-          <Waffle late={real['Reactive greedy'].rt_sla_violation.mean} label={t('chase.late_simple')} color="var(--reactive)" />
-          <Waffle late={real.BRIDGE.rt_sla_violation.mean} label={t('chase.late_of')} color="var(--beam)" />
+          <Waffle late={real['Reactive greedy'].rt_sla_violation_servable.mean} label={t('chase.late_simple')} color="var(--reactive)" />
+          <Waffle late={real.BRIDGE.rt_sla_violation_servable.mean} label={t('chase.late_of')} color="var(--beam)" />
         </div>
       </div>
       <div className="panel" style={{ marginTop: 16 }}>
@@ -113,7 +113,7 @@ function Chase({ d }) {
           ))}
         </div>
       </div>
-      <p className="insight">{t('chase.insight', { a: pct(real['Reactive greedy'].rt_sla_violation.mean), b: pct(real.BRIDGE.rt_sla_violation.mean), c: real.BRIDGE.beam_switches_per_slot.mean.toFixed(1), e: real['Reactive greedy'].beam_switches_per_slot.mean.toFixed(1) })}</p>
+      <p className="insight">{t('chase.insight', { a: pct(real['Reactive greedy'].rt_sla_violation_servable.mean, 2), b: pct(real.BRIDGE.rt_sla_violation_servable.mean, 2), c: real.BRIDGE.beam_switches_per_slot.mean.toFixed(1), e: real['Reactive greedy'].beam_switches_per_slot.mean.toFixed(1) })}</p>
     </div></section>
   );
 }
@@ -126,7 +126,7 @@ function Foresee({ d }) {
   const fc = r.forecast_h2.slice(lo, hi).map((x) => x[ec]);
   const sc = d.predictor_metrics.scenarios;
   const sweep = useClock(hi - lo, { speed: 170, auto: true });
-  const order = ['event_surge', 'mixed', 'bursty', 'block', 'real_trace'];
+  const order = ['event_surge', 'mixed', 'bursty', 'block'];
   return (
     <section className="ch" id="foresee"><div className="wrap">
       <p className="kicker">{t('fore.kicker')}</p>
@@ -138,12 +138,12 @@ function Foresee({ d }) {
           <LineChart height={280} x0={lo} cursor={lo + sweep.t} xLabel={t('ctl.slot')} yLabel="Mbps" series={[{ name: t('fore.actual'), color: 'var(--ink)', values: dem }, { name: t('fore.forecast'), color: 'var(--beam)', values: fc, dash: '5 3' }]} marks={[{ x: 28, label: t('fore.emergency'), color: 'var(--critical)' }]} />
         </div>
         <div className="panel">
-          <h4>{t('fore.skill')}</h4><p className="sub">{t('fore.skill_sub')}</p>
+          <h4>{t('fore.skill')}</h4><p className="sub">{t('fore.skill_sub', { j: d.predictor_metrics.jump_mbps })}</p>
           <DotCI unit={t('fore.reduction')} format={(v) => pct(v, 0)} rows={order.map((k) => { const v = sc[k].gru_jump_skill; return { name: t(`fore.kind.${k}`), mean: v, lo: v, hi: v, n: sc[k].persistence.n_jump, color: v > 0.2 ? 'var(--orbit)' : 'var(--static)' }; })} />
           <More><p className="note">{t('fore.more')}</p></More>
         </div>
       </div>
-      <p className="insight">{t('fore.insight', { a: pct(sc.event_surge.gru_jump_skill, 0), b: pct(sc.real_trace.gru_jump_skill, 0) })}</p>
+      <p className="insight">{t('fore.insight', { a: pct(sc.event_surge.gru_jump_skill, 0) })}</p>
     </div></section>
   );
 }
@@ -194,6 +194,7 @@ function FloodSummary({ rec, slot }) {
 function Mission({ d }) {
   const { t, term } = useI18n();
   const r = d.flood_replay; const T = r.meta.T;
+  const demandMax = useMemo(() => Math.max(...r.demand.flat(), 1), [r]);
   const firstAlert = r.audit.find((a) => a.trace.some((s) => s.action === 'forecast_alert'))?.slot;
   const clock = useClock(T, { speed: 240, start: 0 });
   const { t: slot, setT, playing, setPlaying } = clock;
@@ -237,8 +238,8 @@ function Mission({ d }) {
         <Dial value={run.power[slot].reduce((a, b) => a + b, 0)} max={100} label={t('flood.dial_power')} display={`${run.power[slot].reduce((a, b) => a + b, 0).toFixed(0)} W`} color="var(--bridge)" />
         <div className="toastbox">{fresh ? <div key={fresh.id} className="toast" lang="en" dir="ltr"><span className="mono">slot {fresh.slot}</span> {nice(fresh.description)}</div> : <div className="note">{t('flood.into', { s: slot, ms: slot * r.meta.slot_ms })}</div>}</div>
       </div>
-      <div className="panel" style={{ marginTop: 12 }}><h4>{t('flood.demand')}</h4><p className="sub">{t('flood.demand_sub')}</p>
-        <DemandStrip demand={r.demand[slot]} forecast={r.forecast_h2[slot]} lit={run.lit[slot]} emergency={emergency} />
+      <div className="panel" style={{ marginTop: 12 }}><h4>{t('flood.demand', { n: d.flood_replay.cells.length })}</h4><p className="sub">{t('flood.demand_sub')}</p>
+        <DemandStrip max={demandMax} demand={r.demand[slot]} forecast={r.forecast_h2[slot]} lit={run.lit[slot]} emergency={emergency} />
       </div>
       <div className="grid g-mission" style={{ marginTop: 12 }}>
         <div className="panel">
@@ -283,33 +284,34 @@ function Mission({ d }) {
           <LineChart height={220} xLabel={t('ctl.slot')} yLabel="W" cursor={slot} format={(v) => v.toFixed(1)} marks={[{ x: 50, label: `${cap} W`, color: 'var(--warning)' }]} series={['OrbitFlow', 'BRIDGE alone'].map((n) => ({ name: t(CTRL[n]), color: COLORS[n], values: r.runs[n].series.power.map((p) => p[cell]) }))} /></div>
       </div></More>
       <p className="insight">{t('flood.insight', { n: failCount })}</p>
-      <More label={t('stress.more')}><div className="panel">
+      <More label={t('stress.more', { x: st.flood_injection.spike_w })}><div className="panel">
         <h4><span className="tag warning">{t('stress.tag')}</span> {t('stress.h4')}</h4>
-        <p style={{ fontSize: 14 }}>{t('stress.p', { s: st.flood_injection.slot, cap: st.flood_injection.applicable_cap_w, w: st.flood_injection.final.power_w['13'] })}</p>
+        <p style={{ fontSize: 14 }}>{t('stress.p', { x: st.flood_injection.spike_w, c: st.flood_injection.cell, s: st.flood_injection.slot, cap: st.flood_injection.applicable_cap_w, w: st.flood_injection.final.power_w[String(st.flood_injection.cell)] })}</p>
         <div className="scroll"><table><thead><tr><th>{t('stress.bad')}</th><th>{t('stress.caught')}</th><th>{t('tbl.executed')}</th></tr></thead><tbody>
           {st.guard_cases.map((c) => <tr key={c.case}><td style={{ whiteSpace: 'normal' }} lang="en">{c.case}</td><td className="mono">{c.failed_checks.join(', ') || 'policy cap'}</td><td className="mono" style={{ whiteSpace: 'normal' }}>{Object.entries(c.final).map(([k, v]) => `${k}: ${v} W`).join(', ')}</td></tr>)}
         </tbody></table></div>
-        <p className="note" style={{ margin: '8px 0 0' }}>{t('stress.natural', { n: st.natural_bridge_power.decisions.toLocaleString(), p: pct(st.natural_bridge_power.share_over_50w), m: st.natural_bridge_power.max_w.toFixed(0) })}</p>
+        <p className="note" style={{ margin: '8px 0 0' }}>{t('stress.natural', { n: st.natural_bridge_power.decisions.toLocaleString(), x: st.natural_bridge_power.spike_w, p: pct(st.natural_bridge_power.share_over_spike), m: st.natural_bridge_power.max_w.toFixed(0) })}</p>
       </div></More>
     </div></section>
   );
 }
 
 const KPI_OPTS = [
+  ['rt_sla_violation_servable', 'kpi.late_servable', 'kpi.late_u', (v) => pct(v, 2), true],
   ['rt_sla_violation', 'kpi.late', 'kpi.late_u', (v) => pct(v), true],
   ['mean_delay_ms', 'kpi.delay', 'ms', (v) => v.toFixed(1), true],
   ['throughput_mbps', 'kpi.tp', 'Mbps', (v) => v.toFixed(1), false],
   ['packet_loss', 'kpi.loss', '%', (v) => pct(v), true],
   ['beam_switches_per_slot', 'kpi.switch', 'kpi.switch_u', (v) => v.toFixed(2), true],
 ];
-const SCEN = ['pass:dynamic_ntn', 'pass:openntn_sionna', 'kind:block', 'kind:event_surge', 'kind:bursty', 'kind:mixed', 'kind:normal'];
-const ROBUST = ['pass:dynamic_ntn', 'pass:openntn_sionna', 'intensity:0.5', 'intensity:1.25', 'intensity:1.5', 'channel:+3dB', 'channel:-3dB', 'channel:-6dB', 'outage:0.25', 'pass_shift:20', 'init_backlog:50ms'];
+const SCEN = ['pass:recorded', 'pass:arrivals', 'kind:block', 'kind:event_surge', 'kind:bursty', 'kind:mixed', 'kind:normal'];
+const ROBUST = ['pass:recorded', 'pass:arrivals', 'intensity:0.5', 'intensity:1.25', 'intensity:1.5', 'channel:+3dB', 'channel:-3dB', 'channel:-6dB', 'outage:0.25', 'pass_shift:20', 'init_backlog:50ms'];
 const pv = (p) => (p == null ? 'n/a' : p < 0.001 ? '<0.001' : p.toFixed(3));
 
 function Evidence({ d }) {
   const { t } = useI18n();
-  const [sc, setSc] = useState('pass:dynamic_ntn');
-  const [kpi, setKpi] = useState('rt_sla_violation');
+  const [sc, setSc] = useState('pass:recorded');
+  const [kpi, setKpi] = useState('rt_sla_violation_servable');
   const C = d.multirun.conditions; const cond = C[sc];
   const opt = KPI_OPTS.find((o) => o[0] === kpi);
   const unit = opt[2].startsWith('kpi.') ? t(opt[2]) : opt[2];
@@ -350,7 +352,7 @@ function Evidence({ d }) {
       <div className="panel" style={{ marginTop: 12 }}>
         <h4>{t('ev.harder')}</h4><p className="sub">{t('ev.harder_sub')}</p>
         <div className="grid g2" style={{ marginTop: 8 }}>
-          <div><h5 className="minihead">{t('kpi.late')}</h5><Dumbbell rows={ROBUST.map((k) => ({ name: t(`cond.${k}`), a: C[k].policies['Reactive greedy'].rt_sla_violation.mean * 100, b: C[k].policies.BRIDGE.rt_sla_violation.mean * 100 }))} unit="%" format={(v) => `${v.toFixed(1)}%`} aName={t('ctrl.simple_short')} bName="OrbitFlow" aColor="var(--reactive)" bColor="var(--beam)" /></div>
+          <div><h5 className="minihead">{t('kpi.late_servable')}</h5><Dumbbell rows={ROBUST.map((k) => ({ name: t(`cond.${k}`), a: C[k].policies['Reactive greedy'].rt_sla_violation_servable.mean * 100, b: C[k].policies.BRIDGE.rt_sla_violation_servable.mean * 100 }))} unit="%" format={(v) => `${v.toFixed(2)}%`} aName={t('ctrl.simple_short')} bName="OrbitFlow" aColor="var(--reactive)" bColor="var(--beam)" /></div>
           <div><h5 className="minihead">{t('kpi.delay')}</h5><Dumbbell rows={ROBUST.map((k) => ({ name: t(`cond.${k}`), a: C[k].policies['Reactive greedy'].mean_delay_ms.mean, b: C[k].policies.BRIDGE.mean_delay_ms.mean }))} unit="ms" format={(v) => `${v.toFixed(1)}`} aName={t('ctrl.simple_short')} bName="OrbitFlow" aColor="var(--reactive)" bColor="var(--beam)" /></div>
         </div>
         <p className="insight" style={{ fontSize: 18 }}>{t('ev.harder_insight')}</p>
@@ -362,11 +364,11 @@ function Evidence({ d }) {
           </tbody></table></div>
           <p className="note" style={{ marginTop: 8 }}>{t('ev.cost_note', { a: pct(em['need-based + abrupt'].emergency_served_ratio.mean, 0), b: pct(em['always + abrupt (previous)'].emergency_served_ratio.mean, 0), c: pct(em['agents off'].emergency_served_ratio.mean, 1), e: pct(em['need-based + abrupt'].emergency_served_ratio.mean, 1) })}</p>
         </div>
-        <div className="panel"><h4>{t('ev.parts')}</h4><p className="sub">{t('ev.parts_sub', { n: C['pass:dynamic_ntn'].policies.BRIDGE.mean_delay_ms.n })}</p>
+        <div className="panel"><h4>{t('ev.parts')}</h4><p className="sub">{t('ev.parts_sub', { n: C['pass:recorded'].policies.BRIDGE.mean_delay_ms.n })}</p>
           <div className="scroll"><table><thead><tr><th>{t('tbl.version')}</th><th className="n">{t('tbl.delay_ms')}</th><th className="n">{t('tbl.late')}</th></tr></thead><tbody>
-            {['Heuristic-predictive', 'BC', 'BRIDGE no-forecast', 'BRIDGE'].map((n) => { const p = C['pass:dynamic_ntn'].policies[n]; return <tr key={n} className={n === 'BRIDGE' ? 'best' : ''}><td>{t(CTRL[n])}</td><td className="n">{p.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{pct(p.rt_sla_violation.mean, 2)}</td></tr>; })}
+            {['Heuristic-predictive', 'BC', 'BRIDGE no-forecast', 'BRIDGE'].map((n) => { const p = C['pass:recorded'].policies[n]; return <tr key={n} className={n === 'BRIDGE' ? 'best' : ''}><td>{t(CTRL[n])}</td><td className="n">{p.mean_delay_ms.mean.toFixed(1)}</td><td className="n">{pct(p.rt_sla_violation.mean, 2)}</td></tr>; })}
           </tbody></table></div>
-          <p className="note" style={{ marginTop: 8 }}>{t('ev.parts_note', { a: ppo.scratch.delay.toFixed(1), b: ppo.rg.delay.toFixed(1) })}</p>
+          <p className="note" style={{ marginTop: 8 }}>{t('ev.parts_note', { a: ppo.scratch.delay.toFixed(1), b: ppo.rg.delay.toFixed(1), x: pct(C['pass:recorded'].policies['BRIDGE no-forecast'].rt_sla_violation_servable.mean, 2), y: pct(C['pass:recorded'].policies.BRIDGE.rt_sla_violation_servable.mean, 2) })}</p>
         </div>
       </div>
       <More label={t('ev.sens_more')}><div className="panel">
@@ -403,7 +405,7 @@ function LiveRun({ cap, fade }) {
     <div className="panel live" style={{ marginTop: 12 }}>
       <div className="livehead"><h4>{t('live.h4')} {up && <span className="pulse" />}</h4>
         <label style={{ fontSize: 13 }}>{t('live.seed')} <input className="seed" type="number" min="0" max="100000" value={seed} onChange={(e) => setSeed(Math.max(0, +e.target.value || 0))} /></label>
-        <button className="cue" style={{ margin: 0 }} disabled={!up || busy} onClick={run}>{busy ? t('live.busy') : t('live.go', { cap: cap === 100 ? t('lab.none') : `${cap} W`, fade })}</button>
+        <button className="cue" style={{ margin: 0 }} disabled={!up || busy} onClick={run}>{busy ? t('live.busy') : t('live.go', { cap: cap >= 300 ? t('lab.none') : `${cap} W`, fade })}</button>
       </div>
       {up === false && <p className="note" style={{ margin: '8px 0 0' }}>{t('api.off')} <code>python -m uvicorn dashboard.api:app --port 8000</code></p>}
       {err && <p className="note" style={{ color: 'var(--critical)' }}>{t('api.err')} {err}</p>}
@@ -433,7 +435,7 @@ function Lab({ d }) {
     return { bg: `rgb(${Math.round(24 + k * 15)},${Math.round(36 + k * 139)},${Math.round(38 + k * 101)})`, fg: k > 0.55 ? '#071210' : '#ece7dc', v };
   };
   const fmt = metric === 'emergency_served_ratio' ? (v) => `${(v * 100).toFixed(0)}` : (v) => v.toFixed(1);
-  const capLabel = (c) => (c === 100 ? t('lab.none') : `${c} W`);
+  const capLabel = (c) => (c >= 300 ? t('lab.none') : `${c} W`);
   const sentence = () => {
     if (o.human_reviews) return t('lab.s_review', { p: pct(o.emergency_served_ratio, 0) });
     if (o.emergency_served_ratio < 0.98) return t('lab.s_fade', { p: pct(o.emergency_served_ratio, 0) });

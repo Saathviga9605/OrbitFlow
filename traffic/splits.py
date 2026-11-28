@@ -126,7 +126,7 @@ def create_splits(
         train_episodes=train_eps,
         val_episodes=val_eps,
         test_episodes=test_eps,
-        real_trace_path="data/raw/open_ntn_l2_output.csv" if real_trace_in_test else None,
+        real_trace_path="data/raw/open_ntn_traffic_dataset.csv" if real_trace_in_test else None,
         test_set_uses_real=real_trace_in_test,
         scenario_kinds=scenario_kinds,
         total_episodes=len(all_episodes),

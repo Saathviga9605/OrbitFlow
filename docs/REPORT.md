@@ -1,6 +1,120 @@
-# OrbitFlow 2.1: Hackathon Readiness Report
+# OrbitFlow 3.0: Hackathon Readiness Report
 
 Every number below comes from files in `results/`. OrbitFlow is an offline simulation. It has no connection to a real satellite, does not run Sionna or OpenNTN live, and does not establish regulatory compliance.
+
+## V3. The 58-cell dataset (current)
+
+Version 3 moves OrbitFlow from 19 cells / 4 beams / 100 W to the revised dataset: **58 cells in three regional clusters (~163 km²), 12 beams, 300 W**. Sections A–I below the line are the 19-cell (v2.1) report, kept unchanged for history; their numbers do not apply to v3.
+
+### V3.1 What the data says (see `docs/data_provenance.md`)
+
+- 100 slots × 58 cells × 10 ms; 12 beams logged in every slot; logged power 12 × 8.33 W = 100 W, against the 300 W specification (OrbitFlow uses 300 W).
+- **Line of sight in 36% of cell-slots** (2% early in the pass, 95% at the end), against 98% in the 19-cell pass. Path loss is FSPL(20 GHz) + 1.5 dB with LOS and +18 dB without.
+- Demand ramps through the pass: six fixed hotspots (cells 0–5, mean 181 Mbps, peak ~470) and background cells (mean 16.2 Mbps).
+- Reported, not corrected: arrival-rate columns are ~2× the requested rate (both are test conditions), `served_rate_mbps` is always 0, and the SINR column is unusable.
+
+### V3.2 Model changes
+
+| Change | Why |
+|---|---|
+| Bandwidth 20 → 80 MHz (`scripts/calibrate_link.py`, baselines only) | Served demand for non-learning baselines saturates near 80 MHz; NLOS stays undecodable, as in the export |
+| Distance-aware interference isolation: 20 dB adjacent, +5 dB per ring, 40 dB floor | With 12 beams, "every beam leaks at −20 dB" capped every cell near 9.6 dB SINR even 15 km apart |
+| Synthetic demand follows the pass envelope; levels recalibrated (16.2 / 181 Mbps) | Otherwise synthetic load lands on slots where almost no cell has LOS |
+| Demand thresholds scaled ×4.5 (forecast jump 22.5 Mbps, gate 22.5, alert floor 45, state drift 45 / 36 Mbps) | Same relative sensitivity at the new demand level |
+| New KPI `rt_sla_violation_servable` | Counts late RT data only where an equal-share beam could have decoded the cell within the 100 ms window |
+| Forecaster and BRIDGE retrained (5 seeds each for BC+forecast, BC+no forecast, scratch) | Demand ~4.5× higher, 3× more beams |
+
+### V3.3 Why the headline KPI changed
+
+About 97% of late time-critical data in the 58-cell pass comes from cells that no beam could decode at that moment (`scripts/diagnose_late.py`). Every competent scheduler therefore sits at 12–13% total lateness, and differences between them are hidden. The UI and this report lead with the serviceable KPI and always show total lateness next to it.
+
+### V3.4 Network evaluation (100 paired episodes, 5 training seeds, Holm-corrected Wilcoxon)
+
+Recorded pass:
+
+| Controller | Late, serviceable | Late, all | Mean delay | Throughput | Switches/slot |
+|---|---:|---:|---:|---:|---:|
+| Fixed rotation | 36.27% | 38.0% | 128.6 ms | 830 Mbps | 11.54 |
+| Reactive greedy | 1.35% | 12.7% | 81.8 ms | 1256 Mbps | 7.20 |
+| Hand-written predictive rule | **1.07%** | 12.5% | 83.1 ms | 1246 Mbps | 7.28 |
+| Behaviour clone | 1.19% | 12.5% | 82.4 ms | 1267 Mbps | 7.16 |
+| BRIDGE, no forecast | 1.96% | 13.1% | 87.6 ms | 1136 Mbps | 7.45 |
+| BRIDGE | 1.20% | 12.5% | 83.4 ms | 1233 Mbps | 7.34 |
+
+BRIDGE vs Reactive (serviceable): −0.14 points (95% CI −0.16 to −0.12), 92 wins / 8 losses, p_holm < 0.001, r = −0.97.
+
+All conditions, serviceable late data, Reactive → BRIDGE (best controller in brackets):
+
+| Condition | Reactive | BRIDGE | Best |
+|---|---:|---:|---|
+| normal | 0.64% | 0.54% | BRIDGE no-forecast |
+| block | 1.43% | 1.22% | BRIDGE no-forecast |
+| event surge | 0.73% | 0.62% | BRIDGE no-forecast |
+| bursty | 1.48% | **1.88%** | BRIDGE no-forecast |
+| mixed | 0.84% | 0.74% | BRIDGE no-forecast |
+| recorded pass | 1.35% | 1.20% | Hand-written rule |
+| arrivals column | 10.87% | 8.59% | Behaviour clone |
+| traffic ×0.5 | 0.83% | 0.83% (tie, p = 0.92) | Hand-written rule |
+| traffic ×0.75 | 1.10% | 1.01% | Hand-written rule |
+| traffic ×1.25 | 1.78% | **2.14%** | Hand-written rule |
+| traffic ×1.5 | 2.16% | **2.35%** | Hand-written rule |
+| channel −6 dB | 2.81% | **3.10%** | Hand-written rule |
+| channel −3 dB | 1.88% | 1.55% | Hand-written rule |
+| channel +3 dB | 6.91% | 6.83% | Hand-written rule |
+| outage 10% | 2.92% | 2.74% | Hand-written rule |
+| outage 25% | 6.19% | 5.63% | BRIDGE |
+| pass shift −20 | 3.68% | 3.45% | BRIDGE no-forecast |
+| pass shift +20 | 3.84% | 3.86% (tie, p = 0.32) | Hand-written rule |
+| initial backlog 5 ms | 1.33% | 1.18% | Hand-written rule |
+| initial backlog 50 ms | 1.33% | 1.18% | Hand-written rule |
+
+Summary: BRIDGE is lower than Reactive in 14 of 20 conditions, tied in 2, worse in 4. Mean delay is higher than Reactive's in all 20, by 1.3–14 ms. **BRIDGE is not the best controller in v3**: the hand-written predictive rule or the no-forecast BRIDGE is lowest in most conditions. (Serviceable lateness can rise when the channel improves, because more cell-slots become serviceable.)
+
+### V3.5 Why BRIDGE no longer dominates
+
+1. **Little headroom.** Most lateness is unavoidable (no line of sight); what remains is ~1% of cell-slots.
+2. **An easier allocation problem per beam.** 12 beams for 58 cells with six fixed hotspots: covering the hotspots and whichever cells have LOS already captures most of the value.
+3. **A weaker forecast.** The GRU is worse than repeat-last on the recorded pass (MAE 2.82 vs 1.53; gradient boosting 0.68) and on random bursts (4.38 vs 3.59). It cuts surge-jump error by 76%.
+4. **PPO barely moved from its warm start.** With BC + forecast, PPO beat BC on validation in 2 of 5 seeds; without forecast and from scratch, 5 of 5.
+5. **One pass geometry.** Shifting the pass by 20 slots removes the advantage.
+
+Planned next (not yet done): reward on serviceable lateness, pass-shift and LOS augmentation in training, and a forecaster retrained on pass dynamics or gated off when uncertain. If they do not help, v3 stays as reported here.
+
+### V3.6 Training (validation split only)
+
+| Setup | Validation score | Delay | RT miss (all) | PPO beat BC |
+|---|---:|---:|---:|---|
+| BC warm start + forecast (deployed) | −100.9 | 65.7 ms | 13.56% | 2 / 5 |
+| BC warm start, no forecast | −97.9 | 64.6 ms | 13.46% | 5 / 5 |
+| From scratch + forecast | −104.7 | 66.9 ms | 13.62% | 5 / 5 |
+
+The deployed checkpoint (`bridge_ppo_rg_s3`) was chosen before the test runs because its forecast variant was slightly better on the serviceable KPI on validation.
+
+### V3.7 Flood scenario (30 runs) and safety
+
+| Controller | Limit breaches (slots) | Emergency data served | Emergency RT late | Mean delay |
+|---|---:|---:|---:|---:|
+| Fixed rotation | 21.0 | 7.2% | 77.3% | 163.4 ms |
+| Reactive greedy | 27.1 | 29.2% | 30.3% | 111.0 ms |
+| BRIDGE alone | 23.0 | 25.6% | 21.7% | 115.5 ms |
+| **OrbitFlow** | **0** | 22.0% | 25.8% | 116.5 ms |
+
+The emergency cells are often out of line of sight, so no controller serves much of their data. The agents' contribution is keeping to the limit; they give up some emergency throughput to do it. Need-based and every-slot emergency service deliver about the same (23.4% vs 23.5%); agents off serve 27.2% with 23.4 breach slots.
+
+Stress test: a forced 150 W proposal on cell 23 is cut to the 22 W limit and a human review is raised. Unprompted, BRIDGE puts ≥150 W on one beam in 10.6% of 20,000 decisions (max 250 W). On a busy hotspot with no limit this is reasonable, and it is why the limit is checked every slot.
+
+Latency of decision + checks: 2.03 ms mean, 2.67 ms p99, 7.4 ms max (1,000 decisions, one CPU core).
+
+Scenario suite: 10 / 10 scenarios, 35 / 35 checks. S9 now compares network KPIs only; the stricter UAE-style profile reviews 10 decisions in normal traffic against 7 for the others while executing identical actions, and that count is reported separately.
+
+Tests: 171 passing.
+
+---
+
+# Archive: OrbitFlow 2.1 report (19 cells, 4 beams, 100 W)
+
+
+The figures in this archive came from files now in `results/legacy_19cell/`. OrbitFlow is an offline simulation. It has no connection to a real satellite, does not run Sionna or OpenNTN live, and does not establish regulatory compliance.
 
 ## Blocker register
 
@@ -14,7 +128,7 @@ Every number below comes from files in `results/`. OrbitFlow is an offline simul
 | "Agent overhead" | Assumed to be agent compute | Traced to always-on emergency beams; made need-based | 34.0 to 18.1 ms, `studies/emergency.json` |
 | Slot 61 backlog spike | Blamed on abrupt priority end | Taper tested and rejected; need-based service reduced it | Peak 1243 to 837 kb |
 | 22 W "legal cap" | Described as law | Relabelled hypothetical; added study using a real ITU-R limit | `tests/test_system.py`, `studies/pfd_mask.json` |
-| Unused datasets | OpenNTN and Sionna files unused by any result | Used as a second test trace | `pass:openntn_sionna` |
+| Unused datasets | OpenNTN and Sionna files unused by any result | Used as a second test trace | `pass:arrivals` |
 | Emergency cell dropped | Guard could drop one emergency cell to force another, and audit text misreported it | Emergency cells outrank others when dropping; text reports actual state | `tests/test_system.py` |
 | PDF chunking | A line such as "1 MHz band:" became a false heading, splitting clauses | Heading rules tightened | `tests/test_rag.py` |
 | Docker untested | Never built | Built and run; health, simulate and UI all responded | Manual run, this session |

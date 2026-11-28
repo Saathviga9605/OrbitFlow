@@ -18,7 +18,7 @@ import numpy as np
 
 from scenarios.engine import Event, EventFeed
 from traffic.dataset import Trace, load_trace
-from traffic.generator import COLD, COLD_STD, HOT, HOT_STD
+from traffic.generator import COLD, COLD_STD, HOT, HOT_STD, demand_envelope
 from utils.config import REAL_TRACE, load_config
 
 
@@ -29,28 +29,31 @@ def build(base_trace: Trace | None = None, config: dict | None = None, seed: int
     trace = copy.deepcopy(base)
     rng = np.random.default_rng(seed)
     T, N = trace.rate.shape
-    assert T == 100 and N == 19, f"Expected 100x19 trace, got {T}x{N}"
+    assert T == 100, f"The storyline is scripted on 100 slots, got {T}"
     ev, em = int(d["event_cell"]), [int(c) for c in d["emergency_cells"]]
     second = next((c for c in em if c != ev), ev)
     end = int(d.get("surge_end", 61))                # first slot after the surge; lets experiments vary the duration
     scale = float(d.get("traffic_scale", 1.0))
 
-    trace.rate = np.maximum(COLD + COLD_STD * rng.standard_normal((T, N)), 0.3)
+    trace.rate = np.maximum(COLD + COLD_STD * rng.standard_normal((T, N)), 0.05 * COLD)
     trace.hot = np.zeros((T, N))
     trace.emergency = np.zeros((T, N))
     for c in d["background_hot"]:
         trace.rate[:, c] = HOT + HOT_STD * rng.standard_normal(T)
         trace.hot[:, c] = 1
+    # background follows the dataset's pass envelope (load grows with visibility); the flood event below does not
+    trace.rate = np.maximum(trace.rate * demand_envelope(base)[:, None], 0.05 * COLD)
 
-    trace.rate[15:25, ev] = np.linspace(2.2, 15.0, 10)
-    trace.rate[25:30, ev] = np.linspace(18.0, 36.0, 5)
+    # levels are fractions of the calibrated hotspot level, so the story scales with the dataset
+    trace.rate[15:25, ev] = np.linspace(COLD, 0.37 * HOT, 10)
+    trace.rate[25:30, ev] = np.linspace(0.45 * HOT, 0.9 * HOT, 5)
     hold = np.arange(30, end)
     trace.rate[hold, ev] = HOT + HOT_STD * rng.standard_normal(len(hold))
-    trace.rate[hold, second] = 15.0 + 0.5 * rng.standard_normal(len(hold))
+    trace.rate[hold, second] = 0.37 * HOT + 0.012 * HOT * rng.standard_normal(len(hold))
     d1, d2 = min(16, T - end), min(9, T - end)
-    trace.rate[end:end + d1, ev] = np.linspace(30.0, 5.0, d1)
-    trace.rate[end:end + d2, second] = np.linspace(12.0, 3.0, d2)
-    trace.rate = np.maximum(trace.rate * scale, 0.3)
+    trace.rate[end:end + d1, ev] = np.linspace(0.75 * HOT, 0.12 * HOT, d1)
+    trace.rate[end:end + d2, second] = np.linspace(0.3 * HOT, 0.075 * HOT, d2)
+    trace.rate = np.maximum(trace.rate * scale, 0.05 * COLD)
     trace.hot[hold, ev] = 1
     trace.emergency[28:end, em] = 1
 
@@ -60,7 +63,7 @@ def build(base_trace: Trace | None = None, config: dict | None = None, seed: int
     trace.logged_mask = np.zeros_like(base.logged_mask)
     trace.logged_power = np.zeros_like(base.logged_power)
     trace.source = "scenario:flood_relief (real pass geometry, simulated demand and events)"
-    trace.meta = {"kind": "flood_relief", "seed": seed, "event_cell": ev, "emergency_cells": em,
+    trace.meta = {"kind": "flood_relief", "seed": seed, "event_cell": ev, "emergency_cells": em, "background_hot": [int(c) for c in d["background_hot"]],
                   "border_cells": [int(c) for c in d["border_cells"]], "border_cap_w": float(d["border_cap_w"]),
                   "fade_db": float(d["fade_db"])}
 

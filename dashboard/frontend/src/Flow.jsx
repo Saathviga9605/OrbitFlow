@@ -82,7 +82,7 @@ export default function Flow({ d }) {
       <aside className="flow-detail" aria-live="polite">
         <p className="kicker" style={{ color: KIND[node[5]] }}>{t(`flow.kind.${node[5]}`)}</p>
         <h3>{t(`node.${node[0]}`)}</h3>
-        <p>{t(`node.${node[0]}.role`)}</p>
+        <p>{t(`node.${node[0]}.role`, { k: d.flood_replay.phys.k, w: d.flood_replay.phys.pmax })}</p>
         {lat && <p className="flow-lat"><b className="mono">{lat.mean.toFixed(2)} ms</b> {t('flow.mean')} · {lat.p99.toFixed(2)} ms p99</p>}
         {reg && <dl>
           <dt>{t('flow.can')}</dt><dd lang="en">{reg.allowed_actions.join(' · ')}</dd>

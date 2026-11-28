@@ -1,0 +1,1958 @@
+{
+ "registry": [
+  {
+   "id": "network",
+   "kind": "agent",
+   "name": "Network agent",
+   "implementation": "bridge_ppo",
+   "technique": "Permutation-equivariant actor-critic trained with PPO (BRIDGE)",
+   "version": "bridge_ppo.pt (seed 3 of rg)",
+   "enabled": true,
+   "required": true,
+   "inputs": [
+    "lagged telemetry",
+    "gated demand forecast",
+    "queues",
+    "ephemeris",
+    "signalling ages"
+   ],
+   "outputs": [
+    "beam set",
+    "per-beam power",
+    "beam priority"
+   ],
+   "allowed_actions": [
+    "propose beams and power"
+   ],
+   "prohibited_actions": [
+    "execute an action",
+    "override the guard",
+    "read policy or emergency notices"
+   ],
+   "consumes_knowledge": [],
+   "failure_modes": [
+    "exception",
+    "malformed output (shape or non-finite)",
+    "timeout beyond decision budget"
+   ],
+   "fallback": "reactive_greedy",
+   "timeout_ms": 10.0
+  },
+  {
+   "id": "policy",
+   "kind": "agent",
+   "name": "Policy agent",
+   "implementation": "rule_retrieval",
+   "technique": "Deterministic rule checks; evidence retrieved once at start-up (BM25, verbatim quotes)",
+   "version": "agents/policy_rules.yaml",
+   "enabled": true,
+   "required": false,
+   "inputs": [
+    "proposal",
+    "policy notices",
+    "active policy profile",
+    "knowledge base"
+   ],
+   "outputs": [
+    "verdicts with evidence status and citations",
+    "power-cap array"
+   ],
+   "allowed_actions": [
+    "return PASS/FAIL verdicts",
+    "set per-cell power caps"
+   ],
+   "prohibited_actions": [
+    "change beam selection",
+    "see emergency declarations"
+   ],
+   "consumes_knowledge": [
+    "agents/policy_rules.yaml",
+    "rag/index",
+    "policy/profiles"
+   ],
+   "failure_modes": [
+    "exception",
+    "unavailable"
+   ],
+   "fallback": "fail_closed_cap",
+   "timeout_ms": 10.0
+  },
+  {
+   "id": "safety",
+   "kind": "agent",
+   "name": "Safety agent",
+   "implementation": "rules",
+   "technique": "Deterministic checks on emergency service, power concentration and starvation",
+   "version": "agents/supervisor.py:SafetyAgent",
+   "enabled": true,
+   "required": false,
+   "inputs": [
+    "proposal",
+    "lagged telemetry",
+    "emergency declarations"
+   ],
+   "outputs": [
+    "findings",
+    "cells that must be lit"
+   ],
+   "allowed_actions": [
+    "require cells to be lit",
+    "raise warnings"
+   ],
+   "prohibited_actions": [
+    "set power caps",
+    "see policy notices"
+   ],
+   "consumes_knowledge": [
+    "policy/profiles (safety thresholds)"
+   ],
+   "failure_modes": [
+    "exception",
+    "unavailable"
+   ],
+   "fallback": "protect_all_emergency_cells",
+   "timeout_ms": 10.0
+  },
+  {
+   "id": "supervisor",
+   "kind": "agent",
+   "name": "Supervisor (coordinator / mediator)",
+   "implementation": "rules",
+   "technique": "Fixed precedence - hard limits > operating constraints > safety > optimisation; conflict log; escalation",
+   "version": "agents/supervisor.py:Supervisor",
+   "enabled": true,
+   "required": true,
+   "inputs": [
+    "all agent outputs",
+    "all events",
+    "data-quality report",
+    "profile"
+   ],
+   "outputs": [
+    "final constraints",
+    "conflicts",
+    "human-review items",
+    "audit trace"
+   ],
+   "allowed_actions": [
+    "choose fallbacks",
+    "apply exemptions defined by the profile",
+    "escalate to a human"
+   ],
+   "prohibited_actions": [
+    "exceed hard limits",
+    "invent an exemption the profile does not grant"
+   ],
+   "consumes_knowledge": [
+    "policy/profiles",
+    "agents/registry.yaml"
+   ],
+   "failure_modes": [
+    "none handled - a Supervisor exception stops the run"
+   ],
+   "fallback": null,
+   "timeout_ms": null
+  },
+  {
+   "id": "forecaster",
+   "kind": "component",
+   "name": "Traffic forecaster",
+   "implementation": "residual_gru",
+   "technique": "Residual GRU over persistence, 3-slot horizon, causal uncertainty gate",
+   "version": "traffic_predictor.pt",
+   "enabled": true,
+   "required": false,
+   "inputs": [
+    "observed demand history"
+   ],
+   "outputs": [
+    "3-slot demand forecast per cell"
+   ],
+   "allowed_actions": [
+    "publish a forecast"
+   ],
+   "prohibited_actions": [
+    "see future demand (tests/test_forecast_leak.py)"
+   ],
+   "consumes_knowledge": [],
+   "failure_modes": [
+    "high recent error -> gate falls back to persistence"
+   ],
+   "fallback": "persistence",
+   "timeout_ms": null
+  },
+  {
+   "id": "data_validator",
+   "kind": "component",
+   "name": "Telemetry validator",
+   "implementation": "rules",
+   "technique": "Finite/non-negative/stale checks, last-good imputation, conservative mode",
+   "version": "agents/supervisor.py:Supervisor._validate_obs",
+   "enabled": true,
+   "required": true,
+   "inputs": [
+    "lagged telemetry"
+   ],
+   "outputs": [
+    "cleaned observation",
+    "data-quality report"
+   ],
+   "allowed_actions": [
+    "impute last good value",
+    "disable forecast for bad cells"
+   ],
+   "prohibited_actions": [
+    "use ground-truth demand"
+   ],
+   "consumes_knowledge": [
+    "policy/profiles (resilience thresholds)"
+   ],
+   "failure_modes": [
+    "none"
+   ],
+   "fallback": null,
+   "timeout_ms": null
+  },
+  {
+   "id": "guard",
+   "kind": "component",
+   "name": "BAM guard",
+   "implementation": "bam_guard",
+   "technique": "Deterministic validation and repair of beam count, power budget, floors, signalling deadlines, caps",
+   "version": "bam/validator.py",
+   "enabled": true,
+   "required": true,
+   "inputs": [
+    "proposal",
+    "constraints"
+   ],
+   "outputs": [
+    "executable action",
+    "checks",
+    "repair notes"
+   ],
+   "allowed_actions": [
+    "repair or reject an action"
+   ],
+   "prohibited_actions": [
+    "be disabled"
+   ],
+   "consumes_knowledge": [
+    "config.yaml scenario and timing_guard"
+   ],
+   "failure_modes": [
+    "infeasible constraints -> InfeasibleConstraintsError"
+   ],
+   "fallback": null,
+   "timeout_ms": null
+  },
+  {
+   "id": "explainer",
+   "kind": "component",
+   "name": "Decision explainer",
+   "implementation": "templates",
+   "technique": "Deterministic localised templates over measured results (en, ar, hi, ta)",
+   "version": "i18n/locales",
+   "enabled": true,
+   "required": false,
+   "inputs": [
+    "scenario result"
+   ],
+   "outputs": [
+    "localised decision summary"
+   ],
+   "allowed_actions": [
+    "describe measured results"
+   ],
+   "prohibited_actions": [
+    "state numbers not present in the result"
+   ],
+   "consumes_knowledge": [
+    "i18n/locales"
+   ],
+   "failure_modes": [
+    "missing translation -> English fallback"
+   ],
+   "fallback": "english",
+   "timeout_ms": null
+  }
+ ],
+ "profiles": [
+  {
+   "profile_id": "ae-demo",
+   "title": "UAE-oriented demonstration profile",
+   "jurisdiction": "AE",
+   "operator": "Illustrative LEO operator (fictional)",
+   "deployment_context": "Cross-border coverage near a neighbouring jurisdiction (simulation)",
+   "version": "0.2.0",
+   "effective_date": "2026-03-01",
+   "status": "ILLUSTRATIVE",
+   "provenance_note": "Illustrative only. Values were chosen to show a stricter operator configuration: a lower border cap, no automatic emergency exemption, and faster escalation. The corpus holds no UAE telecommunications regulation; replace these values with verified requirements before any real use.",
+   "fingerprint": "ed7f0dafa661",
+   "file": "policy/profiles/uae_demo.yaml",
+   "operating_constraints": {
+    "border_power_cap": {
+     "enabled": true,
+     "cells": [
+      13,
+      14,
+      15,
+      16
+     ],
+     "cap_w": 16.0,
+     "onset_slot": 50,
+     "source_type": "illustrative"
+    },
+    "emergency_exemption": "never"
+   },
+   "safety": {
+    "max_beam_share": 0.55,
+    "starve_slots": 30
+   },
+   "human_oversight": {
+    "sustained_shortfall_slots": 3,
+    "escalate_on_agent_failure": true,
+    "escalate_on_data_degradation": true
+   },
+   "resilience": {
+    "fail_closed_cap_w": 12.0,
+    "decision_budget_ms": 10.0,
+    "max_bad_telemetry_share": 0.15,
+    "state_drift_mbps": 8.0
+   },
+   "governance_rules": [
+    {
+     "id": "AE-HUMAN-OVERSIGHT",
+     "title": "Automated decisions stay reviewable by a human",
+     "enforcement": "software",
+     "enforced_by": "Supervisor human-review queue (3-slot trigger)",
+     "source_type": "illustrative",
+     "kb_rule": "R3_human_oversight"
+    },
+    {
+     "id": "AE-RECORD-KEEPING",
+     "title": "Every slot decision is logged and traceable",
+     "enforcement": "software",
+     "enforced_by": "audit.AuditRecord per slot",
+     "source_type": "illustrative",
+     "kb_rule": "R3b_record_keeping"
+    },
+    {
+     "id": "AE-NO-EXEMPTION",
+     "title": "Border cap binds even for emergency traffic (operator choice in this demo)",
+     "enforcement": "software",
+     "enforced_by": "Supervisor exemption mode \"never\"",
+     "source_type": "illustrative"
+    },
+    {
+     "id": "AE-DATA-LOCALISATION",
+     "title": "Telemetry and audit logs stay in-country",
+     "enforcement": "documented",
+     "enforced_by": "not enforced; OrbitFlow writes local files only",
+     "source_type": "assumption"
+    }
+   ],
+   "validation": {
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "conflicts": [
+     {
+      "id": "CAP_VS_EMERGENCY",
+      "between": [
+       "operating_constraints.border_power_cap",
+       "safety.emergency_priority"
+      ],
+      "cells": [
+       13,
+       14
+      ],
+      "resolution": "cap binds; reduced emergency capacity is logged as a conflict and not escalated"
+     }
+    ],
+    "rules": [
+     {
+      "id": "AE-HUMAN-OVERSIGHT",
+      "title": "Automated decisions stay reviewable by a human",
+      "enforcement": "software",
+      "enforced_by": "Supervisor human-review queue (3-slot trigger)",
+      "source_type": "illustrative",
+      "kb_rule": "R3_human_oversight",
+      "evidence_status": "FOUND",
+      "quote": {
+       "chunk_id": "asean_ai_governance_ethics_guide_2024#62",
+       "doc_id": "asean_ai_governance_ethics_guide_2024",
+       "title": "ASEAN Guide on AI Governance and Ethics (Feb 2024).",
+       "issuer": "ASEAN",
+       "section": "ABOITIZ GROUP",
+       "page": 23,
+       "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/ASEAN_AI_Governance_Ethics_Guide_2024.pdf",
+       "sha256": "6464a6d912a918a1",
+       "quote": "Having clarity on the objective of using AI is a key first step in determining the extent of human oversight.",
+       "verified_verbatim": true,
+       "kind": "quotation",
+       "score": 0.0154,
+       "cosine": 0.092
+      }
+     },
+     {
+      "id": "AE-RECORD-KEEPING",
+      "title": "Every slot decision is logged and traceable",
+      "enforcement": "software",
+      "enforced_by": "audit.AuditRecord per slot",
+      "source_type": "illustrative",
+      "kb_rule": "R3b_record_keeping",
+      "evidence_status": "FOUND",
+      "quote": {
+       "chunk_id": "asean_ai_governance_ethics_guide_2024#25",
+       "doc_id": "asean_ai_governance_ethics_guide_2024",
+       "title": "ASEAN Guide on AI Governance and Ethics (Feb 2024).",
+       "issuer": "ASEAN",
+       "section": "1. Transparency and Explainability",
+       "page": 12,
+       "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/ASEAN_AI_Governance_Ethics_Guide_2024.pdf",
+       "sha256": "6464a6d912a918a1",
+       "quote": "• Ensuring traceability by building an audit trail to document the AI system development and decisionmaking process, implementing a black box recorder that captures all input data streams, or storing",
+       "verified_verbatim": true,
+       "kind": "quotation",
+       "score": 0.0164,
+       "cosine": 0.081
+      }
+     },
+     {
+      "id": "AE-NO-EXEMPTION",
+      "title": "Border cap binds even for emergency traffic (operator choice in this demo)",
+      "enforcement": "software",
+      "enforced_by": "Supervisor exemption mode \"never\"",
+      "source_type": "illustrative",
+      "kb_rule": null,
+      "evidence_status": "NO_SOURCE",
+      "quote": null
+     },
+     {
+      "id": "AE-DATA-LOCALISATION",
+      "title": "Telemetry and audit logs stay in-country",
+      "enforcement": "documented",
+      "enforced_by": "not enforced; OrbitFlow writes local files only",
+      "source_type": "assumption",
+      "kb_rule": null,
+      "evidence_status": "NO_SOURCE",
+      "quote": null
+     }
+    ]
+   }
+  },
+  {
+   "profile_id": "baseline-intl",
+   "title": "Generic international baseline",
+   "jurisdiction": "INTL",
+   "operator": "Illustrative LEO operator (fictional)",
+   "deployment_context": "Disaster-relief demonstration on one recorded LEO pass (simulation)",
+   "version": "1.0.0",
+   "effective_date": "2026-01-01",
+   "status": "ILLUSTRATIVE",
+   "provenance_note": "Parameter values are OrbitFlow modelling choices, not taken from any national rule. The 22 W border cap is a hypothetical operating constraint. Rule evidence comes from the knowledge base and is quoted verbatim where found.",
+   "fingerprint": "1918022628c6",
+   "file": "policy/profiles/baseline_intl.yaml",
+   "operating_constraints": {
+    "border_power_cap": {
+     "enabled": true,
+     "cells": [
+      13,
+      14,
+      15,
+      16
+     ],
+     "cap_w": 22.0,
+     "onset_slot": 50,
+     "source_type": "illustrative"
+    },
+    "emergency_exemption": "human_approval"
+   },
+   "safety": {
+    "max_beam_share": 0.6,
+    "starve_slots": 40
+   },
+   "human_oversight": {
+    "sustained_shortfall_slots": 5,
+    "escalate_on_agent_failure": true,
+    "escalate_on_data_degradation": true
+   },
+   "resilience": {
+    "fail_closed_cap_w": 22.0,
+    "decision_budget_ms": 10.0,
+    "max_bad_telemetry_share": 0.25,
+    "state_drift_mbps": 10.0
+   },
+   "governance_rules": [
+    {
+     "id": "G-HUMAN-OVERSIGHT",
+     "title": "Automated decisions stay reviewable by a human",
+     "enforcement": "software",
+     "enforced_by": "Supervisor human-review queue",
+     "source_type": "research",
+     "kb_rule": "R3_human_oversight"
+    },
+    {
+     "id": "G-RECORD-KEEPING",
+     "title": "Every slot decision is logged and traceable",
+     "enforcement": "software",
+     "enforced_by": "audit.AuditRecord per slot",
+     "source_type": "research",
+     "kb_rule": "R3b_record_keeping"
+    },
+    {
+     "id": "G-ML-POLICY-NODE",
+     "title": "Model output passes a policy function before reaching the network",
+     "enforcement": "software",
+     "enforced_by": "Policy agent + BAM guard",
+     "source_type": "official",
+     "kb_rule": "R6_ml_policy_before_sink"
+    },
+    {
+     "id": "G-SANDBOX",
+     "title": "Models are validated in a sandbox before use",
+     "enforcement": "documented",
+     "enforced_by": "Digital twin (simulation only)",
+     "source_type": "official",
+     "kb_rule": "R7_sandbox_validation"
+    }
+   ],
+   "validation": {
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "conflicts": [
+     {
+      "id": "CAP_VS_EMERGENCY",
+      "between": [
+       "operating_constraints.border_power_cap",
+       "safety.emergency_priority"
+      ],
+      "cells": [
+       13,
+       14
+      ],
+      "resolution": "cap binds; every slot it reduces an emergency beam is sent for human review"
+     }
+    ],
+    "rules": [
+     {
+      "id": "G-HUMAN-OVERSIGHT",
+      "title": "Automated decisions stay reviewable by a human",
+      "enforcement": "software",
+      "enforced_by": "Supervisor human-review queue",
+      "source_type": "research",
+      "kb_rule": "R3_human_oversight",
+      "evidence_status": "FOUND",
+      "quote": {
+       "chunk_id": "asean_ai_governance_ethics_guide_2024#62",
+       "doc_id": "asean_ai_governance_ethics_guide_2024",
+       "title": "ASEAN Guide on AI Governance and Ethics (Feb 2024).",
+       "issuer": "ASEAN",
+       "section": "ABOITIZ GROUP",
+       "page": 23,
+       "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/ASEAN_AI_Governance_Ethics_Guide_2024.pdf",
+       "sha256": "6464a6d912a918a1",
+       "quote": "Having clarity on the objective of using AI is a key first step in determining the extent of human oversight.",
+       "verified_verbatim": true,
+       "kind": "quotation",
+       "score": 0.0154,
+       "cosine": 0.092
+      }
+     },
+     {
+      "id": "G-RECORD-KEEPING",
+      "title": "Every slot decision is logged and traceable",
+      "enforcement": "software",
+      "enforced_by": "audit.AuditRecord per slot",
+      "source_type": "research",
+      "kb_rule": "R3b_record_keeping",
+      "evidence_status": "FOUND",
+      "quote": {
+       "chunk_id": "asean_ai_governance_ethics_guide_2024#25",
+       "doc_id": "asean_ai_governance_ethics_guide_2024",
+       "title": "ASEAN Guide on AI Governance and Ethics (Feb 2024).",
+       "issuer": "ASEAN",
+       "section": "1. Transparency and Explainability",
+       "page": 12,
+       "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/ASEAN_AI_Governance_Ethics_Guide_2024.pdf",
+       "sha256": "6464a6d912a918a1",
+       "quote": "• Ensuring traceability by building an audit trail to document the AI system development and decisionmaking process, implementing a black box recorder that captures all input data streams, or storing",
+       "verified_verbatim": true,
+       "kind": "quotation",
+       "score": 0.0164,
+       "cosine": 0.081
+      }
+     },
+     {
+      "id": "G-ML-POLICY-NODE",
+      "title": "Model output passes a policy function before reaching the network",
+      "enforcement": "software",
+      "enforced_by": "Policy agent + BAM guard",
+      "source_type": "official",
+      "kb_rule": "R6_ml_policy_before_sink",
+      "evidence_status": "FOUND",
+      "quote": {
+       "chunk_id": "t_rec_y_3172_201906_i_pdf_e#74",
+       "doc_id": "t_rec_y_3172_201906_i_pdf_e",
+       "title": "T-REC-Y.3172-201906-I!!PDF-E",
+       "issuer": "not stated in repository index",
+       "section": "8.3 General guidelines for realization of the high-level architecture",
+       "page": 25,
+       "source_path": "simulation/server/knowledge/InputDocs/AI_Use_Cases/T-REC-Y.3172-201906-I!!PDF-E.pdf",
+       "sha256": "e42f9a3be3f951d3",
+       "quote": "The output of the ML model is then used to apply policies (by a policy node) that will be implemented (by a SINK node).",
+       "verified_verbatim": true,
+       "kind": "quotation",
+       "score": 0.0156,
+       "cosine": 0.159
+      }
+     },
+     {
+      "id": "G-SANDBOX",
+      "title": "Models are validated in a sandbox before use",
+      "enforcement": "documented",
+      "enforced_by": "Digital twin (simulation only)",
+      "source_type": "official",
+      "kb_rule": "R7_sandbox_validation",
+      "evidence_status": "FOUND",
+      "quote": {
+       "chunk_id": "t_rec_y_3172_201906_i_pdf_e#73",
+       "doc_id": "t_rec_y_3172_201906_i_pdf_e",
+       "title": "T-REC-Y.3172-201906-I!!PDF-E",
+       "issuer": "not stated in repository index",
+       "section": "8.2 High-level architecture",
+       "page": 25,
+       "source_path": "simulation/server/knowledge/InputDocs/AI_Use_Cases/T-REC-Y.3172-201906-I!!PDF-E.pdf",
+       "sha256": "e42f9a3be3f951d3",
+       "quote": "– Data from the ML underlay networks and/or the simulated ML underlay networks may be used to train the ML models in the ML sandbox subsystem.",
+       "verified_verbatim": true,
+       "kind": "quotation",
+       "score": 0.0164,
+       "cosine": 0.232
+      }
+     }
+    ]
+   }
+  },
+  {
+   "profile_id": "in-demo",
+   "title": "India-oriented demonstration profile",
+   "jurisdiction": "IN",
+   "operator": "Illustrative LEO operator (fictional)",
+   "deployment_context": "Disaster-relief coverage with emergency priority (simulation)",
+   "version": "0.2.0",
+   "effective_date": "2026-03-01",
+   "status": "ILLUSTRATIVE",
+   "provenance_note": "Illustrative only. The automatic emergency exemption is a demonstration choice; the corpus search for an emergency exemption from a power limit found no passage (rule R5). Responsible-AI rules are checked against NITI Aayog documents in the knowledge base.",
+   "fingerprint": "f19af3923952",
+   "file": "policy/profiles/india_demo.yaml",
+   "operating_constraints": {
+    "border_power_cap": {
+     "enabled": true,
+     "cells": [
+      13,
+      14,
+      15,
+      16
+     ],
+     "cap_w": 22.0,
+     "onset_slot": 50,
+     "source_type": "illustrative"
+    },
+    "emergency_exemption": "automatic"
+   },
+   "safety": {
+    "max_beam_share": 0.6,
+    "starve_slots": 40
+   },
+   "human_oversight": {
+    "sustained_shortfall_slots": 5,
+    "escalate_on_agent_failure": true,
+    "escalate_on_data_degradation": false
+   },
+   "resilience": {
+    "fail_closed_cap_w": 22.0,
+    "decision_budget_ms": 10.0,
+    "max_bad_telemetry_share": 0.25,
+    "state_drift_mbps": 10.0
+   },
+   "governance_rules": [
+    {
+     "id": "IN-ACCOUNTABILITY",
+     "title": "Responsible-AI principle of accountability (decisions attributable and reviewable)",
+     "enforcement": "software",
+     "enforced_by": "Supervisor human-review queue + per-slot audit record",
+     "source_type": "official",
+     "evidence": {
+      "query": "principle of accountability responsible AI",
+      "must": [
+       "accountab"
+      ],
+      "doc_ids": [
+       "india_responsible_ai_principles_2021"
+      ]
+     }
+    },
+    {
+     "id": "IN-RECORD-KEEPING",
+     "title": "Every slot decision is logged and traceable",
+     "enforcement": "software",
+     "enforced_by": "audit.AuditRecord per slot",
+     "source_type": "research",
+     "kb_rule": "R3b_record_keeping"
+    },
+    {
+     "id": "IN-EMERGENCY-EXEMPTION",
+     "title": "Emergency cells are exempt from the border cap (demonstration choice)",
+     "enforcement": "software",
+     "enforced_by": "Supervisor exemption mode \"automatic\"",
+     "source_type": "illustrative",
+     "kb_rule": "R5_emergency_exemption"
+    }
+   ],
+   "validation": {
+    "valid": true,
+    "errors": [],
+    "warnings": [
+     "automatic emergency exemption has no supporting passage in the knowledge base (R5): it is an operator choice, not a sourced rule"
+    ],
+    "conflicts": [
+     {
+      "id": "CAP_VS_EMERGENCY",
+      "between": [
+       "operating_constraints.border_power_cap",
+       "safety.emergency_priority"
+      ],
+      "cells": [
+       13,
+       14
+      ],
+      "resolution": "emergency cells are exempt from the cap; each exempted slot is logged"
+     }
+    ],
+    "rules": [
+     {
+      "id": "IN-ACCOUNTABILITY",
+      "title": "Responsible-AI principle of accountability (decisions attributable and reviewable)",
+      "enforcement": "software",
+      "enforced_by": "Supervisor human-review queue + per-slot audit record",
+      "source_type": "official",
+      "kb_rule": null,
+      "evidence_status": "FOUND",
+      "quote": {
+       "chunk_id": "india_responsible_ai_principles_2021#97",
+       "doc_id": "india_responsible_ai_principles_2021",
+       "title": "India Principles for Responsible AI (NITI Aayog, Feb 2021).",
+       "issuer": "Government of India",
+       "section": "5. Principle of Transparency: The design and functioning of the AI",
+       "page": 50,
+       "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/India_Responsible_AI_Principles_2021.pdf",
+       "sha256": "381272dfa3b7a098",
+       "quote": "Principle of Accountability: All stakeholders involved in the design, development and deployment of the AI system must be responsible for their actions.",
+       "verified_verbatim": true,
+       "kind": "quotation",
+       "score": 0.0164,
+       "cosine": 0.144
+      }
+     },
+     {
+      "id": "IN-RECORD-KEEPING",
+      "title": "Every slot decision is logged and traceable",
+      "enforcement": "software",
+      "enforced_by": "audit.AuditRecord per slot",
+      "source_type": "research",
+      "kb_rule": "R3b_record_keeping",
+      "evidence_status": "FOUND",
+      "quote": {
+       "chunk_id": "asean_ai_governance_ethics_guide_2024#25",
+       "doc_id": "asean_ai_governance_ethics_guide_2024",
+       "title": "ASEAN Guide on AI Governance and Ethics (Feb 2024).",
+       "issuer": "ASEAN",
+       "section": "1. Transparency and Explainability",
+       "page": 12,
+       "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/ASEAN_AI_Governance_Ethics_Guide_2024.pdf",
+       "sha256": "6464a6d912a918a1",
+       "quote": "• Ensuring traceability by building an audit trail to document the AI system development and decisionmaking process, implementing a black box recorder that captures all input data streams, or storing",
+       "verified_verbatim": true,
+       "kind": "quotation",
+       "score": 0.0164,
+       "cosine": 0.081
+      }
+     },
+     {
+      "id": "IN-EMERGENCY-EXEMPTION",
+      "title": "Emergency cells are exempt from the border cap (demonstration choice)",
+      "enforcement": "software",
+      "enforced_by": "Supervisor exemption mode \"automatic\"",
+      "source_type": "illustrative",
+      "kb_rule": "R5_emergency_exemption",
+      "evidence_status": "NONE_FOUND",
+      "quote": null
+     }
+    ]
+   }
+  }
+ ],
+ "standards": {
+  "statuses": [
+   "implemented_in_simulation",
+   "partial",
+   "conceptual",
+   "proposed",
+   "not_implemented",
+   "not_applicable"
+  ],
+  "entries": [
+   {
+    "id": "ITU-T-Y.3172",
+    "standard": "ITU-T Y.3172",
+    "title": "Architectural framework for machine learning in future networks including IMT-2020",
+    "organization": "ITU-T",
+    "version": "06/2019",
+    "version_verified": true,
+    "in_knowledge_base": "t_rec_y_3172_201906_i_pdf_e",
+    "scope": "ML pipeline (source, collector, preprocessor, model, policy, distributor, sink), ML sandbox, MLFO",
+    "requirement": "Model output passes a policy function before it reaches the network; models are trained and validated in a sandbox",
+    "orbitflow_components": [
+     "agents/supervisor.py (Policy agent)",
+     "bam/validator.py (guard)",
+     "digital_twin/ (sandbox role)"
+    ],
+    "kb_rules": [
+     "R6_ml_policy_before_sink",
+     "R7_sandbox_validation"
+    ],
+    "implementation_evidence": [
+     "agents/supervisor.py",
+     "bam/validator.py",
+     "tests/test_guard.py",
+     "tests/test_agents.py"
+    ],
+    "status": "partial",
+    "not_implemented": "No ML Function Orchestrator (MLFO), no ML intent, no standard interfaces between pipeline nodes; mapping is by design, not tested conformance.",
+    "next_step": "Express the profile + scenario as a Y.3172-style ML intent and map pipeline nodes to named interfaces.",
+    "evidence_present": {
+     "agents/supervisor.py": true,
+     "bam/validator.py": true,
+     "tests/test_guard.py": true,
+     "tests/test_agents.py": true
+    }
+   },
+   {
+    "id": "ITU-T-Y.3173",
+    "standard": "ITU-T Y.3173",
+    "title": "Framework for evaluating intelligence levels of future networks including IMT-2020",
+    "organization": "ITU-T",
+    "version": "02/2020",
+    "version_verified": false,
+    "in_knowledge_base": null,
+    "scope": "Levels of network intelligence across action implementation, data collection, analysis, decision",
+    "requirement": "Assess the intelligence level of each network operation dimension",
+    "orbitflow_components": [
+     "agents/supervisor.py",
+     "agents/registry.yaml"
+    ],
+    "kb_rules": [],
+    "implementation_evidence": [],
+    "status": "proposed",
+    "not_implemented": "No intelligence-level assessment has been made; the document is not in the knowledge base.",
+    "next_step": "Add the document to the corpus and score each pipeline stage against its levels.",
+    "evidence_present": {}
+   },
+   {
+    "id": "ITU-T-Y.3174",
+    "standard": "ITU-T Y.3174",
+    "title": "Framework for data handling to enable machine learning in future networks including IMT-2020",
+    "organization": "ITU-T",
+    "version": "02/2020",
+    "version_verified": false,
+    "in_knowledge_base": null,
+    "scope": "Data collection, processing and provenance for ML in networks",
+    "requirement": "Documented data sources, handling and quality for ML",
+    "orbitflow_components": [
+     "docs/data_provenance.md",
+     "traffic/splits.py",
+     "agents/supervisor.py (telemetry validator)"
+    ],
+    "kb_rules": [],
+    "implementation_evidence": [
+     "docs/data_provenance.md",
+     "tests/test_no_leakage.py",
+     "tests/test_resilience.py"
+    ],
+    "status": "conceptual",
+    "not_implemented": "Data handling is documented and tested for leakage and corruption, but not structured per Y.3174; document not in the corpus.",
+    "next_step": "Map dataset, split and validator metadata to the Y.3174 data-handling functions.",
+    "evidence_present": {
+     "docs/data_provenance.md": true,
+     "tests/test_no_leakage.py": true,
+     "tests/test_resilience.py": true
+    }
+   },
+   {
+    "id": "ITU-R-SF.358-5",
+    "standard": "ITU-R SF.358-5",
+    "title": "Maximum permissible values of power flux-density at the surface of the Earth produced by satellites in the fixed-satellite service using the same frequency bands above 1 GHz as line-of-sight radio-relay systems",
+    "organization": "ITU-R",
+    "version": "SF.358-5 (10/1995)",
+    "version_verified": true,
+    "in_knowledge_base": "r_rec_sf_358_5_199510_w_pdf_e",
+    "scope": "Surface power flux-density limits by angle of arrival",
+    "requirement": "PFD at the Earth's surface stays below the angle-dependent mask",
+    "orbitflow_components": [
+     "scripts/run_studies.py (pfd study)",
+     "agents/supervisor.py (R8 verdicts)",
+     "bam/validator.py (power caps)"
+    ],
+    "kb_rules": [
+     "R1_border_power_cap",
+     "R8_pfd_mask"
+    ],
+    "implementation_evidence": [
+     "results/studies/pfd_mask.json",
+     "tests/test_system.py"
+    ],
+    "status": "partial",
+    "not_implemented": "Indicative only - 20 GHz lies outside the listed bands and Tx gain is assumed; not part of the default flood scenario.",
+    "next_step": "Apply the mask that actually governs the simulated band, with a reviewed antenna pattern.",
+    "evidence_present": {
+     "results/studies/pfd_mask.json": true,
+     "tests/test_system.py": true
+    }
+   },
+   {
+    "id": "ITU-R-S.1503-4",
+    "standard": "ITU-R S.1503-4",
+    "title": "Functional description for software to determine conformance of NGSO FSS systems with EPFD limits",
+    "organization": "ITU-R",
+    "version": "S.1503-4 (09/2023)",
+    "version_verified": true,
+    "in_knowledge_base": "r_rec_s_1503_4_202309_i_pdf_e",
+    "scope": "Equivalent power flux-density (EPFD) evaluation for NGSO systems",
+    "requirement": "EPFD statistics computed per the functional description",
+    "orbitflow_components": [],
+    "kb_rules": [
+     "R9_ngso_limits_in_band"
+    ],
+    "implementation_evidence": [],
+    "status": "not_implemented",
+    "not_implemented": "No EPFD computation; one satellite and one pass only.",
+    "next_step": "Multi-satellite constellation geometry before any EPFD estimate is meaningful.",
+    "evidence_present": {}
+   },
+   {
+    "id": "ITU-R-S.524-8",
+    "standard": "ITU-R S.524-8",
+    "title": "Maximum permissible levels of off-axis e.i.r.p. density from earth stations in GSO networks",
+    "organization": "ITU-R",
+    "version": "S.524-8 (04/2004)",
+    "version_verified": true,
+    "in_knowledge_base": "r_rec_s_524_8_200401_s_pdf_e",
+    "scope": "Earth-station uplink emissions in GSO networks",
+    "requirement": "Off-axis e.i.r.p. density limits for earth stations",
+    "orbitflow_components": [],
+    "kb_rules": [],
+    "implementation_evidence": [],
+    "status": "not_applicable",
+    "not_implemented": "OrbitFlow schedules LEO downlink beams only; no earth-station uplink is modelled.",
+    "next_step": "None unless uplink scheduling is added.",
+    "evidence_present": {}
+   },
+   {
+    "id": "3GPP-TR-38.811",
+    "standard": "3GPP TR 38.811",
+    "title": "Study on New Radio (NR) to support non-terrestrial networks",
+    "organization": "3GPP",
+    "version": "Release 15",
+    "version_verified": false,
+    "in_knowledge_base": null,
+    "scope": "NTN deployment scenarios and channel models",
+    "requirement": "NTN channel characteristics (path loss, shadowing, elevation dependence)",
+    "orbitflow_components": [
+     "data/raw/sionna_physics_output.csv",
+     "traffic/dataset.py (load_openntn_sionna)",
+     "digital_twin/channel.py"
+    ],
+    "kb_rules": [],
+    "implementation_evidence": [
+     "docs/data_provenance.md",
+     "tests/test_channel.py",
+     "results/multirun.json (pass:openntn_sionna)"
+    ],
+    "status": "partial",
+    "not_implemented": "Channel models are not run live; the second test trace is an offline OpenNTN/Sionna output. 3GPP documents are not in the corpus.",
+    "next_step": "Generate traces from the TR 38.811 models directly for several elevations and orbits.",
+    "evidence_present": {
+     "docs/data_provenance.md": true,
+     "tests/test_channel.py": true,
+     "results/multirun.json (pass:openntn_sionna)": true
+    }
+   },
+   {
+    "id": "3GPP-TR-38.821",
+    "standard": "3GPP TR 38.821",
+    "title": "Solutions for NR to support non-terrestrial networks (NTN)",
+    "organization": "3GPP",
+    "version": "Release 16",
+    "version_verified": false,
+    "in_knowledge_base": null,
+    "scope": "NTN timing, feeder links, beam/cell relations, mobility",
+    "requirement": "Account for large and varying propagation delay in control loops",
+    "orbitflow_components": [
+     "config.yaml (obs_lag_slots)",
+     "digital_twin/environment.py (lagged telemetry)"
+    ],
+    "kb_rules": [],
+    "implementation_evidence": [
+     "tests/test_forecast_leak.py"
+    ],
+    "status": "conceptual",
+    "not_implemented": "Delay is a fixed one-slot telemetry lag; no timing advance, feeder link or handover.",
+    "next_step": "Model elevation-dependent delay and inter-satellite handover.",
+    "evidence_present": {
+     "tests/test_forecast_leak.py": true
+    }
+   },
+   {
+    "id": "3GPP-TS-38.300-NTN",
+    "standard": "3GPP TS 38.300 / TS 38.213 (NTN, Rel-17)",
+    "title": "NR overall description; physical layer procedures for control (SSB)",
+    "organization": "3GPP",
+    "version": "Release 17",
+    "version_verified": false,
+    "in_knowledge_base": null,
+    "scope": "Initial access signalling (SSB, SIB) and NTN support in NR",
+    "requirement": "Every cell receives synchronisation and system information often enough for initial access",
+    "orbitflow_components": [
+     "bam/validator.py (SSB/SIB age deadlines)"
+    ],
+    "kb_rules": [
+     "R4_signalling"
+    ],
+    "implementation_evidence": [
+     "tests/test_guard.py"
+    ],
+    "status": "partial",
+    "not_implemented": "The 40/80-slot deadlines are configuration assumptions, not derived from the specification (GAP-02).",
+    "next_step": "Derive the deadlines from the SSB periodicity and SIB scheduling of the target configuration.",
+    "evidence_present": {
+     "tests/test_guard.py": true
+    }
+   },
+   {
+    "id": "ETSI-EN-302-307-2",
+    "standard": "ETSI EN 302 307-2 (DVB-S2X), Annex E",
+    "title": "DVB-S2X superframe formats, including beam-hopping support",
+    "organization": "ETSI / DVB",
+    "version": "V1.x",
+    "version_verified": false,
+    "in_knowledge_base": null,
+    "scope": "Physical-layer framing that carries beam-hopping illumination",
+    "requirement": "Beam switching aligned to superframe boundaries with defined switching overhead",
+    "orbitflow_components": [],
+    "kb_rules": [],
+    "implementation_evidence": [],
+    "status": "not_implemented",
+    "not_implemented": "Capacity is Shannon-based; no MODCOD table, no superframe, and beam switching has no cost in the simulator.",
+    "next_step": "Add a MODCOD table and a switching penalty, then re-evaluate BRIDGE's higher switch rate.",
+    "evidence_present": {}
+   },
+   {
+    "id": "O-RAN-E2",
+    "standard": "O-RAN E2 interface / near-RT RIC",
+    "title": "O-RAN Alliance E2 and near-real-time RIC specifications",
+    "organization": "O-RAN Alliance (industry specification body, not an SDO)",
+    "version": "unspecified",
+    "version_verified": false,
+    "in_knowledge_base": null,
+    "scope": "Telemetry reporting and control from a near-real-time controller",
+    "requirement": "Controller acts on periodic, delayed reports through a standard interface",
+    "orbitflow_components": [
+     "config.yaml (obs_lag_slots)",
+     "agents/supervisor.py (telemetry validator)"
+    ],
+    "kb_rules": [],
+    "implementation_evidence": [],
+    "status": "conceptual",
+    "not_implemented": "No E2 interface or xApp packaging; telemetry delay is modelled only.",
+    "next_step": "Wrap the decision loop as an xApp against an E2 simulator.",
+    "evidence_present": {}
+   },
+   {
+    "id": "ISO-IEC-42001",
+    "standard": "ISO/IEC 42001",
+    "title": "Artificial intelligence - Management system",
+    "organization": "ISO/IEC JTC 1/SC 42",
+    "version": "2023",
+    "version_verified": true,
+    "in_knowledge_base": null,
+    "scope": "Organisational AI management system",
+    "requirement": "Defined roles, risk treatment, monitoring and records for AI systems",
+    "orbitflow_components": [
+     "agents/registry.yaml",
+     "policy/profiles/",
+     "audit/",
+     "results/human_review_queue.jsonl"
+    ],
+    "kb_rules": [
+     "R3_human_oversight",
+     "R3b_record_keeping"
+    ],
+    "implementation_evidence": [
+     "tests/test_registry.py",
+     "tests/test_policy_profiles.py"
+    ],
+    "status": "proposed",
+    "not_implemented": "No management system exists; OrbitFlow only produces artefacts (registry, audit trail, profiles) an AIMS could use.",
+    "next_step": "None at prototype stage; relevant once an operator adopts the system.",
+    "evidence_present": {
+     "tests/test_registry.py": true,
+     "tests/test_policy_profiles.py": true
+    }
+   },
+   {
+    "id": "NIST-AI-RMF",
+    "standard": "NIST AI RMF 1.0",
+    "title": "Artificial Intelligence Risk Management Framework",
+    "organization": "NIST (US)",
+    "version": "1.0 (2023)",
+    "version_verified": true,
+    "in_knowledge_base": null,
+    "scope": "Govern, Map, Measure, Manage functions for AI risk",
+    "requirement": "Measure and manage AI failure modes with documented fallbacks",
+    "orbitflow_components": [
+     "agents/registry.yaml (failure modes",
+     "fallbacks)",
+     "scenarios/suite.yaml (S5",
+     "S6",
+     "S10)"
+    ],
+    "kb_rules": [],
+    "implementation_evidence": [
+     "tests/test_resilience.py",
+     "results/scenario_suite.json"
+    ],
+    "status": "conceptual",
+    "not_implemented": "No formal RMF profile; the mapping is informal.",
+    "next_step": "Write a RMF profile listing each registry failure mode as a measured risk.",
+    "evidence_present": {
+     "tests/test_resilience.py": true,
+     "results/scenario_suite.json": true
+    }
+   },
+   {
+    "id": "FCC-26-26",
+    "standard": "FCC 26-26",
+    "title": "FCC document on NGSO FSS EPFD limits (United States)",
+    "organization": "US Federal Communications Commission (national regulator)",
+    "version": "FCC 26-26",
+    "version_verified": false,
+    "in_knowledge_base": "fcc_26_26a1",
+    "scope": "US position on NGSO downlink limits in 19.7-20.2 GHz",
+    "requirement": "NGSO downlink limits apply in the 19.7-20.2 GHz band",
+    "orbitflow_components": [
+     "agents/policy_rules.yaml (R9)"
+    ],
+    "kb_rules": [
+     "R9_ngso_limits_in_band"
+    ],
+    "implementation_evidence": [
+     "results/kb_report.json"
+    ],
+    "status": "conceptual",
+    "not_implemented": "Evidence is retrieved and quoted only; the rule status of this document should be checked and it applies to the US only.",
+    "next_step": "Legal review before it informs any profile.",
+    "evidence_present": {
+     "results/kb_report.json": true
+    }
+   }
+  ]
+ },
+ "readiness": {
+  "framework": {
+   "title": "ITU AI Ready - Analysis Towards a Standardized Readiness Framework, Report 2.0",
+   "doc_id": "ai_ready_framework_2025",
+   "issuer": "ITU"
+  },
+  "maturity_scale": {
+   "0": "Not addressed",
+   "1": "Documented - described in documentation only",
+   "2": "Implemented in simulation - code exists and runs end-to-end",
+   "3": "Tested in simulation - covered by automated tests or seeded, repeatable studies",
+   "4": "Externally validated - independent data, review or partner trial",
+   "5": "Operational - running in a live network"
+  },
+  "factors": [
+   {
+    "factor": "Open data",
+    "components": [
+     "data/raw/",
+     "traffic/dataset.py",
+     "traffic/splits.py",
+     "docs/data_provenance.md"
+    ],
+    "evidence": [
+     "docs/data_provenance.md",
+     "tests/test_no_leakage.py",
+     "tests/test_forecast_leak.py"
+    ],
+    "maturity": 2,
+    "justification": "Three offline datasets are documented and used; splits are leak-tested. Data quality is not independently assessed and OrbitFlow publishes no new dataset.",
+    "gap": "No real operator traffic; demand in training and scenarios is synthetic.",
+    "framework_statement": {
+     "chunk_id": "ai_ready_framework_2025#40",
+     "doc_id": "ai_ready_framework_2025",
+     "title": "ITU AI Ready Analysis Towards a Standardized Readiness Framework, Report 2.0, January 2026",
+     "issuer": "ITU",
+     "section": "1. Data Service Capability – Quality and Labeling Metrics",
+     "page": 19,
+     "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/AI_Ready_Framework_2025.pdf",
+     "sha256": "71191768d46b6077",
+     "quote": "Data: Accessibility and quality of datasets for analysis of AI applications.",
+     "verified_verbatim": true,
+     "kind": "quotation",
+     "score": 0.0164,
+     "cosine": 0.212
+    },
+    "evidence_present": {
+     "docs/data_provenance.md": true,
+     "tests/test_no_leakage.py": true,
+     "tests/test_forecast_leak.py": true
+    }
+   },
+   {
+    "factor": "Research",
+    "components": [
+     "scripts/run_experiments.py",
+     "scripts/run_studies.py",
+     "results/"
+    ],
+    "evidence": [
+     "results/multirun.json",
+     "results/ppo_summary.json",
+     "docs/REPORT.md"
+    ],
+    "maturity": 3,
+    "justification": "Five-seed training, 100 paired test episodes, Holm-corrected statistics and negative results are reproducible from scripts.",
+    "gap": "No external research partner or independent replication.",
+    "framework_statement": {
+     "chunk_id": "ai_ready_framework_2025#40",
+     "doc_id": "ai_ready_framework_2025",
+     "title": "ITU AI Ready Analysis Towards a Standardized Readiness Framework, Report 2.0, January 2026",
+     "issuer": "ITU",
+     "section": "1. Data Service Capability – Quality and Labeling Metrics",
+     "page": 19,
+     "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/AI_Ready_Framework_2025.pdf",
+     "sha256": "71191768d46b6077",
+     "quote": "Research: Collaboration between domain-specific and AI research communities.",
+     "verified_verbatim": true,
+     "kind": "quotation",
+     "score": 0.0164,
+     "cosine": 0.227
+    },
+    "evidence_present": {
+     "results/multirun.json": true,
+     "results/ppo_summary.json": true,
+     "docs/REPORT.md": true
+    }
+   },
+   {
+    "factor": "Deployment",
+    "components": [
+     "Dockerfile.api",
+     "docker-compose.yml",
+     "dashboard/api.py",
+     "results/studies/latency.json"
+    ],
+    "evidence": [
+     "results/studies/latency.json",
+     "tests/test_system.py"
+    ],
+    "maturity": 2,
+    "justification": "Decision plus checks measured at about 1.4 ms on one CPU core; the container builds and serves the API. Nothing is deployed on satellite hardware.",
+    "gap": "No on-board or ground-segment integration, no E2/xApp packaging.",
+    "framework_statement": {
+     "chunk_id": "ai_ready_framework_2025#41",
+     "doc_id": "ai_ready_framework_2025",
+     "title": "ITU AI Ready Analysis Towards a Standardized Readiness Framework, Report 2.0, January 2026",
+     "issuer": "ITU",
+     "section": "1. Data Service Capability – Quality and Labeling Metrics",
+     "page": 19,
+     "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/AI_Ready_Framework_2025.pdf",
+     "sha256": "71191768d46b6077",
+     "quote": "Deployment Support: Infrastructure and ecosystem readiness for AI deployment.",
+     "verified_verbatim": true,
+     "kind": "quotation",
+     "score": 0.0164,
+     "cosine": 0.166
+    },
+    "evidence_present": {
+     "results/studies/latency.json": true,
+     "tests/test_system.py": true
+    }
+   },
+   {
+    "factor": "Standards",
+    "components": [
+     "knowledge/standards_map.yaml",
+     "agents/supervisor.py",
+     "bam/validator.py"
+    ],
+    "evidence": [
+     "knowledge/standards_map.yaml",
+     "tests/test_guard.py",
+     "tests/test_mappings.py"
+    ],
+    "maturity": 2,
+    "justification": "Y.3172 policy-before-sink is implemented as agents plus guard; standards mapping is machine-readable with gaps. No conformance testing.",
+    "gap": "3GPP and DVB-S2X documents are not in the corpus; no interoperability test.",
+    "framework_statement": {
+     "chunk_id": "ai_ready_framework_2025#41",
+     "doc_id": "ai_ready_framework_2025",
+     "title": "ITU AI Ready Analysis Towards a Standardized Readiness Framework, Report 2.0, January 2026",
+     "issuer": "ITU",
+     "section": "1. Data Service Capability – Quality and Labeling Metrics",
+     "page": 19,
+     "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/AI_Ready_Framework_2025.pdf",
+     "sha256": "71191768d46b6077",
+     "quote": "Standards: Ensuring trust, interoperability, and compliance.",
+     "verified_verbatim": true,
+     "kind": "quotation",
+     "score": 0.0164,
+     "cosine": 0.231
+    },
+    "evidence_present": {
+     "knowledge/standards_map.yaml": true,
+     "tests/test_guard.py": true,
+     "tests/test_mappings.py": true
+    }
+   },
+   {
+    "factor": "Open source",
+    "components": [
+     "LICENSE",
+     "CONTRIBUTING.md",
+     "README.md"
+    ],
+    "evidence": [
+     "LICENSE",
+     "CONTRIBUTING.md"
+    ],
+    "maturity": 2,
+    "justification": "MIT-licensed code, pinned configs, seeds and checkpoints; extension points documented in docs/ARCHITECTURE.md.",
+    "gap": "No public release, external contributors or package distribution yet.",
+    "framework_statement": {
+     "chunk_id": "ai_ready_framework_2025#42",
+     "doc_id": "ai_ready_framework_2025",
+     "title": "ITU AI Ready Analysis Towards a Standardized Readiness Framework, Report 2.0, January 2026",
+     "issuer": "ITU",
+     "section": "1. Data Service Capability – Quality and Labeling Metrics",
+     "page": 20,
+     "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/AI_Ready_Framework_2025.pdf",
+     "sha256": "71191768d46b6077",
+     "quote": "Open source and Code: Enabling rapid adoption through an open developer ecosystem.",
+     "verified_verbatim": true,
+     "kind": "quotation",
+     "score": 0.0164,
+     "cosine": 0.278
+    },
+    "evidence_present": {
+     "LICENSE": true,
+     "CONTRIBUTING.md": true
+    }
+   },
+   {
+    "factor": "Sandbox",
+    "components": [
+     "digital_twin/",
+     "scenarios/suite.yaml",
+     "scenarios/suite.py"
+    ],
+    "evidence": [
+     "tests/test_twin.py",
+     "tests/test_link_budget.py",
+     "tests/test_scenarios.py",
+     "results/scenario_suite.json"
+    ],
+    "maturity": 3,
+    "justification": "The digital twin serves as an ML sandbox; ten seeded scenarios including injected failures run with pre-written expected behaviours.",
+    "gap": "Link-budget values await specialist review; single orbit geometry.",
+    "framework_statement": {
+     "chunk_id": "ai_ready_framework_2025#43",
+     "doc_id": "ai_ready_framework_2025",
+     "title": "ITU AI Ready Analysis Towards a Standardized Readiness Framework, Report 2.0, January 2026",
+     "issuer": "ITU",
+     "section": "1. Data Service Capability – Quality and Labeling Metrics",
+     "page": 20,
+     "source_path": "simulation/server/knowledge/InputDocs/AI_Strategies/AI_Ready_Framework_2025.pdf",
+     "sha256": "71191768d46b6077",
+     "quote": "Sandbox Environments: Platforms for AI experimentation and validation.",
+     "verified_verbatim": true,
+     "kind": "quotation",
+     "score": 0.0161,
+     "cosine": 0.154
+    },
+    "evidence_present": {
+     "tests/test_twin.py": true,
+     "tests/test_link_budget.py": true,
+     "tests/test_scenarios.py": true,
+     "results/scenario_suite.json": true
+    }
+   }
+  ],
+  "governance_mechanisms": [
+   {
+    "mechanism": "Human oversight",
+    "implemented_by": "Supervisor human-review queue (cap conflicts, sustained shortfall, agent failure, data degradation)",
+    "enforcement": "software",
+    "evidence": [
+     "tests/test_resilience.py",
+     "tests/test_policy_profiles.py"
+    ]
+   },
+   {
+    "mechanism": "Traceability",
+    "implemented_by": "audit.AuditRecord per slot with agent steps, conflicts and citations",
+    "enforcement": "software",
+    "evidence": [
+     "tests/test_agents.py"
+    ]
+   },
+   {
+    "mechanism": "Capability and permission boundaries",
+    "implemented_by": "agents/registry.yaml; information boundaries in scenarios/engine.py",
+    "enforcement": "partly software (information boundaries, guard), partly documented (permissions list)",
+    "evidence": [
+     "tests/test_events.py",
+     "tests/test_registry.py"
+    ]
+   },
+   {
+    "mechanism": "Failure handling and fallback",
+    "implemented_by": "Supervisor fallbacks (reactive planner, fail-closed cap, protect-all-emergency), telemetry validator",
+    "enforcement": "software",
+    "evidence": [
+     "tests/test_resilience.py"
+    ]
+   },
+   {
+    "mechanism": "Context-specific policy",
+    "implemented_by": "policy/profiles/*.yaml with validation and conflict detection",
+    "enforcement": "software",
+    "evidence": [
+     "tests/test_policy_profiles.py"
+    ]
+   },
+   {
+    "mechanism": "Uncertainty handling",
+    "implemented_by": "Causal forecast gate; conservative mode on degraded telemetry",
+    "enforcement": "software",
+    "evidence": [
+     "tests/test_system.py",
+     "tests/test_resilience.py"
+    ]
+   }
+  ]
+ },
+ "requirements_alignment": [
+  {
+   "profile": "ae-demo",
+   "rule": "AE-HUMAN-OVERSIGHT",
+   "title": "Automated decisions stay reviewable by a human",
+   "enforcement": "software",
+   "enforced_by": "Supervisor human-review queue (3-slot trigger)",
+   "source_type": "illustrative",
+   "kb_rule": "R3_human_oversight",
+   "evidence_status": "FOUND",
+   "standards": [
+    "ISO/IEC 42001"
+   ]
+  },
+  {
+   "profile": "ae-demo",
+   "rule": "AE-RECORD-KEEPING",
+   "title": "Every slot decision is logged and traceable",
+   "enforcement": "software",
+   "enforced_by": "audit.AuditRecord per slot",
+   "source_type": "illustrative",
+   "kb_rule": "R3b_record_keeping",
+   "evidence_status": "FOUND",
+   "standards": [
+    "ISO/IEC 42001"
+   ]
+  },
+  {
+   "profile": "ae-demo",
+   "rule": "AE-NO-EXEMPTION",
+   "title": "Border cap binds even for emergency traffic (operator choice in this demo)",
+   "enforcement": "software",
+   "enforced_by": "Supervisor exemption mode \"never\"",
+   "source_type": "illustrative",
+   "kb_rule": null,
+   "evidence_status": "NO_SOURCE",
+   "standards": []
+  },
+  {
+   "profile": "ae-demo",
+   "rule": "AE-DATA-LOCALISATION",
+   "title": "Telemetry and audit logs stay in-country",
+   "enforcement": "documented",
+   "enforced_by": "not enforced; OrbitFlow writes local files only",
+   "source_type": "assumption",
+   "kb_rule": null,
+   "evidence_status": "NO_SOURCE",
+   "standards": []
+  },
+  {
+   "profile": "baseline-intl",
+   "rule": "G-HUMAN-OVERSIGHT",
+   "title": "Automated decisions stay reviewable by a human",
+   "enforcement": "software",
+   "enforced_by": "Supervisor human-review queue",
+   "source_type": "research",
+   "kb_rule": "R3_human_oversight",
+   "evidence_status": "FOUND",
+   "standards": [
+    "ISO/IEC 42001"
+   ]
+  },
+  {
+   "profile": "baseline-intl",
+   "rule": "G-RECORD-KEEPING",
+   "title": "Every slot decision is logged and traceable",
+   "enforcement": "software",
+   "enforced_by": "audit.AuditRecord per slot",
+   "source_type": "research",
+   "kb_rule": "R3b_record_keeping",
+   "evidence_status": "FOUND",
+   "standards": [
+    "ISO/IEC 42001"
+   ]
+  },
+  {
+   "profile": "baseline-intl",
+   "rule": "G-ML-POLICY-NODE",
+   "title": "Model output passes a policy function before reaching the network",
+   "enforcement": "software",
+   "enforced_by": "Policy agent + BAM guard",
+   "source_type": "official",
+   "kb_rule": "R6_ml_policy_before_sink",
+   "evidence_status": "FOUND",
+   "standards": [
+    "ITU-T Y.3172"
+   ]
+  },
+  {
+   "profile": "baseline-intl",
+   "rule": "G-SANDBOX",
+   "title": "Models are validated in a sandbox before use",
+   "enforcement": "documented",
+   "enforced_by": "Digital twin (simulation only)",
+   "source_type": "official",
+   "kb_rule": "R7_sandbox_validation",
+   "evidence_status": "FOUND",
+   "standards": [
+    "ITU-T Y.3172"
+   ]
+  },
+  {
+   "profile": "in-demo",
+   "rule": "IN-ACCOUNTABILITY",
+   "title": "Responsible-AI principle of accountability (decisions attributable and reviewable)",
+   "enforcement": "software",
+   "enforced_by": "Supervisor human-review queue + per-slot audit record",
+   "source_type": "official",
+   "kb_rule": null,
+   "evidence_status": "FOUND",
+   "standards": []
+  },
+  {
+   "profile": "in-demo",
+   "rule": "IN-RECORD-KEEPING",
+   "title": "Every slot decision is logged and traceable",
+   "enforcement": "software",
+   "enforced_by": "audit.AuditRecord per slot",
+   "source_type": "research",
+   "kb_rule": "R3b_record_keeping",
+   "evidence_status": "FOUND",
+   "standards": [
+    "ISO/IEC 42001"
+   ]
+  },
+  {
+   "profile": "in-demo",
+   "rule": "IN-EMERGENCY-EXEMPTION",
+   "title": "Emergency cells are exempt from the border cap (demonstration choice)",
+   "enforcement": "software",
+   "enforced_by": "Supervisor exemption mode \"automatic\"",
+   "source_type": "illustrative",
+   "kb_rule": "R5_emergency_exemption",
+   "evidence_status": "NONE_FOUND",
+   "standards": []
+  }
+ ],
+ "kb_rules": [
+  {
+   "id": "R1_border_power_cap",
+   "title": "Satellite emissions are limited to protect other services",
+   "parameter_source": "hypothetical_constraint",
+   "standards": [
+    "ITU-R SF.358-5"
+   ]
+  },
+  {
+   "id": "R2_emergency_priority",
+   "title": "Emergency traffic keeps service",
+   "parameter_source": "scenario_event",
+   "standards": []
+  },
+  {
+   "id": "R3_human_oversight",
+   "title": "Automated decisions stay reviewable by a human",
+   "parameter_source": "none",
+   "standards": [
+    "ISO/IEC 42001"
+   ]
+  },
+  {
+   "id": "R3b_record_keeping",
+   "title": "Automated decisions are logged and traceable",
+   "parameter_source": "none",
+   "standards": [
+    "ISO/IEC 42001"
+   ]
+  },
+  {
+   "id": "R4_signalling",
+   "title": "Initial-access signalling (SSB/SIB) is protected",
+   "parameter_source": "config_assumption",
+   "standards": [
+    "3GPP TS 38.300 / TS 38.213 (NTN, Rel-17)"
+   ]
+  },
+  {
+   "id": "R5_emergency_exemption",
+   "title": "Is emergency traffic exempt from a cross-border power limit?",
+   "parameter_source": "none",
+   "standards": []
+  },
+  {
+   "id": "R6_ml_policy_before_sink",
+   "title": "Machine-learning output passes a policy function before it reaches the network",
+   "parameter_source": "none",
+   "standards": [
+    "ITU-T Y.3172"
+   ]
+  },
+  {
+   "id": "R7_sandbox_validation",
+   "title": "Models are validated in a sandbox before deployment",
+   "parameter_source": "none",
+   "standards": [
+    "ITU-T Y.3172"
+   ]
+  },
+  {
+   "id": "R8_pfd_mask",
+   "title": "Surface power flux-density mask, dB(W/m2) in 1 MHz, by arrival angle",
+   "parameter_source": "sf358_indicative",
+   "standards": [
+    "ITU-R SF.358-5"
+   ]
+  },
+  {
+   "id": "R9_ngso_limits_in_band",
+   "title": "NGSO downlink limits apply in the 19.7-20.2 GHz band (US statement)",
+   "parameter_source": "none",
+   "standards": [
+    "ITU-R S.1503-4",
+    "FCC 26-26"
+   ]
+  }
+ ],
+ "knowledge": {
+  "catalog": {
+   "items": [
+    {
+     "path": "rag/knowledge_base/manifest.yaml",
+     "title": "Document manifest (69 ingested documents, checksums, sources)",
+     "provenance": "official",
+     "format": "yaml",
+     "consumed_by": [
+      "rag/ingest.py",
+      "rag/retriever.py",
+      "scripts/build_kb_report.py"
+     ],
+     "present": true
+    },
+    {
+     "path": "rag/index/chunks.jsonl.gz",
+     "title": "Section-aware chunks with page numbers (BM25 index source)",
+     "provenance": "official",
+     "format": "jsonl",
+     "consumed_by": [
+      "rag/retriever.py -> Policy agent evidence",
+      "policy engine evidence",
+      "/api/ask"
+     ],
+     "present": true
+    },
+    {
+     "path": "agents/policy_rules.yaml",
+     "title": "Rule definitions with evidence queries and parameter provenance",
+     "provenance": "developer",
+     "format": "yaml",
+     "consumed_by": [
+      "agents/supervisor.py:PolicyAgent",
+      "policy/engine.py"
+     ],
+     "present": true
+    },
+    {
+     "path": "policy/profiles/",
+     "title": "Country/operator policy profiles (baseline, UAE-oriented, India-oriented; all illustrative)",
+     "provenance": "illustrative",
+     "format": "yaml",
+     "consumed_by": [
+      "agents/supervisor.py:Supervisor",
+      "scenarios/flood_relief.py (via policy/engine.py)",
+      "scenarios/suite.py"
+     ],
+     "present": true
+    },
+    {
+     "path": "agents/registry.yaml",
+     "title": "Agent and component registry (roles, permissions, fallbacks)",
+     "provenance": "developer",
+     "format": "yaml",
+     "consumed_by": [
+      "agents/supervisor.py:Supervisor",
+      "agents/registry.py",
+      "/api/governance"
+     ],
+     "present": true
+    },
+    {
+     "path": "scenarios/suite.yaml",
+     "title": "Ten demonstration scenarios with pre-written expected behaviours",
+     "provenance": "synthetic",
+     "format": "yaml",
+     "consumed_by": [
+      "scenarios/suite.py",
+      "scripts/run_suite.py",
+      "/api/scenarios"
+     ],
+     "present": true
+    },
+    {
+     "path": "knowledge/standards_map.yaml",
+     "title": "Standards alignment with evidence, status and gaps",
+     "provenance": "developer",
+     "format": "yaml",
+     "consumed_by": [
+      "scripts/run_suite.py -> results/governance.json",
+      "/api/governance",
+      "UI"
+     ],
+     "present": true
+    },
+    {
+     "path": "knowledge/ai_readiness_map.yaml",
+     "title": "ITU AI Ready factor mapping with defined maturity scale",
+     "provenance": "developer",
+     "format": "yaml",
+     "consumed_by": [
+      "scripts/run_suite.py -> results/governance.json",
+      "/api/governance",
+      "UI"
+     ],
+     "present": true
+    },
+    {
+     "path": "i18n/lexicon.yaml",
+     "title": "Multilingual request lexicon (en, ar, hi, ta)",
+     "provenance": "developer",
+     "format": "yaml",
+     "consumed_by": [
+      "i18n/interpret.py",
+      "/api/interpret"
+     ],
+     "present": true
+    },
+    {
+     "path": "i18n/locales/",
+     "title": "UI strings and explanation templates (en, ar, hi, ta)",
+     "provenance": "developer",
+     "format": "json",
+     "consumed_by": [
+      "i18n/explain.py",
+      "dashboard UI"
+     ],
+     "present": true
+    },
+    {
+     "path": "results/gaps.json",
+     "title": "Machine-generated gap candidates (rules with no supporting passage)",
+     "provenance": "research",
+     "format": "json",
+     "consumed_by": [
+      "UI (rulebook chapter)"
+     ],
+     "present": true
+    },
+    {
+     "path": "config.yaml",
+     "title": "Simulation, link, guard and training parameters (ASSUMPTION-marked)",
+     "provenance": "assumption",
+     "format": "yaml",
+     "consumed_by": [
+      "every module via utils/config.py"
+     ],
+     "present": true
+    }
+   ],
+   "limitations": [
+    "No Radio Regulations, 3GPP, DVB or O-RAN documents are in the corpus.",
+    "No UAE regulatory document is in the corpus; the UAE profile has no national evidence.",
+    "Two PDFs failed to parse; no human verification of retrieved passages.",
+    "Retrieval finds supporting text; it does not establish compliance."
+   ]
+  },
+  "documents": 71,
+  "evidence_eligible": 63,
+  "by_category": {
+   "AI_Strategies": 62,
+   "AI_Use_Cases": 5,
+   "Regulatory_Supplement": 4
+  }
+ },
+ "tests": [
+  {
+   "file": "tests/test_agents.py",
+   "tests": 4,
+   "about": "The claims the demo makes about the agent layer, checked on a full flood-relief run."
+  },
+  {
+   "file": "tests/test_api_ops.py",
+   "tests": 5,
+   "about": "Operations API: scenarios, policy profiles, multilingual requests, registry and governance."
+  },
+  {
+   "file": "tests/test_bridge.py",
+   "tests": 2,
+   "about": "The sampler and its log-probability must agree, or the policy gradient is wrong."
+  },
+  {
+   "file": "tests/test_channel.py",
+   "tests": 10,
+   "about": "Test channel model (SINR, capacity calculations)."
+  },
+  {
+   "file": "tests/test_events.py",
+   "tests": 12,
+   "about": "Test event engine with information asymmetry enforcement."
+  },
+  {
+   "file": "tests/test_forecast_leak.py",
+   "tests": 1,
+   "about": "The forecast at slot t must not depend on demand the controller has not seen."
+  },
+  {
+   "file": "tests/test_game_physics.py",
+   "tests": 1,
+   "about": "The game's JavaScript twin must reproduce recorded Python runs, or the score would be unfair."
+  },
+  {
+   "file": "tests/test_guard.py",
+   "tests": 22,
+   "about": "Test BAM guardrail constraint satisfaction and repair logic."
+  },
+  {
+   "file": "tests/test_i18n.py",
+   "tests": 7,
+   "about": "Multilingual input and output: locale completeness, language detection, digit handling, explanations."
+  },
+  {
+   "file": "tests/test_link_budget.py",
+   "tests": 11,
+   "about": "Link-budget equations checked against hand-calculable references, the dataset, and the twin."
+  },
+  {
+   "file": "tests/test_mappings.py",
+   "tests": 3,
+   "about": "Standards, readiness and knowledge-catalogue files: valid statuses, real evidence paths, real documents."
+  },
+  {
+   "file": "tests/test_no_leakage.py",
+   "tests": 7,
+   "about": "Test data leakage prevention in train/val/test splits."
+  },
+  {
+   "file": "tests/test_policy_profiles.py",
+   "tests": 6,
+   "about": "Policy profiles: validation, conflict detection, and 'same traffic + same model + different profile -> different permitted action'."
+  },
+  {
+   "file": "tests/test_rag.py",
+   "tests": 14,
+   "about": "Knowledge base: real-corpus provenance plus toy-fixture behaviour. Fixtures are labelled synthetic and only used here."
+  },
+  {
+   "file": "tests/test_registry.py",
+   "tests": 4,
+   "about": "Agent registry: contracts are complete, required parts cannot be disabled, implementations are replaceable."
+  },
+  {
+   "file": "tests/test_resilience.py",
+   "tests": 8,
+   "about": "Coordinator behaviour under agent failure, malformed output, timeouts and corrupted telemetry."
+  },
+  {
+   "file": "tests/test_scenarios.py",
+   "tests": 5,
+   "about": "Scenario suite: definitions are complete, scenarios run through the pipeline, results are reproducible."
+  },
+  {
+   "file": "tests/test_system.py",
+   "tests": 22,
+   "about": "Forecasting, BRIDGE, simulation, agent and API behaviour."
+  },
+  {
+   "file": "tests/test_twin.py",
+   "tests": 6,
+   "about": "Test digital twin correctness: queue conservation, capacity, energy, etc."
+  }
+ ],
+ "health_snapshot": {
+  "scenario": "S6_agent_failure",
+  "agent_health": {
+   "network": {
+    "calls": 100,
+    "failures": 15,
+    "fallbacks": 15,
+    "by_kind": {
+     "exception": 10,
+     "malformed": 3,
+     "timeout": 2
+    },
+    "budget_overruns": 0
+   },
+   "policy": {
+    "calls": 100,
+    "failures": 6,
+    "fallbacks": 6,
+    "by_kind": {},
+    "budget_overruns": 0
+   },
+   "safety": {
+    "calls": 100,
+    "failures": 0,
+    "fallbacks": 0,
+    "by_kind": {},
+    "budget_overruns": 0
+   }
+  }
+ }
+}

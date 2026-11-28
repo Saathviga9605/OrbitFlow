@@ -1,7 +1,8 @@
 """Synthetic demand scenarios, calibrated to the real NTN trace.
 
-Calibration from dynamic_ntn_dataset.csv: hot cell ~ 40.3 Mbps (std 0.56), cold ~ 2.24 Mbps
-(std 0.13), 3-4 hotspots at a time. The satellite pass (elevation, LOS, SSB/SIB schedule,
+Calibration from open_ntn_traffic_dataset.csv (58 cells): hotspot ~ 181 Mbps (pass mean; slot-to-slot noise ~2.2),
+background cell ~ 16.2 Mbps (pass mean), 6 hotspots at a time. In the export every cell's demand ramps up through
+the pass; the generator uses pass-average levels and the same noise-to-level ratios as the 19-cell calibration. The satellite pass (elevation, LOS, SSB/SIB schedule,
 channel gain) is re-used from the real trace; only demand and fading jitter are randomised.
 
 Scenario kinds
@@ -19,12 +20,12 @@ import numpy as np
 
 from traffic.dataset import Trace
 
-COLD, HOT = 2.24, 40.3
-COLD_STD, HOT_STD = 0.13, 0.56
+COLD, HOT = 16.2, 181.0
+COLD_STD, HOT_STD = 0.9, 2.2
 
 
 def _base_noise(T: int, N: int, rng) -> np.ndarray:
-    return np.maximum(COLD + COLD_STD * rng.standard_normal((T, N)), 0.3)
+    return np.maximum(COLD + COLD_STD * rng.standard_normal((T, N)), 0.05 * COLD)
 
 
 def _stamp(rate, hot, cell, lo, hi, profile):
@@ -53,7 +54,7 @@ def make_rate(kind: str, T: int, N: int, rng) -> tuple[np.ndarray, np.ndarray]:
     rate = _base_noise(T, N, rng)
     hot = np.zeros((T, N))
     if kind == "normal":
-        rate *= 2.0                                   # balanced, a bit busier than idle
+        rate *= 1.5                                   # balanced, a bit busier than the background level
     elif kind == "block":
         t = 0
         while t < T:
@@ -84,9 +85,21 @@ def make_rate(kind: str, T: int, N: int, rng) -> tuple[np.ndarray, np.ndarray]:
     return rate, hot
 
 
+def demand_envelope(base: Trace) -> np.ndarray:
+    """(T,) pass envelope of background demand, mean 1. In the 58-cell export every cell's requested rate
+    ramps up as the satellite rises (traffic is handed to it as it becomes the serving satellite), from
+    ~2% to ~180% of the pass mean. Synthetic demand follows the same envelope so that, as in the data,
+    load grows with visibility instead of arriving while almost no cell is in line of sight."""
+    hot = base.hot.max(axis=0) > 0 if base.hot is not None else np.zeros(base.N, bool)
+    cold = base.rate[:, ~hot] if (~hot).any() else base.rate
+    env = np.median(cold, axis=1)
+    return env / max(env.mean(), 1e-9)
+
+
 def make_trace(kind: str, base: Trace, seed: int, fading_jitter_db: float = 1.0) -> Trace:
     rng = np.random.default_rng(seed)
     rate, hot = make_rate(kind, base.T, base.N, rng)
+    rate = np.maximum(rate * demand_envelope(base)[:, None], 0.05 * COLD)
     t = copy.deepcopy(base)
     t.rate, t.hot = rate, hot
     t.gain = base.gain * 10 ** (fading_jitter_db * rng.standard_normal(base.gain.shape) / 10)

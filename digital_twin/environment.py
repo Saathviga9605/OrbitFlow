@@ -39,6 +39,7 @@ class NTNTwin:
         self.q_rt = init_kb * self.rt_share
         self.q_nrt = init_kb * (1 - self.rt_share)
         self.guard_state = GuardState.fresh(self.N)
+        self.last_decodable = np.full(self.N, -10 ** 6)       # last slot a cell was reachable by an equal-share beam
         self.prev_lit = np.zeros(self.N, bool)
         self.prev_power = np.zeros(self.N)
         self.history: list[dict] = []
@@ -97,7 +98,16 @@ class NTNTwin:
         rate_sum = max(float(tr.rate[t].sum()), 1e-6)
         delay_ms = float((self.q_rt + self.q_nrt).sum() / rate_sum)          # Little's law, system level
         rt_delay_cell = self.q_rt / np.maximum(tr.rate[t] * self.rt_share, 1e-6)
-        rt_viol = float((rt_delay_cell > self.rt_budget).mean())
+        rt_late = rt_delay_cell > self.rt_budget
+        rt_viol = float(rt_late.mean())
+        # Serviceable: an equal-share beam (p_max/K, no interference) could have decoded this cell at some slot inside
+        # the RT budget window. Lateness outside that window is caused by blockage/geometry, not by scheduling.
+        snr_eq = (self.p_max / self.K) * tr.gain[t] * self.link.gain_lin / self.link.noise_w
+        dec = snr_eq >= self.link.sinr_min
+        if self.link.require_los:
+            dec &= tr.los[t] > 0
+        self.last_decodable = np.where(dec, t, self.last_decodable)
+        servable = (t - self.last_decodable) * self.slot_ms < self.rt_budget
         
         # Emergency SLA violation: fraction of emergency cells over RT budget
         emergency_cells = tr.emergency[t] > 0
@@ -121,6 +131,9 @@ class NTNTwin:
             "q_nrt": self.q_nrt.copy(),
             "delay_ms": delay_ms,
             "rt_violation": rt_viol,
+            "rt_late_servable": int((rt_late & servable).sum()),
+            "servable": int(servable.sum()),
+            "rt_late_unservable": int((rt_late & ~servable).sum()),
             "emergency_rt_violation": emergency_rt_viol,
             "throughput_mbps": float(served.sum() / self.slot_ms),
             "energy_j": float(power.sum() * self.slot_ms / 1000.0),
@@ -155,6 +168,11 @@ def summarise(history: list[dict], slot_ms: float, extra: dict | None = None) ->
         "mean_delay_ms": float(np.mean([h["delay_ms"] for h in history])),
         "p95_delay_ms": float(np.percentile([h["delay_ms"] for h in history], 95)),
         "rt_sla_violation": float(np.mean([h["rt_violation"] for h in history])),
+        # scheduling KPI: late RT data only where service was physically possible (see NTNTwin.step)
+        "rt_sla_violation_servable": float(sum(h.get("rt_late_servable", 0) for h in history) / max(sum(h.get("servable", 0) for h in history), 1)),
+        "rt_late_unavoidable_share": float(sum(h.get("rt_late_unservable", 0) for h in history)
+                                           / max(sum(h.get("rt_late_unservable", 0) + h.get("rt_late_servable", 0) for h in history), 1)),
+        "servable_share": float(sum(h.get("servable", 0) for h in history) / max(n * len(history[0]["lit"]), 1)),
         "emergency_rt_violation": float(np.mean(emergency_rt_viols)) if emergency_rt_viols else float("nan"),
         "jain_fairness": jain,
         "mean_sinr_db": float(sinr_lit.mean()) if len(sinr_lit) else float("nan"),

@@ -16,7 +16,7 @@ from bridge.baselines import Action, Policy
 
 N_FEATURES = 19
 FORECAST_FEATURES = [12, 13, 14, 15]
-RATE_SCALE = 40.0
+RATE_SCALE = 200.0          # ~ hotspot level (181 Mbps) in the 58-cell dataset; was 40 for the 19-cell trace
 MASK = 1e4
 
 

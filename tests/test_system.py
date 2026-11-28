@@ -16,7 +16,7 @@ from bridge.policy import BridgeNet, BridgePolicy
 from digital_twin.environment import NTNTwin
 from rag.retriever import KnowledgeBase
 from scenarios.flood_relief import build
-from traffic.dataset import load_openntn_sionna, load_trace
+from traffic.dataset import check_channel_consistency, load_pass_arrivals, load_trace
 from traffic.forecaster import Forecaster, gate_forecast, persistence_trace
 from traffic.generator import make_trace
 from traffic.splits import create_splits
@@ -24,6 +24,9 @@ from utils.config import REAL_TRACE, ROOT, load_config
 from utils.stats import holm, paired, summary
 
 CFG = load_config()
+N, K, PMAX = CFG["scenario"]["n_cells"], CFG["scenario"]["k_beams"], CFG["scenario"]["p_max_w"]
+EV = CFG["demo"]["event_cell"]
+EM = CFG["demo"]["emergency_cells"]
 BASE = load_trace(REAL_TRACE)
 FC_PATH = os.path.join(ROOT, "models", "traffic_predictor.pt")
 BR_PATH = os.path.join(ROOT, "models", "bridge_ppo.pt")
@@ -48,9 +51,9 @@ def test_forecaster_serialises_and_reloads_identically(tmp_path):
 def test_gradual_surge_beats_persistence_and_gate_is_causal():
     fc = Forecaster.load(CFG, FC_PATH)
     tr = copy.deepcopy(make_trace("normal", BASE, 3))
-    tr.rate[:, 7] = 3.0
-    tr.rate[20:40, 7] = np.linspace(3, 40, 20)
-    tr.rate[40:, 7] = 40.0
+    tr.rate[:, 7] = 13.5
+    tr.rate[20:40, 7] = np.linspace(13.5, 181.0, 20)
+    tr.rate[40:, 7] = 181.0
     f, p = fc.predict_trace(tr), persistence_trace(tr)
     w = np.arange(25, 38)
     assert np.abs(f[w, 7, 0] - tr.rate[w, 7]).mean() < np.abs(p[w, 7, 0] - tr.rate[w, 7]).mean()
@@ -84,7 +87,7 @@ def test_action_validity_over_full_episode(policy):
     o = tw.reset()
     while not tw.done:
         a = policy.act(o)
-        assert a.lit.sum() == 4 and a.power.sum() == pytest.approx(100.0) and (a.power[a.lit] >= 2.0 - 1e-9).all() and not a.power[~a.lit].any()
+        assert a.lit.sum() == K and a.power.sum() == pytest.approx(PMAX) and (a.power[a.lit] >= 2.0 - 1e-9).all() and not a.power[~a.lit].any()
         tw.step(a.lit, a.power)
         o = tw.obs()
 
@@ -130,9 +133,9 @@ def test_guard_repair_never_breaks_hard_limits():
     o = NTNTwin(BASE, CFG).reset()
     rng = np.random.default_rng(1)
     for _ in range(300):
-        lit = rng.random(19) < 0.4
-        res = g.repair(lit, rng.uniform(0, 80, 19) * lit, o["guard"], 1.0, 0.0, priority=rng.random(19))
-        assert res.lit.sum() <= 4 and res.power.sum() <= 100 + 1e-6
+        lit = rng.random(N) < 0.4
+        res = g.repair(lit, rng.uniform(0, 80, N) * lit, o["guard"], 1.0, 0.0, priority=rng.random(N))
+        assert res.lit.sum() <= K and res.power.sum() <= PMAX + 1e-6
 
 
 # ---------------------------------------------------------------- simulation
@@ -141,20 +144,20 @@ def test_scenario_reproducible_and_duration_is_configurable():
     b, _ = build(BASE, None, 5)
     assert np.array_equal(a.rate, b.rate)
     c, feed = build(BASE, {"surge_end": 45}, 5)
-    assert c.emergency[44, 13] == 1 and c.emergency[45, 13] == 0
+    assert c.emergency[44, EV] == 1 and c.emergency[45, EV] == 0
     assert next(e for e in feed.events if e.id == "recovery_start").slot == 45
 
 
 def test_rain_fade_scales_gain_only_in_window_and_only_on_emergency_cells():
     a, _ = build(BASE, {"fade_db": 0.0}, 5)
     b, _ = build(BASE, {"fade_db": 6.0}, 5)
-    assert b.gain[50, 13] == pytest.approx(a.gain[50, 13] * 10 ** -0.6)
-    assert b.gain[40, 13] == a.gain[40, 13] and b.gain[50, 2] == a.gain[50, 2]
+    assert b.gain[50, EV] == pytest.approx(a.gain[50, EV] * 10 ** -0.6)
+    assert b.gain[40, EV] == a.gain[40, EV] and b.gain[50, 2] == a.gain[50, 2]
 
 
 def test_queue_conservation_under_full_stack():
     t, feed = build(BASE, None, 6)
-    r = Supervisor(CFG, ReactiveGreedy(19, 4, 100.0), feed, KB).run(t)
+    r = Supervisor(CFG, ReactiveGreedy(N, K, PMAX), feed, KB).run(t)
     H = r["history"]
     q0 = t.rate[0] * CFG["queues"]["init_backlog_ms"]
     total = q0 + sum(h["arrived_kb"] for h in H) - sum(h["served_kb"] + h["dropped_kb"] for h in H) - H[-1]["q_rt"] - H[-1]["q_nrt"]
@@ -162,8 +165,14 @@ def test_queue_conservation_under_full_stack():
 
 
 def test_second_offline_trace_loads_consistently():
-    t = load_openntn_sionna(ROOT)
+    t = load_pass_arrivals(ROOT)
     assert t.rate.shape == BASE.rate.shape and np.array_equal(t.los, BASE.los) and not np.array_equal(t.rate, BASE.rate)
+    assert BASE.rate.shape == (100, N)
+
+
+def test_traffic_and_sionna_exports_describe_the_same_pass():
+    c = check_channel_consistency(ROOT)
+    assert c["rows"] == 100 * N and c["gain_equal"] and c["los_equal"] and c["coords_equal"]
 
 
 # ---------------------------------------------------------------- agents
@@ -177,7 +186,7 @@ def test_emergency_transition_tapers_only_when_configured():
     assert SafetyAgent(feed, cfg).recovering_cells(65) == []
     cfg["emergency"]["release"] = "taper"
     s = SafetyAgent(feed, cfg)
-    assert s.recovering_cells(65) == [13, 14] and s.recovering_cells(61 + cfg["emergency"]["taper_max_slots"]) == []
+    assert s.recovering_cells(65) == sorted(EM) and s.recovering_cells(61 + cfg["emergency"]["taper_max_slots"]) == []
 
 
 def test_information_boundaries_hold_for_every_agent():
@@ -190,10 +199,10 @@ def test_information_boundaries_hold_for_every_agent():
 
 def test_latency_is_measured_for_each_stage_and_agents_off_skips_them():
     t, feed = build(BASE, None, 8)
-    on = Supervisor(CFG, ReactiveGreedy(19, 4, 100.0), feed, KB).run(t)["compute_ms"]
+    on = Supervisor(CFG, ReactiveGreedy(N, K, PMAX), feed, KB).run(t)["compute_ms"]
     assert all(len(on[k]) == 100 for k in ("network", "policy", "safety", "guard", "audit"))
     t, feed = build(BASE, None, 8)
-    off = Supervisor(CFG, ReactiveGreedy(19, 4, 100.0), feed, KB, agents_on=False).run(t)["compute_ms"]
+    off = Supervisor(CFG, ReactiveGreedy(N, K, PMAX), feed, KB, agents_on=False).run(t)["compute_ms"]
     assert off["policy"] == [] and len(off["guard"]) == 100     # hard validation stays on in every configuration
 
 
@@ -245,14 +254,15 @@ def test_emergency_cell_is_not_dropped_when_another_is_forced_on():
 
     class FourWithOneEmergency(Policy):
         def act(self, obs):
-            lit = np.zeros(19, bool)
-            lit[[13, 2, 5, 9]] = True
-            p = np.zeros(19)
-            p[[13, 2, 5, 9]] = 25.0
-            return Action(lit, p, priority=np.where(np.arange(19) == 13, -5.0, 1.0))
+            cells = [EV] + [c for c in range(N) if c not in EM][: K - 1]
+            lit = np.zeros(N, bool)
+            lit[cells] = True
+            p = np.zeros(N)
+            p[cells] = PMAX / K
+            return Action(lit, p, priority=np.where(np.arange(N) == EV, -5.0, 1.0))
 
     t, feed = build(BASE, None, 9)
     r = Supervisor(CFG, FourWithOneEmergency(), feed, KB).run(t)
     # only hard signalling deadlines may take its beam
-    assert all(13 in x.final["beams"] or any("forced cells" in n for n in x.repairs) for x in r["records"][28:61])
-    assert sum(13 in x.final["beams"] for x in r["records"][28:61]) >= 30
+    assert all(EV in x.final["beams"] or any("forced cells" in n for n in x.repairs) for x in r["records"][28:61])
+    assert sum(EV in x.final["beams"] for x in r["records"][28:61]) >= 30

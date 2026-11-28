@@ -40,24 +40,25 @@ def test_network_failure_uses_fallback_and_is_traced(rt, flood, mode):
 
 
 def test_policy_agent_down_fails_closed_even_before_the_notice(rt, flood):
+    prof = flood[0]
     r = _run(rt, flood, {"policy": {"mode": "exception", "slots": [30, 40]}})
     for rec in r["records"][30:40]:                     # notice arrives at slot 50, but fail-closed caps already
-        assert all(rec.final["power_w"].get(c, 0) <= 22.0 + 1e-6 for c in (13, 14, 15, 16))
+        assert all(rec.final["power_w"].get(c, 0) <= 22.0 + 1e-6 for c in prof["operating_constraints"]["border_power_cap"]["cells"])
     assert r["coordination"]["agent_health"]["policy"]["failures"] == 10
 
 
 def test_safety_agent_down_protects_every_emergency_cell(rt, flood):
     r = _run(rt, flood, {"safety": {"mode": "exception", "slots": [30, 35]}})
     for rec in r["records"][30:35]:
-        assert {13, 14} <= set(rec.final["beams"])
+        assert set(rt["cfg"]["demo"]["emergency_cells"]) <= set(rec.final["beams"])
 
 
 def test_corrupt_telemetry_is_imputed_and_never_reaches_the_guard(rt, flood):
-    r = _run(rt, flood, {"telemetry": [{"mode": "nan", "slots": [30, 35], "cells": [13, 14]},
-                                       {"mode": "stale", "slots": [60, 70], "cells": list(range(10))}]})
+    r = _run(rt, flood, {"telemetry": [{"mode": "nan", "slots": [30, 35], "cells": rt["cfg"]["demo"]["emergency_cells"]},
+                                       {"mode": "stale", "slots": [60, 70], "cells": list(range(20))}]})
     dq = r["coordination"]["data_quality"]
     assert dq["degraded_slots"] == 5 + 8                 # stale is detected once the report is older than 3 slots
-    assert dq["conservative_slots"] == 8                 # 10 of 19 cells stale > 25% threshold
+    assert dq["conservative_slots"] == 8                 # 20 of 58 cells stale > 25% threshold
     assert all(np.isfinite(list(rec.final["power_w"].values())).all() for rec in r["records"])
     assert any(s["agent"] == "data_validator" for s in r["records"][30].trace)
     assert r["coordination"]["human_review_by_kind"].get("data_degradation") == 1
@@ -68,7 +69,7 @@ def test_validator_is_identity_on_clean_observations(rt, flood):
     from agents.registry import build_network_policy
     sup = Supervisor(rt["cfg"], build_network_policy(rt["cfg"]), feed, rt["kb"], profile=prof)
     sup._last_good = None
-    obs = {"rate_obs": np.ones(19), "forecast": np.ones((19, 3))}
+    obs = {"rate_obs": np.ones(58), "forecast": np.ones((58, 3))}
     out, dq = sup._validate_obs(obs, 0)
     assert out is obs and dq is None
 
